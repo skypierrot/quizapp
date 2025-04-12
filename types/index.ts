@@ -22,16 +22,29 @@ export interface IExam {
 
 // 문제 인터페이스
 export interface IQuestion {
-  id: string;
-  examId: string;
+  id: string | number;
+  number: number;
   content: string;
-  options: string[];
+  options: IOption[];
   answer: number;
+  examples?: string[];
   explanation?: string;
-  imageUrl?: string;
-  tags: string[];
-  createdAt: Date;
-  updatedAt: Date;
+  images?: IQuestionImage[];
+  explanationImages?: IQuestionImage[];
+  created_at?: Date;
+  updated_at?: Date;
+}
+
+export interface IOption {
+  number: number;
+  text: string;
+  images?: IQuestionImage[];
+}
+
+export interface IQuestionImage {
+  id: number;
+  path: string;
+  type: 'question' | 'option' | 'explanation';
 }
 
 // 시험 결과 인터페이스

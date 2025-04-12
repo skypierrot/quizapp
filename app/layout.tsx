@@ -1,11 +1,16 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+// import { Inter } from 'next/font/google'; // 중복 제거
 // import { ClerkProvider } from '@clerk/nextjs';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
+import { inter } from '@/lib/fonts';
+import { Toaster } from "@/components/ui/toaster"
 
-const inter = Inter({ subsets: ['latin'] });
+// 개발 모드 스크립트 추가 (WebSocket 문제 해결)
+import './dev-mode';
+
+// const inter = Inter({ subsets: ['latin'] }); // 중복 제거
 
 export const metadata: Metadata = {
   title: '기술자격시험 학습 플랫폼',
@@ -32,6 +37,7 @@ export default function RootLayout({
           <main className="flex-grow">{children}</main>
           <Footer />
         </div>
+        <Toaster />
       </body>
     </html>
   );
