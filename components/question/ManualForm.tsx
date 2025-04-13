@@ -8,10 +8,11 @@ import { useToast } from "@/components/ui/use-toast";
 import { cn, generateId } from "@/lib/utils";
 import { Loader2, X, Image as ImageIcon, Plus, Trash2 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { ToastType } from "@/types/toast";
+import { ToastType, ToastVariant } from "@/types/toast";
 import { convertToBase64, handleImageUpload } from "@/utils/image";
 import { Label } from "@/components/ui/label";
-import { ToastVariant } from "@/types/toast";
+import { Badge } from "@/components/ui/badge";
+import { IParsedQuestion } from "./PasteForm/types";
 
 // 단일 문제를 위한 인터페이스
 interface IManualQuestion {
@@ -35,13 +36,17 @@ export interface ManualFormProps {
   isEditMode?: boolean;
   questionId?: string;
   onSuccess?: () => void;
+  apiMethod?: "POST" | "PUT" | "PATCH";
+  apiUrl?: string;
 }
 
 export function ManualForm({ 
   initialData, 
   isEditMode = false, 
   questionId,
-  onSuccess
+  onSuccess,
+  apiMethod,
+  apiUrl
 }: ManualFormProps) {
   // 단일 문제 상태 관리
   const [question, setQuestion] = useState<IManualQuestion>(() => {
@@ -79,7 +84,135 @@ export function ManualForm({
   
   // 상태 관리
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [tagInput, setTagInput] = useState("");
+  const [tagInput, setTagInput] = useState<string>("");
+  
+  // 직접 태그 관련 상태 관리
+  const [examName, setExamName] = useState<string>("");
+  const [year, setYear] = useState<string>("");
+  const [session, setSession] = useState<string>("");
+  const [subject, setSubject] = useState<string>("");
+  
+  // 초기 데이터가 있는 경우 기본 태그 정보 설정
+  useEffect(() => {
+    if (initialData && initialData.tags) {
+      // 시험명, 년도, 회차, 과목 태그 파싱
+      initialData.tags.forEach(tag => {
+        if (tag.startsWith('시험명:')) setExamName(tag.replace('시험명:', ''));
+        else if (tag.startsWith('년도:')) setYear(tag.replace('년도:', ''));
+        else if (tag.startsWith('회차:')) setSession(tag.replace('회차:', ''));
+        else if (tag.startsWith('과목:')) setSubject(tag.replace('과목:', ''));
+      });
+    }
+  }, [initialData]);
+  
+  // 파싱된 질문 상태 (TagManager에서 필요한 형식으로 변환)
+  const parsedQuestions: IParsedQuestion[] = [{
+    id: question.id || generateId(),
+    number: question.number || 1,
+    content: question.content,
+    options: question.options.map((opt, idx) => ({
+      id: generateId(),
+      content: opt.text
+    })),
+    answer: question.answer >= 0 ? question.answer : 0,
+    tags: question.tags.map(tag => ({
+      id: generateId(),
+      name: tag,
+      color: 'gray'
+    })),
+    images: [],
+    explanationImages: [],
+    examples: [],
+    explanation: question.explanation || "",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }];
+  
+  const [parsedQuestionsState, setParsedQuestionsState] = useState<IParsedQuestion[]>(parsedQuestions);
+  
+  // parsedQuestionsState가 변경될 때 question.tags 업데이트
+  useEffect(() => {
+    if (parsedQuestionsState.length > 0) {
+      setQuestion(prev => ({
+        ...prev,
+        tags: parsedQuestionsState[0].tags.map(tag => tag.name)
+      }));
+    }
+  }, [parsedQuestionsState]);
+  
+  // 태그 추가 함수
+  const addTag = (tag: string) => {
+    // 입력값이 없으면 처리하지 않음
+    const trimmedInput = tag.trim();
+    if (!trimmedInput) return;
+    
+    // 중복 태그 확인 (대소문자 구분 없이, 공백 제거 후 비교)
+    const isDuplicate = question.tags.some(
+      tag => tag.trim().toLowerCase() === trimmedInput.toLowerCase()
+    );
+    
+    if (isDuplicate) {
+      toast({
+        title: "중복된 태그",
+        description: "이미 존재하는 태그입니다.",
+      });
+      return;
+    }
+    
+    // 문제 태그에 직접 추가
+    setQuestion(prev => ({
+      ...prev,
+      tags: [...prev.tags, trimmedInput],
+    }));
+    
+    // 동시에 파싱된 질문 상태에도 반영
+    setParsedQuestionsState(prev => {
+      if (prev.length === 0) return prev;
+      
+      const newTagObject = {
+        id: generateId(),
+        name: trimmedInput,
+        color: 'gray'
+      };
+      
+      return [
+        {
+          ...prev[0],
+          tags: [...prev[0].tags, newTagObject]
+        },
+        ...prev.slice(1)
+      ];
+    });
+    
+    // 입력 필드 초기화
+    setTagInput('');
+    
+    // 디버깅 로그 추가
+    console.log("[DEBUG] 태그 추가됨:", trimmedInput);
+  };
+  
+  // 태그 제거 함수
+  const removeTag = (tagToRemove: string) => {
+    // 문제 태그에서 제거
+    setQuestion(prev => ({
+      ...prev,
+      tags: prev.tags.filter(tag => tag !== tagToRemove)
+    }));
+    
+    // 동시에 파싱된 질문 상태에서도 제거
+    setParsedQuestionsState(prev => {
+      if (prev.length === 0) return prev;
+      
+      return [
+        {
+          ...prev[0],
+          tags: prev[0].tags.filter(tag => tag.name !== tagToRemove)
+        },
+        ...prev.slice(1)
+      ];
+    });
+  };
+  
   const [activeImageType, setActiveImageType] = useState<'question' | 'explanation' | null>(null);
   const [imageEventProcessing, setImageEventProcessing] = useState(false);
   const [isImageAreaActive, setIsImageAreaActive] = useState(false); // 이미지 영역 활성화 상태
@@ -184,7 +317,7 @@ export function ManualForm({
     });
 
     if (!blob) {
-      toast({ title: "이미지가 선택되지 않았습니다", variant: "destructive" as any });
+      toast({ title: "이미지가 선택되지 않았습니다", variant: "destructive" });
       setImageEventProcessing(false);
       return;
     }
@@ -193,14 +326,14 @@ export function ManualForm({
       toast({ 
         title: "이미지 크기가 너무 큽니다", 
         description: "10MB 이하의 이미지만 업로드 가능합니다", 
-        variant: "destructive" as any 
+        variant: "destructive" 
       });
       setImageEventProcessing(false);
       return;
     }
     
     if (!blob.type.startsWith('image/')) {
-      toast({ title: "이미지 파일만 업로드 가능합니다", variant: "destructive" as any });
+      toast({ title: "이미지 파일만 업로드 가능합니다", variant: "destructive" });
       setImageEventProcessing(false);
       return;
     }
@@ -225,7 +358,7 @@ export function ManualForm({
           toast({ 
             title: "이미지 중복", 
             description: "이 이미지는 이미 등록되었습니다.", 
-            variant: "warning" as any 
+            variant: "warning"
           });
         } else {
           console.log("[DEBUG] 이미지 추가: 해설");
@@ -237,7 +370,7 @@ export function ManualForm({
           toast({
             title: "이미지 추가 완료",
             description: "해설 이미지가 추가되었습니다.",
-            variant: "success" as any
+            variant: "success"
           });
         }
       } else {
@@ -255,7 +388,7 @@ export function ManualForm({
           toast({ 
             title: "이미지 중복", 
             description: "이 이미지는 이미 등록되었습니다.", 
-            variant: "warning" as any 
+            variant: "warning"
           });
         } else {
           console.log("[DEBUG] 이미지 추가: 문제");
@@ -267,7 +400,7 @@ export function ManualForm({
           toast({
             title: "이미지 추가 완료",
             description: "문제에 이미지가 추가되었습니다.",
-            variant: "success" as any
+            variant: "success"
           });
         }
       }
@@ -276,7 +409,7 @@ export function ManualForm({
       toast({ 
         title: "이미지 처리 실패", 
         description: "이미지를 처리하는 중 오류가 발생했습니다.", 
-        variant: "destructive" as any 
+        variant: "destructive"
       });
     } finally {
       // 항상 처리 완료 후 상태 리셋 (지연시간 단축)
@@ -287,19 +420,41 @@ export function ManualForm({
     }
   };
 
-  // 클립보드 이미지 붙여넣기 처리 - 텍스트 영역 전용
-  const handleTextAreaPaste = (e: React.ClipboardEvent) => {
-    // 텍스트 붙여넣기만 처리 (이미지는 처리하지 않음)
-    // 이미지 관련 기본 동작 취소
+  // TextArea에서 이미지가 붙여넣기 되었을 때 처리
+  const handleTextAreaPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const textarea = e.currentTarget;
     const items = e.clipboardData.items;
+    
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.indexOf('image') === 0) {
-        // 텍스트 영역에서는 이미지 붙여넣기 무시
-        console.log("텍스트 영역에서 이미지 붙여넣기 무시됨");
-        return;
+        // 이미지가 발견되었을 때 처리
+        console.log('TextArea에 이미지 붙여넣기 감지');
+        e.preventDefault(); // 기본 동작 방지
+        
+        // 커서 위치의 TextArea가 문제 내용인지 해설인지 확인
+        if (textarea === contentRef.current) {
+          setActiveImageType('question');
+        } else if (textarea === explanationRef.current) {
+          setActiveImageType('explanation');
+        }
+        
+        setIsImageAreaActive(true);
+        
+        // 이미지 파일로 변환하여 처리
+        const blob = items[i].getAsFile();
+        if (blob) {
+          setImageEventProcessing(true);
+          const isExplanation = textarea === explanationRef.current;
+          handleImageBlob(blob, isExplanation)
+            .finally(() => {
+              setTimeout(() => {
+                setImageEventProcessing(false);
+              }, 500);
+            });
+        }
+        break;
       }
     }
-    // 텍스트 붙여넣기는 기본 동작 유지
   };
 
   // 이미지 업로드 처리
@@ -312,7 +467,7 @@ export function ManualForm({
       toast({
         title: "이미지 추가 실패",
         description: "이미지 파일만 업로드할 수 있습니다.",
-        variant: "destructive" as any
+        variant: "destructive"
       });
       return;
     }
@@ -322,7 +477,7 @@ export function ManualForm({
       toast({
         title: "이미지 크기가 너무 큽니다",
         description: "10MB 이하의 이미지만 업로드 가능합니다",
-        variant: "destructive" as any
+        variant: "destructive"
       });
       return;
     }
@@ -342,7 +497,7 @@ export function ManualForm({
         toast({
           title: "이미지 추가 완료",
           description: "해설에 이미지가 추가되었습니다.",
-          variant: "success" as any
+          variant: "success"
         });
       } else {
         // 질문 이미지 업데이트
@@ -353,7 +508,7 @@ export function ManualForm({
         toast({
           title: "이미지 추가 완료",
           description: "문제에 이미지가 추가되었습니다.",
-          variant: "success" as any
+          variant: "success"
         });
       }
     };
@@ -362,7 +517,7 @@ export function ManualForm({
       toast({
         title: "이미지 추가 실패",
         description: "이미지를 처리하는 중 오류가 발생했습니다.",
-        variant: "destructive" as any
+        variant: "destructive"
       });
     };
     
@@ -473,26 +628,78 @@ export function ManualForm({
     });
   };
 
-  // 태그 관리
-  const addTag = (tag: string) => {
-    if (!tag.trim()) return;
+  // 기본 태그 적용 (시험명, 년도, 회차, 과목)
+  const applyBasicTags = () => {
+    // 필수 태그 유효성 검사
+    const isExamNameValid = !!examName.trim();
+    const isYearValid = !!year.trim();
+    const isSessionValid = !!session.trim();
     
-    setQuestion(prev => {
-      if (prev.tags.includes(tag.trim())) return prev;
-      return {
-        ...prev,
-        tags: [...prev.tags, tag.trim()]
-      };
-    });
+    // 필수 태그가 비어있으면 경고 표시 후 중단
+    if (!isExamNameValid || !isYearValid || !isSessionValid) {
+      toast({
+        title: "필수 태그를 모두 입력해주세요",
+        description: "시험명, 년도, 회차는 필수 입력 항목입니다."
+      });
+      return false;
+    }
     
-    setTagInput('');
-  };
-
-  const removeTag = (tagToRemove: string) => {
+    const tagsToAdd: string[] = [];
+    
+    // 필수 태그 추가
+    tagsToAdd.push(`시험명:${examName.trim()}`);
+    tagsToAdd.push(`년도:${year.trim()}`);
+    tagsToAdd.push(`회차:${session.trim()}`);
+    
+    // 과목은 선택 사항 - 입력된 경우에만 추가
+    if (subject.trim()) {
+      tagsToAdd.push(`과목:${subject.trim()}`);
+    }
+    
+    // 기존 태그에서 기본 태그(시험명, 년도, 회차, 과목) 제거
+    const filteredTags = question.tags.filter(tag => 
+      !(tag.startsWith('시험명:') || tag.startsWith('년도:') || 
+        tag.startsWith('회차:') || tag.startsWith('과목:'))
+    );
+    
+    // 새 태그 설정
     setQuestion(prev => ({
       ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
+      tags: [...filteredTags, ...tagsToAdd]
     }));
+    
+    // 파싱된 질문 상태에도 반영
+    setParsedQuestionsState(prev => {
+      if (prev.length === 0) return prev;
+      
+      // 기존 태그에서 기본 태그 제거
+      const filteredParsedTags = prev[0].tags.filter(tag => 
+        !(tag.name.startsWith('시험명:') || tag.name.startsWith('년도:') || 
+          tag.name.startsWith('회차:') || tag.name.startsWith('과목:'))
+      );
+      
+      // 새 기본 태그 생성
+      const newTagObjects = tagsToAdd.map(tagName => ({
+        id: generateId(),
+        name: tagName,
+        color: 'gray'
+      }));
+      
+      return [
+        {
+          ...prev[0],
+          tags: [...filteredParsedTags, ...newTagObjects]
+        },
+        ...prev.slice(1)
+      ];
+    });
+    
+    toast({
+      title: "태그가 적용되었습니다",
+      description: `${tagsToAdd.length}개의 기본 태그가 적용되었습니다.`
+    });
+    
+    return true;
   };
 
   // 폼 제출
@@ -502,7 +709,7 @@ export function ManualForm({
     if (!question.content) {
       toast({
         title: "문제 내용을 입력하세요",
-        variant: "destructive" as any
+        variant: "destructive"
       });
       return;
     }
@@ -510,7 +717,7 @@ export function ManualForm({
     if (question.options.some(opt => !opt.text)) {
       toast({
         title: "모든 선택지를 입력하세요",
-        variant: "destructive" as any
+        variant: "destructive"
       });
       return;
     }
@@ -518,13 +725,24 @@ export function ManualForm({
     if (question.answer < 0) {
       toast({
         title: "정답을 선택하세요",
-        variant: "destructive" as any
+        variant: "destructive"
       });
       return;
     }
     
     setIsSubmitting(true);
-    
+
+    // 기본 태그 설정
+    if (!applyBasicTags()) {
+      toast({
+        title: "필수 태그를 올바르게 입력하세요",
+        description: "시험명, 년도, 회차는 필수 입력 항목입니다.",
+        variant: "destructive"
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       // API 호출 시 IOption을 문자열 배열로 변환
       const apiData = {
@@ -534,18 +752,17 @@ export function ManualForm({
         explanation: question.explanation || "",
         images: question.images || [],
         explanationImages: question.explanationImages || [],
-        tags: question.tags || [],
+        tags: question.tags,
         updatedAt: new Date()
       };
       
       console.log('문제 저장/수정 데이터:', apiData);
       
-      // 수정 모드와 생성 모드 분기
-      const url = isEditMode
-        ? `/api/questions/${questionId}`
-        : "/api/questions";
-        
-      const method = isEditMode ? "PATCH" : "POST";
+      // 커스텀 URL과 메서드 사용 또는 기본값 설정
+      const url = apiUrl || (isEditMode ? `/api/questions/${questionId}` : "/api/questions");
+      const method = apiMethod || (isEditMode ? "PATCH" : "POST");
+      
+      console.log('API 요청 정보:', { url, method });
       
       const response = await fetch(url, {
         method,
@@ -596,7 +813,7 @@ export function ManualForm({
       toast({
         title: "문제 저장 실패",
         description: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
-        variant: "destructive" as any
+        variant: "destructive"
       });
     } finally {
       setIsSubmitting(false);
@@ -641,7 +858,167 @@ export function ManualForm({
   }, [isImageAreaActive, imageEventProcessing]);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6" onKeyDown={(e) => {
+      // 태그 입력 필드에서 Enter 키를 누를 때 폼 제출을 방지
+      if (e.key === 'Enter' && e.target instanceof HTMLInputElement && e.target.name === 'tagInput') {
+        e.preventDefault();
+      }
+    }}>
+      {/* 태그 관리 섹션을 문제 내용 위로 이동 */}
+      <div className="space-y-4">
+        <div className="flex flex-col">
+          <h3 className="text-base font-medium mb-2">태그 관리</h3>
+          
+          {/* 기본 태그 설정 (시험명, 년도, 회차, 과목) */}
+          <div className="mb-4 p-3 border border-gray-200 rounded-md bg-gray-50">
+            <div className="w-full">
+              <h4 className="text-sm font-medium mb-2">기본 태그 설정</h4>
+              <p className="text-xs text-gray-500 mb-3">
+                <span className="text-red-500 font-bold">*</span> 표시는 필수 입력 항목입니다
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 w-full">
+              <div className="flex items-center gap-2">
+                <label className="text-sm whitespace-nowrap font-medium">
+                  시험명: <span className="text-red-500 font-bold">*</span>
+                </label>
+                <Input 
+                  type="text" 
+                  value={examName} 
+                  onChange={(e) => setExamName(e.target.value)}
+                  onCompositionEnd={(e) => setExamName((e.target as HTMLInputElement).value)}
+                  className={`w-32 h-8 text-sm ${!examName.trim() ? 'border-red-300' : ''}`}
+                  placeholder="산업안전기사"
+                  required
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm whitespace-nowrap font-medium">
+                  년도: <span className="text-red-500 font-bold">*</span>
+                </label>
+                <Input 
+                  type="text" 
+                  value={year} 
+                  onChange={(e) => setYear(e.target.value)}
+                  onCompositionEnd={(e) => setYear((e.target as HTMLInputElement).value)}
+                  className={`w-20 h-8 text-sm ${!year.trim() ? 'border-red-300' : ''}`}
+                  placeholder="2024"
+                  required
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm whitespace-nowrap font-medium">
+                  회차: <span className="text-red-500 font-bold">*</span>
+                </label>
+                <Input 
+                  type="text" 
+                  value={session} 
+                  onChange={(e) => setSession(e.target.value)}
+                  onCompositionEnd={(e) => setSession((e.target as HTMLInputElement).value)}
+                  className={`w-20 h-8 text-sm ${!session.trim() ? 'border-red-300' : ''}`}
+                  placeholder="1회"
+                  required
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm whitespace-nowrap">과목:</label>
+                <Input 
+                  type="text" 
+                  value={subject} 
+                  onChange={(e) => setSubject(e.target.value)}
+                  onCompositionEnd={(e) => setSubject((e.target as HTMLInputElement).value)}
+                  className="w-32 h-8 text-sm" 
+                  placeholder="안전관리 (선택)"
+                />
+              </div>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={applyBasicTags}
+                className="whitespace-nowrap ml-auto"
+              >
+                태그 적용
+              </Button>
+            </div>
+          </div>
+          
+          {/* 태그 입력 */}
+          <div className="mb-4 p-3 border border-gray-200 rounded-md">
+            <h4 className="text-sm font-medium mb-2">추가 태그</h4>
+            <div className="flex gap-2 mb-2">
+              <Input 
+                type="text" 
+                name="tagInput"
+                value={tagInput} 
+                onChange={(e) => {
+                  // 값을 직접 업데이트
+                  setTagInput(e.target.value);
+                }}
+                onCompositionEnd={(e) => {
+                  // 한글 입력 완료 후 상태 업데이트를 안정적으로 처리
+                  setTagInput((e.target as HTMLInputElement).value);
+                }}
+                className="text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    console.log("[DEBUG] Enter키 입력됨. 현재 tagInput:", tagInput);
+                    if (tagInput.trim()) {
+                      // 현재 입력값을 저장
+                      const inputValue = tagInput.trim();
+                      // 입력값 초기화
+                      setTagInput('');
+                      // 태그 추가
+                      addTag(inputValue);
+                    }
+                  }
+                }}
+                placeholder="예: 필기, 핵심개념, 중요문제 등"
+              />
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  console.log("[DEBUG] 추가 버튼 클릭됨. 현재 tagInput:", tagInput);
+                  if (tagInput.trim()) {
+                    // 현재 입력값을 저장
+                    const inputValue = tagInput.trim();
+                    // 입력값 초기화
+                    setTagInput('');
+                    // 태그 추가
+                    addTag(inputValue);
+                  }
+                }}
+              >
+                추가
+              </Button>
+            </div>
+            <p className="text-xs text-gray-500 mb-2">
+              기본 태그 외에 추가로 문제를 분류할 태그를 입력하세요. 입력 후 Enter 또는 추가 버튼을 클릭하세요.
+            </p>
+            {question.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {question.tags.map((tag, i) => (
+                  <Badge key={i} variant="secondary" className="flex items-center gap-1 px-2 py-1">
+                    {tag}
+                    <button 
+                      type="button" 
+                      onClick={() => removeTag(tag)}
+                      className="ml-1 text-gray-500 hover:text-gray-700"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* 문제 내용 */}
       <div>
         <label className="block mb-2 font-medium">문제 내용</label>
@@ -903,54 +1280,6 @@ export function ManualForm({
         </div>
       </div>
 
-      {/* 태그 */}
-      <div>
-        <label className="block mb-2 font-medium">태그 (선택사항)</label>
-        <div className="flex gap-2 mb-2">
-          <Input
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            placeholder="태그 입력 후 Enter"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                addTag(tagInput);
-              }
-            }}
-          />
-          <Button 
-            type="button" 
-            variant="outline"
-            onClick={() => addTag(tagInput)}
-          >
-            추가
-          </Button>
-        </div>
-        
-        {/* 태그 목록 */}
-        {question.tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {question.tags.map((tag, idx) => (
-              <div 
-                key={`tag-${idx}`} 
-                className="bg-gray-100 text-gray-800 rounded-full px-3 py-1 text-sm flex items-center"
-              >
-                {tag}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeTag(tag)}
-                  className="h-5 w-5 p-0 ml-1 text-gray-500 hover:text-gray-700"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
       {/* 제출 버튼 */}
       <div className="flex justify-end gap-3">
         <Button type="submit" disabled={isSubmitting}>
@@ -976,4 +1305,4 @@ export function ManualForm({
       </Dialog>
     </form>
   );
-} 
+}

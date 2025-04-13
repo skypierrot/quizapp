@@ -160,6 +160,13 @@ export function QuestionItem({
           <Input
             value={questionTagInput}
             onChange={(e) => setQuestionTagInput(e.target.value)}
+            onCompositionEnd={(e) => setQuestionTagInput((e.target as HTMLInputElement).value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                onAddQuestionTag(index);
+              }
+            }}
             placeholder="태그 추가"
             className="flex-1"
           />

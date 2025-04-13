@@ -4,8 +4,6 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PasteForm } from "@/components/question/PasteForm";
 import { ManualForm } from "@/components/question/ManualForm";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { IQuestion } from "@/types";
@@ -47,12 +45,13 @@ export default function EditQuestionPage({ params }: EditQuestionPageProps) {
     fetchQuestion();
   }, [questionId]);
 
-  // 문제 데이터를 PasteForm 또는 ManualForm에서 사용 가능한 형식으로 변환
+  // 문제 데이터를 ManualForm에서 사용 가능한 형식으로 변환
   const convertToFormData = (data: any) => {
     // API에서 가져온 데이터를 폼에서 사용할 수 있는 형식으로 변환
     // 필요시 확장
     return {
       id: data.id,
+      number: data.number || 1,
       content: data.content,
       options: data.options,
       answer: data.answer,
@@ -106,36 +105,18 @@ export default function EditQuestionPage({ params }: EditQuestionPageProps) {
       <h1 className="text-3xl font-bold mb-6">문제 수정</h1>
       
       {question && (
-        <Tabs defaultValue="paste" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="paste">자동 입력</TabsTrigger>
-            <TabsTrigger value="manual">직접 수정</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="manual">
-            <p className="text-gray-600 mb-4">
-              문제 내용, 선택지, 정답, 해설 등을 직접 수정하세요.
-            </p>
-            <ManualForm
-              initialData={convertToFormData(question)}
-              isEditMode={true}
-              questionId={questionId}
-              onSuccess={handleSubmitSuccess}
-            />
-          </TabsContent>
-          
-          <TabsContent value="paste">
-            <p className="text-gray-600 mb-4">
-              문제와 선택지를 포함한 텍스트를 붙여넣어 한 번에 수정하세요.
-            </p>
-            <PasteForm
-              initialData={convertToFormData(question)}
-              isEditMode={true}
-              questionId={questionId}
-              onSuccess={handleSubmitSuccess}
-            />
-          </TabsContent>
-        </Tabs>
+        <div className="space-y-6">
+          <p className="text-gray-600 mb-4">
+            문제 내용, 선택지, 정답, 해설 등을 직접 수정하세요.
+          </p>
+          <ManualForm
+            initialData={convertToFormData(question)}
+            isEditMode={true}
+            questionId={questionId}
+            onSuccess={handleSubmitSuccess}
+            apiMethod="PUT"
+          />
+        </div>
       )}
     </div>
   );

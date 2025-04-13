@@ -42,12 +42,14 @@ export interface IFormState {
 }
 
 export interface ITagManagerProps {
+  examName: string;
   year: string;
-  subject: string;
   session: string;
+  subject: string;
+  setExamName: (value: string) => void;
   setYear: (value: string) => void;
-  setSubject: (value: string) => void;
   setSession: (value: string) => void;
+  setSubject: (value: string) => void;
   onApplyBasicTags: () => void;
   globalTags: string[];
   globalTagInput: string;

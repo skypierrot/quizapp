@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button"
 import { TagManager } from "./TagManager"
 import { PasteInput } from "./PasteInput"
 import { QuestionList } from "./QuestionList"
-
-import { useQuestionState } from "./hooks/useQuestionState"
-import { useTagState } from "./hooks/useTagState"
-import { useImageUpload } from "./hooks/useImageUpload"
+import { useToast } from "@/components/ui/use-toast"
+import { useQuestionState, useTagState, useImageUpload } from "./hooks"
 
 export function PasteForm() {
+  // toast 기능 추가
+  const { toast } = useToast();
+  
   // 참조 및 UI 상태
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [isPasteAreaFocused, setIsPasteAreaFocused] = useState(false)
@@ -32,6 +33,11 @@ export function PasteForm() {
     addOption,
     updateOption,
     removeOption,
+    addQuestionTag,
+    removeQuestionTag,
+    addImageToQuestion,
+    addExplanationImageToQuestion,
+    addExplanationTextToQuestion,
     handleSubmit
   } = useQuestionState()
   
@@ -41,6 +47,8 @@ export function PasteForm() {
     setGlobalTagInput,
     questionTagInput,
     setQuestionTagInput,
+    examName,
+    setExamName,
     year,
     setYear,
     subject,
@@ -49,8 +57,6 @@ export function PasteForm() {
     setSession,
     addGlobalTag,
     removeGlobalTag,
-    addQuestionTag,
-    removeQuestionTag,
     applyBasicTags
   } = useTagState(parsedQuestions, setParsedQuestions)
   
@@ -60,10 +66,45 @@ export function PasteForm() {
     explanationText,
     setExplanationText,
     handlePaste,
-    addImageToQuestion,
-    addExplanationImageToQuestion,
-    addExplanationTextToQuestion,
   } = useImageUpload(parsedQuestions, setParsedQuestions)
+
+  // 태그 적용 함수 수정
+  const handleApplyBasicTags = () => {
+    // 기본 태그 유효성 검사
+    if (!examName.trim() || !year.trim() || !session.trim()) {
+      toast({
+        title: "필수 태그를 입력해주세요",
+        description: "시험명, 년도, 회차는 필수 입력 항목입니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const isSuccess = applyBasicTags();
+    
+    if (isSuccess) {
+      toast({
+        title: "태그가 적용되었습니다.",
+        description: `'시험명:${examName}', '년도:${year}', '회차:${session}'${subject ? `, '과목:${subject}'` : ''}`,
+        variant: "default",
+      });
+    }
+  };
+
+  // 문제 분석 함수 수정
+  const handleParseWithTags = () => {
+    // 기본 태그 유효성 검사
+    if (!examName.trim() || !year.trim() || !session.trim()) {
+      toast({
+        title: "필수 태그를 입력해주세요",
+        description: "시험명, 년도, 회차는 필수 입력 항목입니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    handleParseQuestions(globalTags);
+  };
 
   return (
     <div className="space-y-6">
@@ -74,15 +115,17 @@ export function PasteForm() {
           globalTags={globalTags}
           globalTagInput={globalTagInput}
           setGlobalTagInput={setGlobalTagInput}
+          examName={examName}
+          setExamName={setExamName}
           year={year}
           setYear={setYear}
-          subject={subject}
-          setSubject={setSubject}
           session={session}
           setSession={setSession}
+          subject={subject}
+          setSubject={setSubject}
           onAddGlobalTag={addGlobalTag}
           onRemoveGlobalTag={removeGlobalTag}
-          onApplyBasicTags={applyBasicTags}
+          onApplyBasicTags={handleApplyBasicTags}
         />
         
         {/* 붙여넣기 입력 컴포넌트 */}
@@ -111,7 +154,7 @@ export function PasteForm() {
         <Button
           type="button"
           variant="outline"
-          onClick={() => handleParseQuestions(globalTags)}
+          onClick={handleParseWithTags}
           disabled={isProcessing || isSubmitting || !pasteValue.trim()}
         >
           {isProcessing ? "분석 중..." : "문제 분석"}

@@ -94,9 +94,10 @@ export function PasteForm({
     }
     return [];
   })
+  const [examName, setExamName] = useState<string>("")
   const [year, setYear] = useState<string>("")
-  const [subject, setSubject] = useState<string>("")
   const [session, setSession] = useState<string>("")
+  const [subject, setSubject] = useState<string>("")
   
   // 문제별 태그 관련 상태
   const [questionTagInput, setQuestionTagInput] = useState("")
@@ -607,15 +608,30 @@ export function PasteForm({
   const applyBasicTags = () => {
     const tagsToAdd: string[] = [];
     
-    if (year.trim()) tagsToAdd.push(`년도:${year.trim()}`);
-    if (subject.trim()) tagsToAdd.push(`과목:${subject.trim()}`);
-    if (session.trim()) tagsToAdd.push(`회차:${session.trim()}`);
+    // 필수 태그 유효성 검사
+    if (!examName.trim() || !year.trim() || !session.trim()) {
+      toast({
+        title: "필수 태그를 입력해주세요",
+        description: "시험명, 년도, 회차는 필수 입력 항목입니다.",
+        variant: "destructive" as any
+      });
+      return;
+    }
+
+    // 필수 태그 추가
+    tagsToAdd.push(`시험명:${examName.trim()}`);
+    tagsToAdd.push(`년도:${year.trim()}`);
+    tagsToAdd.push(`회차:${session.trim()}`);
     
-    if (tagsToAdd.length === 0) return;
+    // 과목은 선택 사항 - 입력된 경우에만 추가
+    if (subject.trim()) {
+      tagsToAdd.push(`과목:${subject.trim()}`);
+    }
     
-    // 새 태그 추가
+    // 새 태그 추가 (기존 태그 중 기본 태그가 아닌 것만 유지)
     const newGlobalTags = [
-      ...globalTags.filter(tag => !tag.startsWith('년도:') && !tag.startsWith('과목:') && !tag.startsWith('회차:')),
+      ...globalTags.filter(tag => !tag.startsWith('시험명:') && !tag.startsWith('년도:') && 
+                            !tag.startsWith('회차:') && !tag.startsWith('과목:')),
       ...tagsToAdd
     ];
     
@@ -626,7 +642,8 @@ export function PasteForm({
       setParsedQuestions(prev => prev.map(q => {
         const currentTags = q.tags || [];
         const filteredTags = currentTags.filter(tag => 
-          !tag.startsWith('년도:') && !tag.startsWith('과목:') && !tag.startsWith('회차:')
+          !tag.startsWith('시험명:') && !tag.startsWith('년도:') && 
+          !tag.startsWith('과목:') && !tag.startsWith('회차:')
         );
         
         return {
@@ -635,6 +652,12 @@ export function PasteForm({
         };
       }));
     }
+
+    toast({
+      title: "태그가 적용되었습니다",
+      description: `${tagsToAdd.length}개의 기본 태그가 적용되었습니다.`,
+      variant: "default" as any
+    });
   };
 
   // 선택지 관련 함수 추가
@@ -886,16 +909,48 @@ export function PasteForm({
         {/* 기본 태그 설정 */}
         <div className="mb-4 p-4 border border-gray-200 rounded-md bg-white">
           <h4 className="text-sm font-medium mb-2">기본 태그 설정</h4>
+          <p className="text-xs text-gray-500 mb-3">
+            <span className="text-red-500 font-bold">*</span> 표시는 필수 입력 항목입니다
+          </p>
           
-          <div className="grid grid-cols-3 gap-2 mb-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">년도:</label>
+              <label className="text-xs text-gray-500 mb-1 block">
+                시험명: <span className="text-red-500 font-bold">*</span>
+              </label>
+              <Input 
+                type="text" 
+                value={examName} 
+                onChange={(e) => setExamName(e.target.value)}
+                onCompositionEnd={(e) => setExamName((e.target as HTMLInputElement).value)}
+                className={`text-sm h-8 ${!examName.trim() ? 'border-red-300' : ''}`}
+                placeholder="산업안전기사"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">
+                년도: <span className="text-red-500 font-bold">*</span>
+              </label>
               <Input 
                 type="text" 
                 value={year} 
-                onChange={(e) => setYear(e.target.value)} 
-                className="text-sm h-8"
+                onChange={(e) => setYear(e.target.value)}
+                onCompositionEnd={(e) => setYear((e.target as HTMLInputElement).value)}
+                className={`text-sm h-8 ${!year.trim() ? 'border-red-300' : ''}`}
                 placeholder="2024"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">
+                회차: <span className="text-red-500 font-bold">*</span>
+              </label>
+              <Input 
+                type="text" 
+                value={session} 
+                onChange={(e) => setSession(e.target.value)}
+                onCompositionEnd={(e) => setSession((e.target as HTMLInputElement).value)}
+                className={`text-sm h-8 ${!session.trim() ? 'border-red-300' : ''}`}
+                placeholder="1회"
               />
             </div>
             <div>
@@ -903,19 +958,10 @@ export function PasteForm({
               <Input 
                 type="text" 
                 value={subject} 
-                onChange={(e) => setSubject(e.target.value)} 
+                onChange={(e) => setSubject(e.target.value)}
+                onCompositionEnd={(e) => setSubject((e.target as HTMLInputElement).value)}
                 className="text-sm h-8"
-                placeholder="산업안전기사"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">회차:</label>
-              <Input 
-                type="text" 
-                value={session} 
-                onChange={(e) => setSession(e.target.value)} 
-                className="text-sm h-8"
-                placeholder="1회"
+                placeholder="안전관리 (선택)"
               />
             </div>
           </div>
@@ -924,9 +970,10 @@ export function PasteForm({
             <Input 
               type="text" 
               value={globalTagInput} 
-              onChange={(e) => setGlobalTagInput(e.target.value)} 
+              onChange={(e) => setGlobalTagInput(e.target.value)}
+              onCompositionEnd={(e) => setGlobalTagInput((e.target as HTMLInputElement).value)}
               className="text-sm flex-1"
-              onKeyDown={(e) => e.key === 'Enter' && addGlobalTag()}
+              onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && addGlobalTag()}
               placeholder="추가 태그 입력 후 Enter"
             />
             <Button type="button" variant="outline" size="sm" onClick={addGlobalTag}>추가</Button>
@@ -1135,9 +1182,10 @@ export function PasteForm({
                         type="text"
                         value={questionTagInput}
                         onChange={(e) => setQuestionTagInput(e.target.value)}
+                        onCompositionEnd={(e) => setQuestionTagInput((e.target as HTMLInputElement).value)}
                         className="text-sm max-w-[200px]"
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
+                          if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
                             e.preventDefault();
                             addQuestionTag(qIndex);
                           }
