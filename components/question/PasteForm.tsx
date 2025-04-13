@@ -2,33 +2,29 @@
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { useState, useRef, useEffect, ChangeEvent } from "react"
+import { useState, useRef, useEffect } from "react"
 import { parseQuestionsImproved } from "@/utils/questionParser"
 import { IQuestion } from "@/types"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { X, Plus, Image as ImageIcon } from "lucide-react"
+import { X, Plus, Image as ImageIcon, Trash2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Label } from "@/components/ui/label"
-import { ImagePlus } from "lucide-react"
-import { ToastActionElement, ToastVariant } from "@/components/ui/toast"
-import TagSelector from "@/components/tags/TagSelector"
-import { 
-  generateId, 
-  parseQuestions, 
-  type IOption, 
-  type ITag 
-} from "@/lib/utils"
+import { generateId } from "@/lib/utils"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { ToastType } from "@/types/toast"
+import { convertToBase64 } from "@/utils/image"
+import { ToastActionElement, ToastVariant } from "@/types/toast"
 
 interface IParsedQuestion {
   content: string;
-  examples?: string[]; // ㄱ,ㄴ,ㄷ,ㄹ 형태의 보기들
   options: string[];
   answer: number;
-  images: string[]; // 이미지 URL 배열
-  explanation?: string; // 해설 텍스트
-  explanationImages?: string[]; // 해설 이미지 URL 배열
-  tags?: string[]; // 문제별 태그
+  images: string[];
+  explanation?: string;
+  explanationImages?: string[];
+  tags?: string[];
+  examples?: string[];
 }
 
 export interface PasteFormProps {
@@ -45,20 +41,34 @@ export function PasteForm({
   onSuccess
 }: PasteFormProps) {
   const { toast } = useToast();
+  
+  // 안전한 토스트 처리 함수 추가
+  const safeToast = (title: string, description: string = "", variant: string = "default") => {
+    toast({
+      title,
+      description,
+      variant: variant as any // any 타입으로 변경하여 타입 에러 우회
+    });
+  };
+  
   const [pasteValue, setPasteValue] = useState("")
   const [parsedQuestions, setParsedQuestions] = useState<IParsedQuestion[]>(() => {
-    // 초기 데이터가 있는 경우 (수정 모드)
     if (initialData) {
       return [{
         content: initialData.content,
         options: Array.isArray(initialData.options) && typeof initialData.options[0] === 'string'
-          ? initialData.options as string[]
+          ? initialData.options as unknown as string[]
           : initialData.options.map((opt: any) => opt.text || ""),
         answer: initialData.answer,
-        images: initialData.images || [],
+        images: Array.isArray(initialData.images) 
+          ? initialData.images.map(img => typeof img === 'string' ? img : (img as any)?.path || "") 
+          : [],
         explanation: initialData.explanation || "",
-        explanationImages: initialData.explanationImages || [],
-        tags: initialData.tags || []
+        explanationImages: Array.isArray(initialData.explanationImages) 
+          ? initialData.explanationImages.map(img => typeof img === 'string' ? img : (img as any)?.path || "") 
+          : [],
+        tags: (initialData as any).tags || [],
+        examples: initialData.examples || []
       }];
     }
     return [];
@@ -69,6 +79,9 @@ export function PasteForm({
   const [hasWarning, setHasWarning] = useState(false)
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState<number>(-1)
   const [selectedImageType, setSelectedImageType] = useState<'question' | 'explanation'>('question')
+  const [activeImageArea, setActiveImageArea] = useState<{index: number, type: 'question' | 'explanation'} | null>(null)
+  const [imageEventProcessing, setImageEventProcessing] = useState(false)
+  const [processingCount, setProcessingCount] = useState(0)
   const [explanationText, setExplanationText] = useState<string>("")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   
@@ -87,6 +100,7 @@ export function PasteForm({
   
   // 문제별 태그 관련 상태
   const [questionTagInput, setQuestionTagInput] = useState("")
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
   // 붙여넣기 형식 예시
   const pasteExample = `1. 산업안전보건법령상 관계수급인 근로자가 도급인의 사업장에서 작업을 하는 경우 도급인의 안전조치 및 보건조치에 관한 설명으로 옳지 않은 것은?
@@ -94,196 +108,168 @@ export function PasteForm({
 ② 건설업의 경우에는 도급사업의 정기 안전ㆍ보건 점검을 분기에 1회 이상 실시하여야 한다.
 ③ 관계수급인의 공사금액을 포함한 해당 공사의 총공사금액이 20억원 이상인 건설업의 경우 도급인은 그 사업장의 안전보건관리책임자를 안전보건총괄책임자로 지정하여야 한다.
 ④ 도급인은 도급인과 수급인을 구성원으로 하는 안전 및 보건에 관한 협의체를 도급인 및 그의 수급인 전원으로 구성하여야 한다.
-⑤ 도급인은 제조업 작업장의 순회점검을 2일에 1회 이상 실시하여야 한다.
+⑤ 도급인은 제조업 작업장의 순회점검을 2일에 1회 이상 실시하여야 한다.`;
 
-2. 산업안전보건법령상 '대여자 등이 안전조치 등을 해야 하는 기계ㆍ기구ㆍ설비 및 건축물 등'에 규정되어 있는 것을 모두 고른 것은? (단, 고용노동부장관이 정하여 고시하는 기계ㆍ기구ㆍ설비 및 건축물 등은 고려하지 않음)
-ㄱ. 이동식 크레인
-ㄴ. 고소작업대
-ㄷ. 리프트
-ㄹ. 곤돌라
-① ㄱ, ㄴ
-② ㄱ, ㄷ
-③ ㄴ, ㄹ
-④ ㄱ, ㄷ, ㄹ
-⑤ ㄴ, ㄷ, ㄹ`;
+  // 새로운 상태 추가
+  const [isImageAreaActive, setIsImageAreaActive] = useState(false);
 
-  const handlePaste = (e: React.ClipboardEvent) => {
-    // 이미 처리된 이벤트인지 확인
-    if ((e as any)._handledPaste) {
-      return;
+  // 디바운스 함수로 마우스 이벤트 처리
+  const setActiveImageAreaWithDebounce = (value: typeof activeImageArea) => {
+    if (imageEventProcessing) {
+      console.log("[DEBUG] 이미지 처리 중 - 영역 상태 변경 무시");
+      safeToast("이미지 처리 중입니다. 잠시 후 다시 시도하세요.", "", "warning");
     }
-    
-    // 이벤트가 처리됨으로 표시
-    (e as any)._handledPaste = true;
-    
-    const clipboardData = e.clipboardData;
-    const items = clipboardData.items;
-    let imageFound = false;
-    
-    // 현재 붙여넣기 위치 확인
-    const targetElement = e.target as HTMLElement;
-    const container = targetElement.closest('[data-question-index]');
-    const questionIndex = container?.getAttribute('data-question-index');
-    const imageType = container?.getAttribute('data-image-type');
-    
-    if (!questionIndex) {
-      // 처리 플래그 제거
-      delete (e as any)._handledPaste;
-      return;
-    }
-    
-    // 이미지 파일 확인
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      
-      if (item.type.indexOf('image') === 0) {
-        imageFound = true;
-        
-        // 이미지인 경우 기본 동작 중지 (텍스트 영역에 이미지 URL이 추가되는 것 방지)
-        e.preventDefault();
-        
-        const blob = item.getAsFile();
-        
-        if (blob) {
-          // Base64로 이미지 변환
-          const reader = new FileReader();
-          
-          reader.onload = (readerEvent) => {
-            const base64Url = readerEvent.target?.result as string;
-            
-            if (imageType === 'question') {
-              // 질문 이미지 업데이트
-              setParsedQuestions(prev => {
-                const updated = [...prev];
-                const qIndex = parseInt(questionIndex);
-                const currentImages = updated[qIndex].images || [];
-                updated[qIndex] = {
-                  ...updated[qIndex],
-                  images: [...currentImages, base64Url]
-                };
-                return updated;
-              });
-              toast({
-                title: "이미지 추가 완료",
-                description: `문제 ${parseInt(questionIndex) + 1}에 이미지가 추가되었습니다.`,
-                variant: "success"
-              });
-            } else if (imageType === 'explanation') {
-              // 설명 이미지 업데이트
-              setParsedQuestions(prev => {
-                const updated = [...prev];
-                const qIndex = parseInt(questionIndex);
-                const currentExplanationImages = updated[qIndex].explanationImages || [];
-                updated[qIndex] = {
-                  ...updated[qIndex],
-                  explanationImages: [...currentExplanationImages, base64Url]
-                };
-                return updated;
-              });
-              toast({
-                title: "이미지 추가 완료",
-                description: `문제 ${parseInt(questionIndex) + 1}의 해설에 이미지가 추가되었습니다.`,
-                variant: "success"
-              });
-            }
-          };
-          
-          reader.onerror = () => {
-            toast({
-              title: "이미지 추가 실패",
-              description: "이미지를 처리하는 중 오류가 발생했습니다.",
-              variant: "error"
-            });
-          };
-          
-          reader.readAsDataURL(blob);
-          break; // 첫 번째 이미지만 처리
-        }
-      }
-    }
-    
-    // 이미지가 없으면 플래그 제거 (다음 붙여넣기를 위해)
-    if (!imageFound) {
-      delete (e as any)._handledPaste;
-    }
+    console.log("[DEBUG] 활성 이미지 영역 설정:", value);
+    setActiveImageArea(value);
   };
 
-  const handleImageUpload = async (file: File) => {
-    if (!file) {
-      toast({
-        title: "이미지가 선택되지 않았습니다",
-        variant: "error"
-      });
-      return;
+  // 전역 붙여넣기 이벤트 리스너 등록
+  useEffect(() => {
+    const handleGlobalPaste = (e: ClipboardEvent) => {
+      console.log("[DEBUG] 글로벌 붙여넣기 이벤트 발생");
+      
+      if (processingCount > 0) {
+        console.log("[DEBUG] 이미지 처리 중 - 추가 이벤트 차단");
+        return;
+      }
+      
+      if (!activeImageArea) {
+        console.log("[DEBUG] 붙여넣기 무시 - 활성 영역 없음", {activeArea: activeImageArea});
+        safeToast("이미지 영역을 클릭하거나 마우스를 올려주세요.", "", "warning");
+        return;  // null인 경우 토스트로 사용자 안내
+      }
+
+      console.log("[DEBUG] 활성 이미지 영역:", activeImageArea);
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') === 0) {
+          const blob = items[i].getAsFile();
+          if (blob) {
+            console.log("[DEBUG] 이미지 Blob 감지:", { size: blob.size, type: blob.type });
+            setProcessingCount(prev => prev + 1);
+            setImageEventProcessing(true);
+            
+            handleImageBlob(blob, activeImageArea.index, activeImageArea.type === 'explanation')
+              .finally(() => {
+                setTimeout(() => {
+                  setImageEventProcessing(false);
+                  setProcessingCount(prev => Math.max(0, prev - 1));
+                  console.log("[DEBUG] 이미지 처리 상태 리셋");
+                }, 300);
+              });
+            
+            e.preventDefault();
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener('paste', handleGlobalPaste);
+    return () => {
+      window.removeEventListener('paste', handleGlobalPaste);
+    };
+  }, [activeImageArea, imageEventProcessing, processingCount, parsedQuestions]);
+
+  // 이미지 Blob 처리 함수
+  const handleImageBlob = async (blob: File, questionIndex: number, isExplanation: boolean) => {
+    console.log("[DEBUG] 이미지 처리 시작:", { questionIndex, isExplanation, blobSize: blob.size, blobType: blob.type });
+    
+    if (!blob) {
+      safeToast("이미지가 선택되지 않았습니다", "", "destructive");
+      return Promise.reject("이미지가 선택되지 않았습니다");
     }
     
-    // 파일 크기 체크 (10MB 제한)
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: "이미지 크기가 너무 큽니다",
-        description: "10MB 이하의 이미지만 업로드 가능합니다",
-        variant: "error"
-      });
-      return;
+    if (blob.size > 10 * 1024 * 1024) {
+      safeToast("이미지 크기가 너무 큽니다", "10MB 이하의 이미지만 업로드 가능합니다", "destructive");
+      return Promise.reject("이미지 크기 초과");
     }
     
-    // 이미지 파일인지 확인
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: "이미지 파일만 업로드 가능합니다",
-        variant: "error"
-      });
-      return;
+    if (!blob.type.startsWith('image/')) {
+      safeToast("이미지 파일만 업로드 가능합니다", "", "destructive");
+      return Promise.reject("이미지 파일이 아님");
     }
     
     try {
-      const base64 = await convertToBase64(file);
+      // Base64 변환
+      console.log("[DEBUG] 이미지 Base64 변환 중");
+      const base64 = await convertToBase64(blob);
       
-      if (selectedQuestionIndex !== -1 && selectedQuestionIndex < parsedQuestions.length) {
-        const isExplanation = selectedImageType === 'explanation';
+      // 중복 이미지 감지 알고리즘 개선
+      const generateImageHash = (imgData: string) => {
+        // 고유한 이미지 특성 추출 (처음, 중간, 끝부분 샘플링)
+        if (imgData.length > 300) {
+          const start = imgData.substring(0, 100);
+          const middle = imgData.substring(Math.floor(imgData.length / 2) - 50, Math.floor(imgData.length / 2) + 50);
+          const end = imgData.substring(imgData.length - 100);
+          return start + middle + end;
+        }
+        return imgData;
+      };
+      
+      // 실시간 상태 조회 - 함수형 업데이트로 최신 상태 보장
+      setParsedQuestions(prevState => {
+        const currentQuestion = prevState[questionIndex];
+        if (!currentQuestion) {
+          safeToast("문제를 찾을 수 없습니다", "", "destructive");
+          return prevState;
+        }
         
-        setParsedQuestions(prev => {
-          const updated = [...prev];
-          const question = updated[selectedQuestionIndex];
-          
-          if (isExplanation) {
-            // 해설 이미지 업데이트
-            const explanationImages = question.explanationImages || [];
-            updated[selectedQuestionIndex] = {
-              ...question,
-              explanationImages: [...explanationImages, base64]
-            };
-          } else {
-            // 문제 이미지 업데이트
-            const images = question.images || [];
-            updated[selectedQuestionIndex] = {
-              ...question,
-              images: [...images, base64]
-            };
-          }
-          
-          return updated;
-        });
+        // 이미지 배열 가져오기 (항상 string[] 타입으로 처리)
+        const currentImages = isExplanation 
+          ? (currentQuestion.explanationImages || []) 
+          : (currentQuestion.images || []);
         
-        toast({
-          title: "이미지 추가 완료",
-          description: `문제 ${selectedQuestionIndex + 1}의 ${isExplanation ? '해설' : '문제'}에 이미지가 추가되었습니다`,
-          variant: "success"
-        });
-      } else {
-        toast({
-          title: "선택된 문제가 없습니다",
-          description: "먼저 문제를 선택해주세요",
-          variant: "error"
-        });
-      }
-    } catch (error) {
-      console.error('이미지 변환 오류:', error);
-      toast({
-        title: "이미지 변환 실패",
-        description: "이미지를 처리하는 중 오류가 발생했습니다",
-        variant: "error"
+        // 중복 체크 (해시 기반)
+        const newImageHash = generateImageHash(base64);
+        const isDuplicate = currentImages.some(img => generateImageHash(img) === newImageHash);
+        
+        if (isDuplicate) {
+          console.log("[DEBUG] 중복 이미지 감지");
+          safeToast("이미지 중복", "이 이미지는 이미 등록되었습니다.", "warning");
+          return prevState; // 변경 없음
+        }
+        
+        // 새 이미지 추가 (중복이 아닌 경우만)
+        console.log("[DEBUG] 이미지 추가:", { isExplanation });
+        
+        const updatedQuestions = [...prevState];
+        const updatedQuestion = {...updatedQuestions[questionIndex]};
+        
+        if (isExplanation) {
+          updatedQuestion.explanationImages = [...(updatedQuestion.explanationImages || []), base64];
+          safeToast("이미지 추가 완료", "해설에 이미지가 추가되었습니다.", "success");
+        } else {
+          updatedQuestion.images = [...(updatedQuestion.images || []), base64];
+          safeToast("이미지 추가 완료", "문제에 이미지가 추가되었습니다.", "success");
+        }
+        
+        updatedQuestions[questionIndex] = updatedQuestion;
+        return updatedQuestions;
       });
+      
+      return Promise.resolve();
+    } catch (error) {
+      console.error("[ERROR] 이미지 처리 실패:", error);
+      safeToast("이미지 처리 실패", "이미지를 처리하는 중 오류가 발생했습니다.", "destructive");
+      return Promise.reject(error);
+    }
+  };
+
+  // 텍스트 영역 붙여넣기 처리 수정
+  const handleTextAreaPaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    
+    // 이미지 타입이 있는지 확인
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') === 0) {
+        // 텍스트 영역에서는 이미지 붙여넣기 차단
+        e.preventDefault();
+        safeToast("텍스트 영역에는 이미지를 붙여넣을 수 없습니다", "위쪽 이미지 영역에 붙여넣기 해주세요", "warning");
+        return;
+      }
     }
   };
 
@@ -313,12 +299,15 @@ export function PasteForm({
       // IQuestion[] → IParsedQuestion[] 변환
       const parsedDataQuestions: IParsedQuestion[] = parsedData.questions.map(q => ({
         content: q.content,
-        options: q.options.map(opt => opt.text),
+        options: q.options.map(opt => 
+          typeof opt === 'string' ? opt : (opt as any).text || ""
+        ),
         answer: -1, // 아직 선택되지 않음
         images: [], // 초기에는 모든 문제에 이미지 없음
         explanation: undefined, // 초기에는 해설 없음
         explanationImages: [], // 초기에는 해설 이미지 없음
         tags: [...globalTags], // 글로벌 태그를 기본적으로 추가
+        examples: q.examples || []
       }));
       
       setParsedQuestions(parsedDataQuestions)
@@ -333,21 +322,45 @@ export function PasteForm({
     }
   }
 
-  // 문제에 해설 이미지 추가
-  const addExplanationImageToQuestion = (e: React.MouseEvent | React.ChangeEvent<HTMLInputElement>, questionIndex: number) => {
+  // 이미지 업로드 핸들러 (파일 선택 시)
+  const handleImageUpload = async (file: File) => {
+    if (selectedQuestionIndex < 0) return;
+    
+    // 기존의 handleImageBlob 함수 재사용
+    await handleImageBlob(
+      file, 
+      selectedQuestionIndex, 
+      selectedImageType === 'explanation'
+    );
+  };
+
+  // 이미지 추가 함수
+  const addImageToQuestion = (e: React.MouseEvent, questionIndex: number) => {
     // 버블링 방지
-    e.stopPropagation?.();
+    e.stopPropagation();
     
-    // 이벤트가 input 변경 이벤트인 경우
-    if ('target' in e && 'files' in e.target && e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      setSelectedQuestionIndex(questionIndex);
-      setSelectedImageType('explanation');
-      handleImageUpload(file);
-      return;
-    }
+    // 파일 선택 다이얼로그 열기
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    setSelectedQuestionIndex(questionIndex);
+    setSelectedImageType('question');
+    input.click();
     
-    // 클릭 이벤트인 경우 파일 선택 다이얼로그 열기
+    input.onchange = (event) => {
+      if (event.target instanceof HTMLInputElement && event.target.files && event.target.files.length > 0) {
+        const file = event.target.files[0];
+        handleImageUpload(file);
+      }
+    };
+  };
+
+  // 해설 이미지 추가 함수
+  const addExplanationImageToQuestion = (e: React.MouseEvent, questionIndex: number) => {
+    // 버블링 방지
+    e.stopPropagation();
+    
+    // 파일 선택 다이얼로그 열기
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -363,55 +376,163 @@ export function PasteForm({
     };
   };
 
-  // 이미지 파일을 Base64로 변환하는 유틸리티 함수
-  const convertToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (error) => reject(error);
-      reader.readAsDataURL(file);
-    });
+  // 이미지 확대 모달 핸들러
+  const handleImageZoom = (imageUrl: string) => {
+    setZoomedImage(imageUrl);
   };
 
-  // 문제에 해설 텍스트 추가
-  const addExplanationTextToQuestion = (questionIndex: number, text: string) => {
-    setParsedQuestions(prev => {
-      const updated = [...prev];
-      updated[questionIndex].explanation = text;
-      return updated;
-    });
-    setExplanationText('');
-  };
-
-  const setQuestionAnswer = (questionIndex: number, answerIndex: number) => {
-    console.log(`정답 선택: 문제 ${questionIndex}, 답변 ${answerIndex}`);
+  // 이미지 영역 클릭 처리 함수 추가
+  const handleImageAreaClick = (index: number, type: 'question' | 'explanation') => {
+    if (imageEventProcessing) return;
     
-    setParsedQuestions(prevQuestions => 
-      prevQuestions.map((q, idx) => {
-        if (idx !== questionIndex) return q;
+    const isCurrentlyActive = activeImageArea?.index === index && 
+                              activeImageArea?.type === type && 
+                              isImageAreaActive;
+    
+    if (isCurrentlyActive) {
+      // 이미 활성화된 상태에서 클릭하면 파일 업로드 다이얼로그 열기
+      if (type === 'question') {
+        addImageToQuestion(new MouseEvent('click') as any, index);
+      } else {
+        addExplanationImageToQuestion(new MouseEvent('click') as any, index);
+      }
+    } else {
+      // 비활성화 상태에서 클릭하면 활성화
+      setActiveImageArea({ index, type });
+      setIsImageAreaActive(true);
+      console.log("[DEBUG] 이미지 영역 활성화:", {index, type});
+    }
+  };
+
+  // 이미지 영역 마우스 떠남 처리 함수 추가
+  const handleImageAreaMouseLeave = () => {
+    // 이미지 처리 중이 아닐 때만 상태 초기화
+    if (!imageEventProcessing) {
+      console.log("[DEBUG] 마우스가 이미지 영역을 떠남 - 상태 초기화");
+      setActiveImageArea(null);
+      setIsImageAreaActive(false);
+    }
+  };
+
+  // 컴포넌트 마운트 시 전역 마우스 이벤트 리스너 등록
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      // 이미지 영역이 활성화된 상태일 때만 처리
+      if (isImageAreaActive && !imageEventProcessing) {
+        // 마우스가 현재 이미지 영역 내부에 있는지 확인
+        const isMouseOverImageArea = (e.target as Element)?.closest('[data-image-area="true"]');
         
-        // 토글 방식 - 동일한 답변을 다시 클릭하면 선택 취소
-        const newAnswer = q.answer === answerIndex ? -1 : answerIndex;
-        
-        console.log(`문제 ${questionIndex}의 정답 변경: ${q.answer} -> ${newAnswer}`);
-        
-        // 토스트 메시지 표시
-        if (q.answer !== answerIndex) {
-          if (newAnswer >= 0) {
-            toast({
-              title: "정답이 선택되었습니다",
-              description: `${questionIndex + 1}번 문제의 정답: ${newAnswer + 1}번`
-            });
-          } else {
-            toast({
-              title: "정답 선택이 취소되었습니다",
-              description: `${questionIndex + 1}번 문제`
-            });
-          }
+        // 마우스가 어느 이미지 영역에도 없으면 상태 초기화
+        if (!isMouseOverImageArea) {
+          console.log("[DEBUG] 마우스가 모든 이미지 영역을 벗어남 - 상태 초기화");
+          setActiveImageArea(null);
+          setIsImageAreaActive(false);
         }
-        
-        return { ...q, answer: newAnswer };
-      })
+      }
+    };
+    
+    // 문서 클릭 시에도 이미지 영역 밖을 클릭하면 활성화 상태 초기화
+    const handleDocumentClick = (e: MouseEvent) => {
+      if (isImageAreaActive && !imageEventProcessing) {
+        const isClickOnImageArea = (e.target as Element)?.closest('[data-image-area="true"]');
+        if (!isClickOnImageArea) {
+          console.log("[DEBUG] 이미지 영역 외부 클릭 - 상태 초기화");
+          setActiveImageArea(null);
+          setIsImageAreaActive(false);
+        }
+      }
+    };
+    
+    document.addEventListener('mousemove', handleGlobalMouseMove);
+    document.addEventListener('click', handleDocumentClick);
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('click', handleDocumentClick);
+    };
+  }, [isImageAreaActive, imageEventProcessing]);
+
+  // ImageArea 컴포넌트 수정
+  const ImageArea = ({ index, type, onAddImage }: { index: number, type: 'question' | 'explanation', onAddImage?: (e: React.MouseEvent, index: number) => void }) => {
+    // 현재 영역이 활성화되었는지 확인 (전역 상태와 함께 체크)
+    const isThisAreaActive = activeImageArea?.index === index && 
+                             activeImageArea?.type === type && 
+                             isImageAreaActive;
+    
+    return (
+      <div 
+        data-image-area="true"
+        onClick={(e) => {
+          e.stopPropagation();
+          handleImageAreaClick(index, type);
+        }}
+        onMouseEnter={() => {
+          if (activeImageArea?.index === index && 
+              activeImageArea?.type === type && 
+              isImageAreaActive) {
+            console.log("[DEBUG] 마우스가 이미지 영역에 들어옴 - 활성 상태 유지", {index, type});
+            // 이미 활성화된 상태라면 계속 유지
+            setActiveImageArea({ index, type });
+          }
+        }}
+        onMouseLeave={(e) => {
+          e.stopPropagation();
+          handleImageAreaMouseLeave();
+        }}
+        className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-md transition-colors cursor-pointer ${
+          isThisAreaActive
+            ? 'border-blue-300 bg-blue-50/60' // 옅은 파란색 점선 테두리와 음영
+            : 'border-gray-300 hover:border-gray-400' // 검정색 대신 회색으로 변경
+        }`}
+      >
+        <div className="flex flex-col items-center justify-center h-10">
+          <ImageIcon className="w-5 h-5 text-gray-400" />
+          <p className="mt-1 text-sm text-gray-500">
+            {isThisAreaActive
+              ? `한 번더 클릭 또는 Ctrl+V 하여 이미지 추가`
+              : "한번 클릭하여 영역활성화"}
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  // 이미지 미리보기 컴포넌트
+  const ImagePreview = ({ 
+    image, 
+    onRemove,
+    questionIndex,
+    imageIndex,
+    isExplanation = false
+  }: { 
+    image: string, 
+    onRemove: () => void,
+    questionIndex: number,
+    imageIndex: number,
+    isExplanation?: boolean
+  }) => {
+    return (
+      <div className="relative group overflow-hidden rounded-lg border shadow-sm mb-2 bg-white">
+        <Button 
+          type="button" 
+          size="sm" 
+          variant="destructive"
+          onClick={onRemove}
+          className="absolute top-2 right-2 h-6 w-6 p-0 rounded-full z-10 opacity-0 
+                   group-hover:opacity-100 transition-opacity bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-700 border-none"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+        <div 
+          className="w-full transition-transform duration-300 hover:scale-105 cursor-zoom-in"
+          onClick={() => handleImageZoom(image)}
+        >
+          <img 
+            src={image} 
+            alt={`${isExplanation ? '해설' : '문제'} ${questionIndex + 1} 이미지 ${imageIndex + 1}`} 
+            className="w-full max-h-[300px] object-contain" 
+          />
+        </div>
+      </div>
     );
   };
 
@@ -450,10 +571,7 @@ export function PasteForm({
   };
   
   // 문제별 태그 추가 함수
-  const addQuestionTag = (questionIndex: number, e?: React.MouseEvent) => {
-    // 버블링 방지 추가
-    e?.stopPropagation();
-    
+  const addQuestionTag = (questionIndex: number) => {
     if (questionTagInput.trim() === '') return;
     
     setParsedQuestions(prevQuestions => 
@@ -474,10 +592,7 @@ export function PasteForm({
   };
   
   // 문제별 태그 삭제 함수
-  const removeQuestionTag = (questionIndex: number, tagToRemove: string, e?: React.MouseEvent) => {
-    // 버블링 방지 추가
-    e?.stopPropagation();
-    
+  const removeQuestionTag = (questionIndex: number, tagToRemove: string) => {
     setParsedQuestions(prevQuestions => 
       prevQuestions.map((q, idx) => {
         if (idx !== questionIndex) return q;
@@ -562,10 +677,7 @@ export function PasteForm({
         if (q.answer === optionIndex) {
           // 삭제된 옵션이 현재 정답이었다면 정답 선택 취소
           newAnswer = -1;
-          toast({
-            title: "알림",
-            description: "선택한 정답이 삭제되었습니다."
-          });
+          safeToast("알림", "선택한 정답이 삭제되었습니다.", "warning");
         } else if (q.answer > optionIndex) {
           // 삭제된 옵션보다 뒤에 있는 옵션이 정답이었다면 인덱스 조정
           newAnswer = q.answer - 1;
@@ -574,6 +686,53 @@ export function PasteForm({
         return { ...q, options: newOptions, answer: newAnswer };
       })
     );
+  };
+
+  // 문제 정답 설정 함수 - 안정성 개선
+  const setQuestionAnswer = (questionIndex: number, optionIndex: number) => {
+    console.log(`[ANSWER] 정답 선택 시작:`, {
+      questionIndex,
+      optionIndex,
+      현재정답: parsedQuestions[questionIndex]?.answer,
+      옵션개수: parsedQuestions[questionIndex]?.options.length
+    });
+    
+    setParsedQuestions(prevQuestions => {
+      // 기존 상태 깊은 복사로 불변성 보장
+      const updatedQuestions = JSON.parse(JSON.stringify(prevQuestions));
+      const currentQuestion = updatedQuestions[questionIndex];
+      
+      if (!currentQuestion) {
+        console.error("[ANSWER] 문제를 찾을 수 없음:", {questionIndex});
+        return prevQuestions;
+      }
+      
+      // 현재 정답 상태
+      const currentAnswer = currentQuestion.answer;
+      
+      // 토글 로직 - 동일한 옵션 클릭 시 선택 취소
+      if (currentAnswer === optionIndex) {
+        currentQuestion.answer = -1;
+        console.log(`[ANSWER] 정답 취소됨`, {questionIndex, 이전: optionIndex, 현재: -1});
+        safeToast("정답 취소", "정답 선택이 취소되었습니다.", "warning");
+      } else {
+        // 다른 옵션 선택 시 정답 변경
+        currentQuestion.answer = optionIndex;
+        console.log(`[ANSWER] 정답 변경됨`, {questionIndex, 이전: currentAnswer, 현재: optionIndex});
+        safeToast("정답 설정", `${optionIndex + 1}번이 정답으로 설정되었습니다.`, "success");
+      }
+      
+      // 선택 상태 UI 반영을 위한 상태 확인 (디버깅용)
+      setTimeout(() => {
+        console.log(`[ANSWER] 업데이트 확인:`, {
+          questionIndex,
+          변경된정답: currentQuestion.answer,
+          상태확인: parsedQuestions[questionIndex]?.answer
+        });
+      }, 100);
+      
+      return updatedQuestions;
+    });
   };
 
   const handleSubmit = async () => {
@@ -612,10 +771,7 @@ export function PasteForm({
           throw new Error(errorData.error || `문제 수정 실패`);
         }
         
-        toast({
-          title: "문제 수정 완료",
-          description: "문제가 성공적으로 수정되었습니다."
-        });
+        safeToast("문제 수정 완료", "문제가 성공적으로 수정되었습니다.");
         
         // 성공 콜백이 있으면 호출
         if (onSuccess) {
@@ -660,10 +816,7 @@ export function PasteForm({
         
         // 결과 메시지 표시
         if (errors.length === 0) {
-          toast({
-            title: "문제 등록 성공",
-            description: `${savedQuestions.length}개의 문제가 성공적으로 등록되었습니다.`
-          });
+          safeToast("문제 등록 성공", `${savedQuestions.length}개의 문제가 성공적으로 등록되었습니다.`);
           
           // 성공 시 초기화
           setParsedQuestions([]);
@@ -672,11 +825,7 @@ export function PasteForm({
           setGlobalTagInput("");
         } else {
           // 일부 문제만 성공한 경우
-          toast({
-            title: "일부 문제 등록 성공",
-            description: `${savedQuestions.length}개의 문제가 등록되었습니다. ${errors.length}개의 문제에서 오류가 발생했습니다.`,
-            variant: "warning"
-          });
+          safeToast("일부 문제 등록 성공", `${savedQuestions.length}개의 문제가 등록되었습니다. ${errors.length}개의 문제에서 오류가 발생했습니다.`, "warning");
           
           console.error("문제 등록 실패:", errors);
         }
@@ -685,15 +834,39 @@ export function PasteForm({
       console.error("전체 문제 등록 처리 중 오류 발생:", error);
       setErrorMessage(error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.");
       
-      toast({
-        title: isEditMode ? "문제 수정 실패" : "문제 등록 실패",
-        description: error instanceof Error ? error.message : "문제 저장 중 오류가 발생했습니다.",
-        variant: "destructive"
-      });
+      safeToast(
+        isEditMode ? "문제 수정 실패" : "문제 등록 실패",
+        error instanceof Error ? error.message : "문제 저장 중 오류가 발생했습니다.",
+        "destructive"
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // useEffect에 창 포커스 이벤트 추가
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('[DEBUG] 브라우저 창 포커스 획득 - 활성 영역 재확인');
+      if (activeImageArea) {
+        setActiveImageArea(activeImageArea);  // 강제 재설정
+      }
+    };
+
+    const handleBlur = () => {
+      console.log('[DEBUG] 브라우저 창 포커스 상실');
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [activeImageArea]);
+
+  console.log("파싱된 문제:", parsedQuestions);
 
   return (
     <div className="space-y-6">
@@ -710,84 +883,87 @@ export function PasteForm({
           {pasteExample}
         </pre>
         
-        {/* 기본 태그 설정 (년도, 과목, 회차) */}
-        <div className="flex flex-wrap gap-2 mb-4 mt-4 p-3 border border-gray-200 rounded-md bg-gray-50">
-          <div className="w-full">
-            <h4 className="text-sm font-medium mb-2">기본 태그 설정</h4>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2 w-full">
-            <div className="flex items-center gap-2">
-              <label className="text-sm whitespace-nowrap">년도:</label>
+        {/* 기본 태그 설정 */}
+        <div className="mb-4 p-4 border border-gray-200 rounded-md bg-white">
+          <h4 className="text-sm font-medium mb-2">기본 태그 설정</h4>
+          
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">년도:</label>
               <Input 
                 type="text" 
                 value={year} 
                 onChange={(e) => setYear(e.target.value)} 
-                className="w-20 h-8 text-sm" 
+                className="text-sm h-8"
                 placeholder="2024"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <label className="text-sm whitespace-nowrap">과목:</label>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">과목:</label>
               <Input 
                 type="text" 
                 value={subject} 
                 onChange={(e) => setSubject(e.target.value)} 
-                className="w-32 h-8 text-sm" 
+                className="text-sm h-8"
                 placeholder="산업안전기사"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <label className="text-sm whitespace-nowrap">회차:</label>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">회차:</label>
               <Input 
                 type="text" 
                 value={session} 
                 onChange={(e) => setSession(e.target.value)} 
-                className="w-20 h-8 text-sm" 
+                className="text-sm h-8"
                 placeholder="1회"
               />
             </div>
-            <Button 
-              type="button" 
-              variant="outline" 
-              size="sm" 
-              onClick={applyBasicTags}
-              className="whitespace-nowrap ml-auto"
-            >
-              태그 적용
-            </Button>
           </div>
-        </div>
-        
-        {/* 글로벌 태그 설정 */}
-        <div className="mb-4 p-3 border border-gray-200 rounded-md">
-          <h4 className="text-sm font-medium mb-2">공통 태그 설정 (모든 문제에 적용)</h4>
+          
           <div className="flex gap-2 mb-2">
             <Input 
               type="text" 
               value={globalTagInput} 
               onChange={(e) => setGlobalTagInput(e.target.value)} 
-              className="text-sm"
+              className="text-sm flex-1"
               onKeyDown={(e) => e.key === 'Enter' && addGlobalTag()}
-              placeholder="태그 입력 후 Enter"
+              placeholder="추가 태그 입력 후 Enter"
             />
             <Button type="button" variant="outline" size="sm" onClick={addGlobalTag}>추가</Button>
           </div>
+          
           {globalTags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
+            <div className="flex flex-wrap gap-1.5 mt-2">
               {globalTags.map((tag, i) => (
-                <Badge key={i} variant="secondary" className="flex items-center gap-1 px-2 py-1">
-                  {tag}
-                  <button 
-                    type="button" 
+                <Badge 
+                  key={`global-tag-${i}`} 
+                  variant="secondary" 
+                  className="flex items-center px-2 py-1 text-sm"
+                >
+                  <span className="max-w-[150px] truncate">{tag}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => removeGlobalTag(tag)}
-                    className="ml-1 text-gray-500 hover:text-gray-700"
+                    className="h-5 w-5 p-0 ml-1"
                   >
                     <X className="h-3 w-3" />
-                  </button>
+                  </Button>
                 </Badge>
               ))}
             </div>
           )}
+          
+          <div className="flex justify-end mt-2">
+            <Button 
+              onClick={applyBasicTags}
+              className="whitespace-nowrap"
+              size="sm"
+            >
+              태그 적용
+            </Button>
+          </div>
         </div>
         
         <div className="relative rounded-md transition-all">
@@ -842,36 +1018,37 @@ export function PasteForm({
                   </p>
                 </div>
                 
-                {/* 문제 이미지 영역 - 이미 추가된 이미지만 표시 */}
-                <div className="mb-3">
-                  <div className="flex flex-wrap gap-2">
-                    {q.images && q.images.length > 0 && q.images.map((imgBase64, imgIndex) => (
-                      <div key={`image-${qIndex}-${imgIndex}`} className="relative border rounded overflow-hidden w-full md:w-64 h-auto">
-                        <Button 
-                          type="button" 
-                          size="sm" 
-                          variant="destructive"
-                          onClick={() => {
+                {/* 문제 이미지 영역 - 개선된 구조 */}
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium mb-2">문제 이미지</h4>
+                  
+                  {/* 이미지 미리보기 영역 */}
+                  {q.images && q.images.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                      {q.images.map((img, imgIndex) => (
+                        <ImagePreview
+                          key={`question-image-${qIndex}-${imgIndex}`}
+                          image={img}
+                          questionIndex={qIndex}
+                          imageIndex={imgIndex}
+                          onRemove={() => {
                             setParsedQuestions(prev => {
                               const updated = [...prev];
-                              updated[qIndex].images.splice(imgIndex, 1);
+                              updated[qIndex].images = updated[qIndex].images.filter((_, idx) => idx !== imgIndex);
                               return updated;
                             });
                           }}
-                          className="absolute top-1 right-1 h-6 w-6 p-0 rounded-full z-10 opacity-90 hover:opacity-100"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                        <a href={imgBase64} target="_blank" rel="noopener noreferrer" className="block">
-                          <img 
-                            src={imgBase64} 
-                            alt={`문제 ${qIndex + 1} 이미지 ${imgIndex + 1}`} 
-                            className="w-full h-auto object-contain cursor-pointer" 
-                          />
-                        </a>
-                      </div>
-                    ))}
-                  </div>
+                        />
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* 이미지 붙여넣기 영역 */}
+                  <ImageArea 
+                    index={qIndex} 
+                    type="question" 
+                    onAddImage={addImageToQuestion}
+                  />
                 </div>
                 
                 {/* 보기 표시 (ㄱ,ㄴ,ㄷ,ㄹ 형태) */}
@@ -891,197 +1068,169 @@ export function PasteForm({
                   </div>
                 )}
                 
-                {/* 정답 선택 버튼 - 스타일 수정 */}
-                <div className="mb-3">
-                  <p className="font-medium text-sm mb-2">정답 선택: {q.answer > -1 ? `${q.answer + 1}번` : "선택 안됨"}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {q.options.map((_, optIndex) => (
-                      <Button 
-                        key={optIndex}
-                        type="button"
-                        size="sm"
-                        variant={q.answer === optIndex ? "default" : "outline"}
-                        onClick={() => setQuestionAnswer(qIndex, optIndex)}
-                        className={`w-10 h-10 p-0 flex items-center justify-center transition-all duration-200 ${
-                          q.answer === optIndex 
-                            ? "bg-black text-white hover:bg-gray-800 ring-2 ring-gray-300 font-bold transform scale-110 shadow-md border-2 border-gray-400" 
-                            : "border-2 border-gray-300 hover:bg-gray-100 text-gray-700"
-                        }`}
-                      >
-                        <span className="text-lg font-semibold">{optIndex + 1}</span>
-                      </Button>
-                    ))}
-                  </div>
+                {/* 정답 선택 버튼과 선택지 추가 버튼을 한 줄에 배치 */}
+                <div className="flex justify-between items-center mb-3">
+                  <p className="font-medium text-sm text-gray-700">정답 선택: <span className="text-gray-900 font-bold">{q.answer > -1 ? `${q.answer + 1}번` : "선택 안됨"}</span></p>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => addOption(qIndex)}
+                    className="text-xs h-8 px-2"
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> 선택지 추가
+                  </Button>
                 </div>
                 
-                {/* 선택지 목록 - 편집 가능하도록 수정 */}
-                <div className="space-y-2 mb-3">
-                  <div className="flex justify-between">
-                    <p className="font-medium text-sm">선택지:</p>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm"
-                      onClick={(e) => addOption(qIndex)}
-                      className="h-7"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      선택지 추가
-                    </Button>
-                  </div>
-                  {q.options.map((option, optIndex) => (
-                    <div key={optIndex} className="flex items-center gap-2">
-                      <div className={`flex items-center justify-center h-8 w-8 rounded-full text-sm font-bold transition-all duration-200 ${
+                {/* 선택지 목록 */}
+                <div className="space-y-3 mb-3">{q.options.map((option, optIndex) => (
+                    <div 
+                      key={optIndex} 
+                      className={`flex gap-2 items-center p-2 rounded-lg border-2 transition-all duration-200 hover:bg-gray-50 ${
                         q.answer === optIndex 
-                          ? 'bg-black text-white border-2 border-gray-300 shadow-md transform scale-110' 
-                          : 'bg-gray-100 text-gray-700 border border-gray-300'
-                      }`}>
+                          ? 'border-gray-800 bg-gray-50/80' 
+                          : 'border-gray-200'
+                      }`}
+                    >
+                      <div 
+                        onClick={() => {
+                          console.log(`선택지 클릭: 문제 ${qIndex}, 옵션 ${optIndex}, 현재 정답: ${q.answer}`);
+                          setQuestionAnswer(qIndex, optIndex);
+                        }}
+                        className={`flex items-center justify-center h-10 w-10 rounded-full text-sm font-bold cursor-pointer transition-all duration-200 ${
+                          q.answer === optIndex 
+                            ? 'bg-gray-800 text-white shadow-sm ring-2 ring-gray-300' 
+                            : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                        }`}
+                      >
                         {optIndex + 1}
                       </div>
                       <Input
                         value={option}
                         onChange={(e) => updateOption(qIndex, optIndex, e.target.value)}
-                        className="flex-1 text-sm"
+                        className={`flex-1 text-sm border-gray-200 focus:ring-1 focus:ring-gray-400 ${
+                          q.answer === optIndex ? 'bg-white' : ''
+                        }`}
                       />
                       <Button 
                         type="button" 
                         variant="ghost" 
                         size="sm"
-                        onClick={(e) => removeOption(qIndex, optIndex)}
-                        className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                        onClick={() => removeOption(qIndex, optIndex)}
+                        className="h-10 w-10 rounded-full p-0 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                       >
-                        <X className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
                 </div>
                 
-                {/* 문제별 태그 섹션 */}
-                <div className="mb-3">
-                  <div className="flex items-center mb-2">
-                    <p className="font-medium text-sm mr-2">태그:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {q.tags?.map((tag, tIndex) => (
-                        <Badge key={tIndex} variant="secondary" className="cursor-pointer" onClick={(e) => removeQuestionTag(qIndex, tag, e)}>
-                          {tag} <X className="h-3 w-3 ml-1" />
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="flex ml-auto">
-                      <Input 
+                {/* 문제별 태그 UI 개선 */}
+                {/* 문제별 태그 영역 */}
+                <div className="mb-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-sm font-medium mb-2">문제 태그</h4>
+                    <div className="flex gap-2">
+                      <Input
                         type="text"
-                        value={qIndex === selectedQuestionIndex ? questionTagInput : ''}
+                        value={questionTagInput}
                         onChange={(e) => setQuestionTagInput(e.target.value)}
+                        className="text-sm max-w-[200px]"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
+                            e.preventDefault();
                             addQuestionTag(qIndex);
                           }
                         }}
-                        onClick={(e) => setSelectedQuestionIndex(qIndex)}
-                        placeholder="태그 추가..."
-                        className="text-xs h-7 w-32"
+                        placeholder="태그 입력 후 Enter"
                       />
                       <Button 
                         type="button" 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={(e) => addQuestionTag(qIndex, e)}
-                        className="h-7 ml-1"
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => addQuestionTag(qIndex)}
                       >
                         추가
                       </Button>
                     </div>
                   </div>
+                  
+                  {/* 태그 목록 */}
+                  {q.tags && q.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {q.tags.map((tag, tagIdx) => (
+                        <div 
+                          key={`tag-${qIndex}-${tagIdx}`} 
+                          className="bg-gray-100 text-gray-800 rounded-full px-3 py-1 text-sm flex items-center"
+                        >
+                          {tag}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeQuestionTag(qIndex, tag)}
+                            className="h-5 w-5 p-0 ml-1 text-gray-500 hover:text-gray-700"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 
-                <div className="mt-4 border-t pt-3">
-                  <div className="flex justify-between mb-2">
-                    <p className="font-medium text-sm">해설:</p>
-                    <div className="flex gap-2">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm"
-                        onClick={(e) => addExplanationImageToQuestion(e, qIndex)}
-                      >
-                        <ImageIcon className="h-4 w-4 mr-1" />
-                        해설 이미지
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  {/* 해설 텍스트 입력 */}
-                  <div className="mb-2 relative">
-                    <Textarea
-                      value={qIndex === selectedQuestionIndex ? explanationText : q.explanation || ''}
-                      onChange={(e) => {
-                        if (qIndex === selectedQuestionIndex) {
-                          setExplanationText(e.target.value);
-                        } else {
-                          setParsedQuestions(prev => {
-                            const updated = [...prev];
-                            updated[qIndex].explanation = e.target.value;
-                            return updated;
-                          });
-                        }
-                      }}
+                <div className="space-y-3 mt-4">
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">해설</h3>
+                    <textarea
+                      className="w-full p-3 border rounded-md h-24 bg-gray-50"
                       placeholder="해설을 입력하세요..."
-                      className="text-sm min-h-[80px]"
+                      value={q.explanation || ''}
+                      onChange={(e) => {
+                        setParsedQuestions(prev => {
+                          const updated = [...prev];
+                          updated[qIndex].explanation = e.target.value;
+                          return updated;
+                        });
+                      }}
+                      onPaste={handleTextAreaPaste}
                     />
-                    
-                    {qIndex === selectedQuestionIndex && explanationText.trim() !== '' && (
-                      <Button 
-                        type="button"
-                        size="sm"
-                        className="absolute bottom-2 right-2"
-                        onClick={() => addExplanationTextToQuestion(qIndex, explanationText)}
-                      >
-                        저장
-                      </Button>
-                    )}
                   </div>
                   
-                  {/* 해설 이미지 영역 */}
+                  {/* 해설 이미지 영역 - 개선된 구조 */}
                   <div className="mb-3">
-                    <div className="flex flex-wrap gap-2">
-                      {q.explanationImages && q.explanationImages.length > 0 && q.explanationImages.map((imgBase64, imgIndex) => (
-                        <div key={`exp-image-${qIndex}-${imgIndex}`} className="relative border rounded overflow-hidden w-full md:w-64 h-auto">
-                          <Button 
-                            type="button" 
-                            size="sm" 
-                            variant="destructive"
-                            onClick={() => {
+                    <h4 className="text-sm font-medium mb-2">해설 이미지</h4>
+                    
+                    {/* 해설 이미지 미리보기 */}
+                    {q.explanationImages && q.explanationImages.length > 0 && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                        {q.explanationImages.map((img, imgIndex) => (
+                          <ImagePreview
+                            key={`explanation-image-${qIndex}-${imgIndex}`}
+                            image={img}
+                            questionIndex={qIndex}
+                            imageIndex={imgIndex}
+                            isExplanation={true}
+                            onRemove={() => {
                               setParsedQuestions(prev => {
                                 const updated = [...prev];
                                 if (updated[qIndex].explanationImages) {
-                                  updated[qIndex].explanationImages.splice(imgIndex, 1);
+                                  updated[qIndex].explanationImages = updated[qIndex].explanationImages!.filter((_, idx) => idx !== imgIndex);
                                 }
                                 return updated;
                               });
                             }}
-                            className="absolute top-1 right-1 h-6 w-6 p-0 rounded-full z-10 opacity-90 hover:opacity-100"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                          <a href={imgBase64} target="_blank" rel="noopener noreferrer" className="block">
-                            <img 
-                              src={imgBase64} 
-                              alt={`문제 ${qIndex + 1} 해설 이미지 ${imgIndex + 1}`} 
-                              className="w-full h-auto object-contain cursor-pointer" 
-                            />
-                          </a>
-                        </div>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-32 w-32 flex flex-col items-center justify-center gap-1 border-dashed"
-                        onClick={(e) => addExplanationImageToQuestion(e, qIndex)}
-                      >
-                        <ImageIcon className="h-8 w-8 text-gray-400" />
-                        <span className="text-xs text-gray-500">이미지 추가</span>
-                      </Button>
-                    </div>
+                          />
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* 해설 이미지 붙여넣기 영역 */}
+                    <ImageArea 
+                      index={qIndex} 
+                      type="explanation" 
+                      onAddImage={addExplanationImageToQuestion}
+                    />
                   </div>
                 </div>
               </div>
@@ -1089,6 +1238,21 @@ export function PasteForm({
           </div>
         </div>
       )}
+
+      {/* 이미지 확대 모달 */}
+      <Dialog open={!!zoomedImage} onOpenChange={(open) => !open && setZoomedImage(null)}>
+        <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden border-0">
+          {zoomedImage && (
+            <div className="w-full h-full flex items-center justify-center bg-black bg-opacity-90 p-4">
+              <img
+                src={zoomedImage}
+                alt="큰 이미지 보기"
+                className="max-w-full max-h-[80vh] object-contain"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 } 
