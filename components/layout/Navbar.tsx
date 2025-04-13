@@ -55,6 +55,20 @@ const Navbar = () => {
               </NavigationMenuItem>
               
               <NavigationMenuItem>
+                <NavigationMenuTrigger>문제 관리</NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <ul className="grid w-[400px] gap-3 p-4">
+                    <ListItem href="/questions/new" title="문제 등록">
+                      새로운 문제를 등록하세요
+                    </ListItem>
+                    <ListItem href="/questions/list" title="문제 목록">
+                      등록된 문제를 관리하세요
+                    </ListItem>
+                  </ul>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+              
+              <NavigationMenuItem>
                 <NavigationMenuTrigger>커뮤니티</NavigationMenuTrigger>
                 <NavigationMenuContent>
                   <ul className="grid w-[400px] gap-3 p-4">
@@ -69,11 +83,14 @@ const Navbar = () => {
               </NavigationMenuItem>
               
               <NavigationMenuItem>
-                <Link href="/guide" legacyBehavior passHref>
-                  <NavigationMenuLink className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900 focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-gray-100/50 data-[state=open]:bg-gray-100/50">
+                <NavigationMenuLink asChild>
+                  <Link 
+                    href="/guide" 
+                    className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900 focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-gray-100/50 data-[state=open]:bg-gray-100/50"
+                  >
                     이용 가이드
-                  </NavigationMenuLink>
-                </Link>
+                  </Link>
+                </NavigationMenuLink>
               </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
@@ -100,6 +117,14 @@ const Navbar = () => {
                 <li><Link href="/practice" className="text-gray-600 hover:text-gray-900">모의고사</Link></li>
                 <li><Link href="/wrong-answers" className="text-gray-600 hover:text-gray-900">오답 노트</Link></li>
                 <li><Link href="/statistics" className="text-gray-600 hover:text-gray-900">학습 통계</Link></li>
+              </ul>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="font-medium text-sm">문제 관리</h3>
+              <ul className="pl-4 space-y-2">
+                <li><Link href="/questions/new" className="text-gray-600 hover:text-gray-900">문제 등록</Link></li>
+                <li><Link href="/questions/list" className="text-gray-600 hover:text-gray-900">문제 목록</Link></li>
               </ul>
             </div>
             

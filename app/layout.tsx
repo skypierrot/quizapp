@@ -1,6 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
-// import { Inter } from 'next/font/google'; // 중복 제거
+// Clerk 인증 후반부 개발로 미룸
 // import { ClerkProvider } from '@clerk/nextjs';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
@@ -32,12 +32,26 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={inter.className}>
+        {/* Clerk 인증 후반부 개발로 미룸 */}
+        {/* <ClerkProvider
+          publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+          appearance={{
+            layout: {
+              socialButtonsVariant: "iconButton",
+              socialButtonsPlacement: "bottom"
+            }
+          }}
+          clerkJSUrl="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@4/dist/clerk.browser.js"
+          isSatellite={true}
+          navigate={(to) => window.location.href = to}
+        > */}
         <div className="flex flex-col min-h-screen">
           <Navbar />
           <main className="flex-grow">{children}</main>
           <Footer />
         </div>
         <Toaster />
+        {/* </ClerkProvider> */}
       </body>
     </html>
   );

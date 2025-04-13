@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
+// 서버 컴포넌트 정의
 export default function Home() {
   return (
     <div className="flex flex-col">

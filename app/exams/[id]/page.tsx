@@ -1,14 +1,8 @@
 import React from "react";
 import Link from "next/link";
 
-interface ExamPageProps {
-  params: {
-    id: string;
-  };
-}
-
 // 임시 데이터
-const getExamById = (id: string) => {
+async function getExamById(id: string) {
   return {
     id,
     title: "정보처리기사 필기 2024년 1회차",
@@ -53,10 +47,16 @@ const getExamById = (id: string) => {
       }
     ]
   };
-};
+}
 
-export default function ExamPage({ params }: ExamPageProps) {
-  const exam = getExamById(params.id);
+interface ExamPageProps {
+  params: {
+    id: string;
+  };
+}
+
+export default async function ExamPage({ params }: ExamPageProps) {
+  const exam = await getExamById(params.id);
   
   return (
     <div className="container mx-auto py-8 px-4">
