@@ -1,0 +1,1 @@
+{ "frontendApi": "clerk.example.com", "publishableKey": "pk_test_your_publishable_key", "jsUrl": "https://cdn.jsdelivr.net/npm/@clerk/clerk-js@4/dist/clerk.browser.js" }

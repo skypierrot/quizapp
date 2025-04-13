@@ -11,6 +11,7 @@ services:
       - "3772:3000"
     volumes:
       - ./public/images:/app/public/images
+      - ./public/uploads:/app/public/uploads
     networks:
       - ngnet
     depends_on:

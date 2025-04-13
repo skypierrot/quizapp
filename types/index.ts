@@ -25,24 +25,25 @@ export interface IQuestion {
   id: string | number;
   number: number;
   content: string;
-  options: IOption[];
+  options: IOption[] | string[];
   answer: number;
   examples?: string[];
   explanation?: string;
-  images?: IQuestionImage[];
-  explanationImages?: IQuestionImage[];
+  images: string[];
+  explanationImages: string[];
   created_at?: Date;
   updated_at?: Date;
+  tags?: string[];
 }
 
 export interface IOption {
   number: number;
   text: string;
-  images?: IQuestionImage[];
+  images?: string[];
 }
 
 export interface IQuestionImage {
-  id: number;
+  id?: number;
   path: string;
   type: 'question' | 'option' | 'explanation';
 }
@@ -59,3 +60,6 @@ export interface IExamResult {
   completedAt: Date;
   createdAt: Date;
 }
+
+// 확장된 Toast 타입 정의
+export type ToastType = "default" | "destructive" | "success" | "warning";

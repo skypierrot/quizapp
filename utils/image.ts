@@ -1,0 +1,115 @@
+import { useToast } from "@/components/ui/use-toast";
+import { IImageUploadResult, ImageType } from "@/types/question";
+import { ToastType } from "@/types/toast";
+
+/**
+ * 파일을 base64 문자열로 변환합니다.
+ * @param file 변환할 파일 객체
+ * @returns Promise<string> base64 문자열
+ */
+export const convertToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+  });
+};
+
+/**
+ * 이미지 파일을 처리하고 base64 문자열로 변환합니다.
+ * 이미지 크기 제한 검사도 수행합니다.
+ * @param file 이미지 파일
+ * @param maxSizeMB 최대 크기(MB)
+ * @returns Promise<IImageUploadResult> 처리 결과
+ */
+export const handleImageUpload = async (
+  file: File, 
+  maxSizeMB: number = 10
+): Promise<IImageUploadResult> => {
+  // 이미지 타입 검사
+  if (!file.type.startsWith('image/')) {
+    return {
+      success: false,
+      message: "이미지 파일만 업로드 가능합니다."
+    };
+  }
+
+  // 크기 제한 검사 (기본 10MB)
+  const maxSize = maxSizeMB * 1024 * 1024;
+  if (file.size > maxSize) {
+    return {
+      success: false,
+      message: `${maxSizeMB}MB 이하의 이미지만 업로드 가능합니다.`
+    };
+  }
+
+  try {
+    const base64 = await convertToBase64(file);
+    return {
+      success: true,
+      message: "이미지가 성공적으로 변환되었습니다.",
+      imageUrl: base64
+    };
+  } catch (error) {
+    console.error("이미지 변환 오류:", error);
+    return {
+      success: false,
+      message: "이미지 처리 중 오류가 발생했습니다."
+    };
+  }
+};
+
+/**
+ * 클립보드 이벤트에서 이미지를 추출하고 처리합니다.
+ * @param e 클립보드 이벤트
+ * @param maxSizeMB 최대 크기(MB)
+ * @returns Promise<IImageUploadResult> 처리 결과
+ */
+export const handlePasteImage = async (
+  e: ClipboardEvent,
+  maxSizeMB: number = 10
+): Promise<IImageUploadResult> => {
+  if (!e.clipboardData) {
+    return {
+      success: false,
+      message: "클립보드 데이터를 읽을 수 없습니다."
+    };
+  }
+
+  // 클립보드에서 이미지 파일 추출
+  const items = e.clipboardData.items;
+  let imageFile: File | null = null;
+
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].type.indexOf("image") !== -1) {
+      imageFile = items[i].getAsFile();
+      break;
+    }
+  }
+
+  if (!imageFile) {
+    return {
+      success: false,
+      message: "클립보드에 이미지가 없습니다."
+    };
+  }
+
+  return await handleImageUpload(imageFile, maxSizeMB);
+};
+
+/**
+ * 토스트 메시지를 표시합니다. 오류 처리에 사용됩니다.
+ * @param title 제목
+ * @param message 메시지
+ * @param type 토스트 타입
+ */
+export const showImageToast = (
+  title: string, 
+  message: string, 
+  type: ToastType = "default"
+) => {
+  // 컴포넌트 내에서만 훅을 사용할 수 있으므로 여기서는 console.log로 대체
+  console.log(`[Image Toast] ${title}: ${message} (${type})`);
+  // 실제 컴포넌트에서는 useToast 훅을 사용하여 표시
+}; 
