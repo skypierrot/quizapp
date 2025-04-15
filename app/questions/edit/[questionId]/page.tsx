@@ -15,7 +15,7 @@ interface EditQuestionPageProps {
 }
 
 export default function EditQuestionPage({ params }: EditQuestionPageProps) {
-  const questionId = params.questionId;
+  const { questionId } = params;
   const { toast } = useToast();
   const router = useRouter();
   const [question, setQuestion] = useState<IQuestion | null>(null);

@@ -7,7 +7,13 @@ import { useState, useRef, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { cn, generateId } from "@/lib/utils";
 import { Loader2, X, Image as ImageIcon, Plus, Trash2 } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogTitle,
+  DialogDescription
+} from "@/components/ui/dialog";
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { ToastType, ToastVariant } from "@/types/toast";
 import { convertToBase64, handleImageUpload } from "@/utils/image";
 import { Label } from "@/components/ui/label";
@@ -96,7 +102,7 @@ export function ManualForm({
   useEffect(() => {
     if (initialData && initialData.tags) {
       // 시험명, 년도, 회차, 과목 태그 파싱
-      initialData.tags.forEach(tag => {
+      initialData.tags.forEach((tag: string) => {
         if (tag.startsWith('시험명:')) setExamName(tag.replace('시험명:', ''));
         else if (tag.startsWith('년도:')) setYear(tag.replace('년도:', ''));
         else if (tag.startsWith('회차:')) setSession(tag.replace('회차:', ''));
@@ -110,12 +116,12 @@ export function ManualForm({
     id: question.id || generateId(),
     number: question.number || 1,
     content: question.content,
-    options: question.options.map((opt, idx) => ({
+    options: question.options.map((opt: { number: number; text: string; images: string[]; }, idx: number) => ({
       id: generateId(),
       content: opt.text
     })),
     answer: question.answer >= 0 ? question.answer : 0,
-    tags: question.tags.map(tag => ({
+    tags: question.tags.map((tag: string) => ({
       id: generateId(),
       name: tag,
       color: 'gray'
@@ -133,9 +139,9 @@ export function ManualForm({
   // parsedQuestionsState가 변경될 때 question.tags 업데이트
   useEffect(() => {
     if (parsedQuestionsState.length > 0) {
-      setQuestion(prev => ({
+      setQuestion((prev: IManualQuestion) => ({
         ...prev,
-        tags: parsedQuestionsState[0].tags.map(tag => tag.name)
+        tags: parsedQuestionsState[0].tags.map((tag: { id: string; name: string; color: string; }) => tag.name)
       }));
     }
   }, [parsedQuestionsState]);
@@ -148,7 +154,7 @@ export function ManualForm({
     
     // 중복 태그 확인 (대소문자 구분 없이, 공백 제거 후 비교)
     const isDuplicate = question.tags.some(
-      tag => tag.trim().toLowerCase() === trimmedInput.toLowerCase()
+      (tag: string) => tag.trim().toLowerCase() === trimmedInput.toLowerCase()
     );
     
     if (isDuplicate) {
@@ -160,13 +166,13 @@ export function ManualForm({
     }
     
     // 문제 태그에 직접 추가
-    setQuestion(prev => ({
+    setQuestion((prev: IManualQuestion) => ({
       ...prev,
       tags: [...prev.tags, trimmedInput],
     }));
     
     // 동시에 파싱된 질문 상태에도 반영
-    setParsedQuestionsState(prev => {
+    setParsedQuestionsState((prev: IParsedQuestion[]) => {
       if (prev.length === 0) return prev;
       
       const newTagObject = {
@@ -194,19 +200,19 @@ export function ManualForm({
   // 태그 제거 함수
   const removeTag = (tagToRemove: string) => {
     // 문제 태그에서 제거
-    setQuestion(prev => ({
+    setQuestion((prev: IManualQuestion) => ({
       ...prev,
       tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
     
     // 동시에 파싱된 질문 상태에서도 제거
-    setParsedQuestionsState(prev => {
+    setParsedQuestionsState((prev: IParsedQuestion[]) => {
       if (prev.length === 0) return prev;
       
       return [
         {
           ...prev[0],
-          tags: prev[0].tags.filter(tag => tag.name !== tagToRemove)
+          tags: prev[0].tags.filter((tag: { id: string; name: string; color: string; }) => tag.name !== tagToRemove)
         },
         ...prev.slice(1)
       ];
@@ -317,7 +323,7 @@ export function ManualForm({
     });
 
     if (!blob) {
-      toast({ title: "이미지가 선택되지 않았습니다", variant: "destructive" });
+      toast({ title: "이미지가 선택되지 않았습니다", variant: "error" });
       setImageEventProcessing(false);
       return;
     }
@@ -326,14 +332,14 @@ export function ManualForm({
       toast({ 
         title: "이미지 크기가 너무 큽니다", 
         description: "10MB 이하의 이미지만 업로드 가능합니다", 
-        variant: "destructive" 
+        variant: "error" 
       });
       setImageEventProcessing(false);
       return;
     }
     
     if (!blob.type.startsWith('image/')) {
-      toast({ title: "이미지 파일만 업로드 가능합니다", variant: "destructive" });
+      toast({ title: "이미지 파일만 업로드 가능합니다", variant: "error" });
       setImageEventProcessing(false);
       return;
     }
@@ -345,7 +351,7 @@ export function ManualForm({
       // 중복 체크 개선 - 전체 이미지 비교나 해시값 생성 대신 특정 부분만 비교
       if (isExplanation) {
         // 중복 체크: 문자열 시작과 끝부분을 비교하여 효율적으로 중복 확인
-        const isDuplicate = question.explanationImages.some(img => {
+        const isDuplicate = question.explanationImages.some((img: string) => {
           if (img.length > 100 && base64.length > 100) {
             return img.substring(0, 100) === base64.substring(0, 100) && 
                    img.substring(img.length - 100) === base64.substring(base64.length - 100);
@@ -362,7 +368,7 @@ export function ManualForm({
           });
         } else {
           console.log("[DEBUG] 이미지 추가: 해설");
-          setQuestion(prev => ({
+          setQuestion((prev: IManualQuestion) => ({
             ...prev,
             explanationImages: [...prev.explanationImages, base64]
           }));
@@ -375,7 +381,7 @@ export function ManualForm({
         }
       } else {
         // 중복 체크: 문자열 시작과 끝부분을 비교하여 효율적으로 중복 확인
-        const isDuplicate = question.images.some(img => {
+        const isDuplicate = question.images.some((img: string) => {
           if (img.length > 100 && base64.length > 100) {
             return img.substring(0, 100) === base64.substring(0, 100) && 
                    img.substring(img.length - 100) === base64.substring(base64.length - 100);
@@ -392,7 +398,7 @@ export function ManualForm({
           });
         } else {
           console.log("[DEBUG] 이미지 추가: 문제");
-          setQuestion(prev => ({
+          setQuestion((prev: IManualQuestion) => ({
             ...prev,
             images: [...prev.images, base64]
           }));
@@ -409,7 +415,7 @@ export function ManualForm({
       toast({ 
         title: "이미지 처리 실패", 
         description: "이미지를 처리하는 중 오류가 발생했습니다.", 
-        variant: "destructive"
+        variant: "error"
       });
     } finally {
       // 항상 처리 완료 후 상태 리셋 (지연시간 단축)
@@ -467,7 +473,7 @@ export function ManualForm({
       toast({
         title: "이미지 추가 실패",
         description: "이미지 파일만 업로드할 수 있습니다.",
-        variant: "destructive"
+        variant: "error"
       });
       return;
     }
@@ -477,7 +483,7 @@ export function ManualForm({
       toast({
         title: "이미지 크기가 너무 큽니다",
         description: "10MB 이하의 이미지만 업로드 가능합니다",
-        variant: "destructive"
+        variant: "error"
       });
       return;
     }
@@ -490,7 +496,7 @@ export function ManualForm({
       
       if (isExplanation) {
         // 설명 이미지 업데이트
-        setQuestion(prev => ({
+        setQuestion((prev: IManualQuestion) => ({
           ...prev,
           explanationImages: [...prev.explanationImages, base64Url]
         }));
@@ -501,7 +507,7 @@ export function ManualForm({
         });
       } else {
         // 질문 이미지 업데이트
-        setQuestion(prev => ({
+        setQuestion((prev: IManualQuestion) => ({
           ...prev,
           images: [...prev.images, base64Url]
         }));
@@ -517,7 +523,7 @@ export function ManualForm({
       toast({
         title: "이미지 추가 실패",
         description: "이미지를 처리하는 중 오류가 발생했습니다.",
-        variant: "destructive"
+        variant: "error"
       });
     };
     
@@ -535,14 +541,14 @@ export function ManualForm({
   // 이미지 삭제 처리
   const removeImage = (index: number, isExplanation = false) => {
     if (isExplanation) {
-      setQuestion(prev => ({
+      setQuestion((prev: IManualQuestion) => ({
         ...prev,
-        explanationImages: prev.explanationImages.filter((_, i) => i !== index)
+        explanationImages: prev.explanationImages.filter((_: string, i: number) => i !== index)
       }));
     } else {
-      setQuestion(prev => ({
+      setQuestion((prev: IManualQuestion) => ({
         ...prev,
-        images: prev.images.filter((_, i) => i !== index)
+        images: prev.images.filter((_: string, i: number) => i !== index)
       }));
     }
     
@@ -553,21 +559,21 @@ export function ManualForm({
   };
 
   // 선택지 추가
-  const addOption = (e?: React.MouseEvent) => {
+  const addOption = (e?: React.MouseEvent<HTMLButtonElement>) => {
     e?.stopPropagation();
-    setQuestion(prev => ({
+    setQuestion((prev: IManualQuestion) => ({
       ...prev,
       options: [...prev.options, { number: prev.options.length + 1, text: "", images: [] }]
     }));
   };
 
   // 선택지 삭제
-  const removeOption = (index: number, e?: React.MouseEvent) => {
+  const removeOption = (index: number, e?: React.MouseEvent<HTMLButtonElement>) => {
     e?.stopPropagation();
     
-    setQuestion(prev => {
+    setQuestion((prev: IManualQuestion) => {
       // 선택지 필터링
-      const newOptions = prev.options.filter((_, i) => i !== index);
+      const newOptions = prev.options.filter((_: { number: number; text: string; images: string[]; }, i: number) => i !== index);
       
       // 정답 인덱스 조정
       let newAnswer = prev.answer;
@@ -594,9 +600,9 @@ export function ManualForm({
 
   // 선택지 업데이트
   const updateOption = (index: number, value: string) => {
-    setQuestion(prev => ({
+    setQuestion((prev: IManualQuestion) => ({
       ...prev,
-      options: prev.options.map((opt, i) => i === index ? { ...opt, text: value } : opt)
+      options: prev.options.map((opt: { number: number; text: string; images: string[]; }, i: number) => i === index ? { ...opt, text: value } : opt)
     }));
   };
 
@@ -604,7 +610,7 @@ export function ManualForm({
   const setQuestionAnswer = (answerIndex: number) => {
     console.log(`정답 선택: ${answerIndex}`);
     
-    setQuestion(prev => {
+    setQuestion((prev: IManualQuestion) => {
       // 토글 방식 - 동일한 답변을 다시 클릭하면 선택 취소
       const newAnswer = prev.answer === answerIndex ? -1 : answerIndex;
       
@@ -629,7 +635,7 @@ export function ManualForm({
   };
 
   // 기본 태그 적용 (시험명, 년도, 회차, 과목)
-  const applyBasicTags = () => {
+  const onApplyBasicTags = () => {
     // 필수 태그 유효성 검사
     const isExamNameValid = !!examName.trim();
     const isYearValid = !!year.trim();
@@ -657,13 +663,13 @@ export function ManualForm({
     }
     
     // 기존 태그에서 기본 태그(시험명, 년도, 회차, 과목) 제거
-    const filteredTags = question.tags.filter(tag => 
+    const filteredTags = question.tags.filter((tag: string) => 
       !(tag.startsWith('시험명:') || tag.startsWith('년도:') || 
         tag.startsWith('회차:') || tag.startsWith('과목:'))
     );
     
     // 새 태그 설정
-    setQuestion(prev => ({
+    setQuestion((prev: IManualQuestion) => ({
       ...prev,
       tags: [...filteredTags, ...tagsToAdd]
     }));
@@ -673,7 +679,7 @@ export function ManualForm({
       if (prev.length === 0) return prev;
       
       // 기존 태그에서 기본 태그 제거
-      const filteredParsedTags = prev[0].tags.filter(tag => 
+      const filteredParsedTags = prev[0].tags.filter((tag: { id: string; name: string; color: string; }) => 
         !(tag.name.startsWith('시험명:') || tag.name.startsWith('년도:') || 
           tag.name.startsWith('회차:') || tag.name.startsWith('과목:'))
       );
@@ -709,15 +715,15 @@ export function ManualForm({
     if (!question.content) {
       toast({
         title: "문제 내용을 입력하세요",
-        variant: "destructive"
+        variant: "error"
       });
       return;
     }
     
-    if (question.options.some(opt => !opt.text)) {
+    if (question.options.some((opt: { number: number; text: string; images: string[]; }) => !opt.text)) {
       toast({
         title: "모든 선택지를 입력하세요",
-        variant: "destructive"
+        variant: "error"
       });
       return;
     }
@@ -725,7 +731,7 @@ export function ManualForm({
     if (question.answer < 0) {
       toast({
         title: "정답을 선택하세요",
-        variant: "destructive"
+        variant: "error"
       });
       return;
     }
@@ -733,11 +739,11 @@ export function ManualForm({
     setIsSubmitting(true);
 
     // 기본 태그 설정
-    if (!applyBasicTags()) {
+    if (!onApplyBasicTags()) {
       toast({
         title: "필수 태그를 올바르게 입력하세요",
         description: "시험명, 년도, 회차는 필수 입력 항목입니다.",
-        variant: "destructive"
+        variant: "error"
       });
       setIsSubmitting(false);
       return;
@@ -747,7 +753,7 @@ export function ManualForm({
       // API 호출 시 IOption을 문자열 배열로 변환
       const apiData = {
         content: question.content,
-        options: question.options.map(opt => opt.text),
+        options: question.options.map((opt: { number: number; text: string; images: string[]; }) => opt.text),
         answer: question.answer,
         explanation: question.explanation || "",
         images: question.images || [],
@@ -811,9 +817,9 @@ export function ManualForm({
     } catch (error) {
       console.error("문제 저장 오류:", error);
       toast({
-        title: "문제 저장 실패",
+        title: isEditMode ? "문제 수정 실패" : "문제 저장 실패",
         description: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
-        variant: "destructive"
+        variant: "error"
       });
     } finally {
       setIsSubmitting(false);
@@ -858,7 +864,7 @@ export function ManualForm({
   }, [isImageAreaActive, imageEventProcessing]);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6" onKeyDown={(e) => {
+    <form onSubmit={handleSubmit} className="space-y-6" onKeyDown={(e: React.KeyboardEvent<HTMLFormElement>) => {
       // 태그 입력 필드에서 Enter 키를 누를 때 폼 제출을 방지
       if (e.key === 'Enter' && e.target instanceof HTMLInputElement && e.target.name === 'tagInput') {
         e.preventDefault();
@@ -870,76 +876,79 @@ export function ManualForm({
           <h3 className="text-base font-medium mb-2">태그 관리</h3>
           
           {/* 기본 태그 설정 (시험명, 년도, 회차, 과목) */}
-          <div className="mb-4 p-3 border border-gray-200 rounded-md bg-gray-50">
+          <div className="flex flex-wrap gap-2 mb-4 mt-4 p-3 border border-gray-200 rounded-md bg-gray-50">
             <div className="w-full">
               <h4 className="text-sm font-medium mb-2">기본 태그 설정</h4>
               <p className="text-xs text-gray-500 mb-3">
                 <span className="text-red-500 font-bold">*</span> 표시는 필수 입력 항목입니다
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 w-full">
-              <div className="flex items-center gap-2">
-                <label className="text-sm whitespace-nowrap font-medium">
+            {/* Grid 레이아웃으로 변경 */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full items-end">
+              <div className="space-y-1"> {/* 시험명 */}
+                <Label className="text-xs text-gray-500 block">
                   시험명: <span className="text-red-500 font-bold">*</span>
-                </label>
-                <Input 
-                  type="text" 
-                  value={examName} 
-                  onChange={(e) => setExamName(e.target.value)}
-                  onCompositionEnd={(e) => setExamName((e.target as HTMLInputElement).value)}
-                  className={`w-32 h-8 text-sm ${!examName.trim() ? 'border-red-300' : ''}`}
+                </Label>
+                <Input
+                  type="text"
+                  value={examName}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExamName(e.target.value)}
+                  onCompositionEnd={(e: React.CompositionEvent<HTMLInputElement>) => setExamName((e.target as HTMLInputElement).value)}
+                  className={`h-8 text-sm ${!examName.trim() ? "border-red-300" : ""} w-full`}
                   placeholder="산업안전기사"
                   required
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm whitespace-nowrap font-medium">
+              <div className="space-y-1"> {/* 년도 */}
+                <Label className="text-xs text-gray-500 block">
                   년도: <span className="text-red-500 font-bold">*</span>
-                </label>
-                <Input 
-                  type="text" 
-                  value={year} 
-                  onChange={(e) => setYear(e.target.value)}
-                  onCompositionEnd={(e) => setYear((e.target as HTMLInputElement).value)}
-                  className={`w-20 h-8 text-sm ${!year.trim() ? 'border-red-300' : ''}`}
+                </Label>
+                <Input
+                  type="text"
+                  value={year}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setYear(e.target.value)}
+                  onCompositionEnd={(e: React.CompositionEvent<HTMLInputElement>) => setYear((e.target as HTMLInputElement).value)}
+                  className={`h-8 text-sm ${!year.trim() ? "border-red-300" : ""} w-full`}
                   placeholder="2024"
                   required
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm whitespace-nowrap font-medium">
+              <div className="space-y-1"> {/* 회차 */}
+                <Label className="text-xs text-gray-500 block">
                   회차: <span className="text-red-500 font-bold">*</span>
-                </label>
-                <Input 
-                  type="text" 
-                  value={session} 
-                  onChange={(e) => setSession(e.target.value)}
-                  onCompositionEnd={(e) => setSession((e.target as HTMLInputElement).value)}
-                  className={`w-20 h-8 text-sm ${!session.trim() ? 'border-red-300' : ''}`}
+                </Label>
+                <Input
+                  type="text"
+                  value={session}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSession(e.target.value)}
+                  onCompositionEnd={(e: React.CompositionEvent<HTMLInputElement>) => setSession((e.target as HTMLInputElement).value)}
+                  className={`h-8 text-sm ${!session.trim() ? "border-red-300" : ""} w-full`}
                   placeholder="1회"
                   required
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm whitespace-nowrap">과목:</label>
-                <Input 
-                  type="text" 
-                  value={subject} 
-                  onChange={(e) => setSubject(e.target.value)}
-                  onCompositionEnd={(e) => setSubject((e.target as HTMLInputElement).value)}
-                  className="w-32 h-8 text-sm" 
+              <div className="space-y-1"> {/* 과목 */}
+                <Label className="text-xs text-gray-500 block">과목:</Label>
+                <Input
+                  type="text"
+                  value={subject}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSubject(e.target.value)}
+                  onCompositionEnd={(e: React.CompositionEvent<HTMLInputElement>) => setSubject((e.target as HTMLInputElement).value)}
+                  className="h-8 text-sm w-full"
                   placeholder="안전관리 (선택)"
                 />
               </div>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm" 
-                onClick={applyBasicTags}
-                className="whitespace-nowrap ml-auto"
-              >
-                태그 적용
-              </Button>
+              <div className="lg:ml-auto"> {/* 버튼 */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onApplyBasicTags}
+                  className="whitespace-nowrap w-full lg:w-auto h-8" /* h-8 추가 */
+                >
+                  태그 적용
+                </Button>
+              </div>
             </div>
           </div>
           
@@ -951,16 +960,16 @@ export function ManualForm({
                 type="text" 
                 name="tagInput"
                 value={tagInput} 
-                onChange={(e) => {
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   // 값을 직접 업데이트
                   setTagInput(e.target.value);
                 }}
-                onCompositionEnd={(e) => {
+                onCompositionEnd={(e: React.CompositionEvent<HTMLInputElement>) => {
                   // 한글 입력 완료 후 상태 업데이트를 안정적으로 처리
                   setTagInput((e.target as HTMLInputElement).value);
                 }}
                 className="text-sm"
-                onKeyDown={(e) => {
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                   if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
                     e.preventDefault();
                     console.log("[DEBUG] Enter키 입력됨. 현재 tagInput:", tagInput);
@@ -980,7 +989,7 @@ export function ManualForm({
                 type="button" 
                 variant="outline" 
                 size="sm" 
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                   e.preventDefault();
                   console.log("[DEBUG] 추가 버튼 클릭됨. 현재 tagInput:", tagInput);
                   if (tagInput.trim()) {
@@ -1000,10 +1009,10 @@ export function ManualForm({
               기본 태그 외에 추가로 문제를 분류할 태그를 입력하세요. 입력 후 Enter 또는 추가 버튼을 클릭하세요.
             </p>
             {question.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {question.tags.map((tag, i) => (
-                  <Badge key={i} variant="secondary" className="flex items-center gap-1 px-2 py-1">
-                    {tag}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                {question.tags.map((tag: string, i: number) => (
+                  <Badge key={i} variant="secondary" className="flex items-center justify-between gap-1 px-2 py-1 text-xs">
+                    <span className="truncate">{tag}</span>
                     <button 
                       type="button" 
                       onClick={() => removeTag(tag)}
@@ -1027,7 +1036,7 @@ export function ManualForm({
           <Textarea
             ref={contentRef}
             value={question.content}
-            onChange={(e) => setQuestion({...question, content: e.target.value})}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setQuestion({...question, content: e.target.value})}
             onPaste={handleTextAreaPaste}
             className="min-h-[100px]"
             placeholder="문제 내용을 입력하세요."
@@ -1047,7 +1056,7 @@ export function ManualForm({
           <div 
             ref={imageDropzoneRef}
             data-image-area="true"
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent<HTMLDivElement>) => {
               e.stopPropagation();
               handleImageAreaClick('question');
             }}
@@ -1058,7 +1067,7 @@ export function ManualForm({
                 setActiveImageType('question');
               }
             }}
-            onMouseLeave={(e) => {
+            onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
               e.stopPropagation();
               handleImageAreaMouseLeave();
             }}
@@ -1083,14 +1092,14 @@ export function ManualForm({
             type="file" 
             accept="image/*" 
             className="hidden" 
-            onChange={(e) => handleImageUpload(e, false)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleImageUpload(e, false)}
           />
         </div>
         
         {/* 문제 이미지 갤러리 - PasteForm 스타일로 변경 */}
         {question.images.length > 0 && (
           <div className="mb-4 grid grid-cols-1 gap-4">
-            {question.images.map((img, idx) => (
+            {question.images.map((img: string, idx: number) => (
               <div 
                 key={`img-${idx}`} 
                 className="relative group overflow-hidden rounded-lg border shadow-sm"
@@ -1099,7 +1108,7 @@ export function ManualForm({
                   type="button" 
                   size="sm" 
                   variant="destructive"
-                  onClick={() => removeImage(idx, false)}
+                  onClick={(e: React.MouseEvent<HTMLButtonElement>) => removeImage(idx, false)}
                   className="absolute top-2 right-2 h-6 w-6 p-0 rounded-full z-10 opacity-70 
                            group-hover:opacity-100 transition-opacity bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-700 border-none"
                 >
@@ -1107,7 +1116,7 @@ export function ManualForm({
                 </Button>
                 <div 
                   className="w-full transition-transform duration-300 hover:scale-105 cursor-zoom-in"
-                  onClick={() => handleImageZoom(img)}
+                  onClick={(e: React.MouseEvent<HTMLDivElement>) => handleImageZoom(img)}
                 >
                   <img 
                     src={img} 
@@ -1129,7 +1138,7 @@ export function ManualForm({
             type="button"
             variant="outline"
             size="sm"
-            onClick={addOption}
+            onClick={(e: React.MouseEvent<HTMLButtonElement>) => addOption(e)}
             className="text-xs h-8 px-2"
           >
             <Plus className="h-4 w-4 mr-1" /> 선택지 추가
@@ -1137,7 +1146,7 @@ export function ManualForm({
         </div>
         
         <div className="space-y-3">
-          {question.options.map((option, index) => (
+          {question.options.map((option: { number: number; text: string; images: string[]; }, index: number) => (
             <div 
               key={`option-${index}`} 
               className={`flex gap-2 items-center hover:bg-gray-50 p-2 rounded-lg border-2 transition-all duration-200 ${
@@ -1147,7 +1156,7 @@ export function ManualForm({
               }`}
             >
               <div 
-                onClick={() => setQuestionAnswer(index)}
+                onClick={(e: React.MouseEvent<HTMLDivElement>) => setQuestionAnswer(index)}
                 className={`flex items-center justify-center h-10 w-10 rounded-full text-sm font-bold cursor-pointer transition-all duration-200 ${
                   question.answer === index 
                     ? 'bg-gray-800 text-white shadow-sm ring-2 ring-gray-300' 
@@ -1158,7 +1167,7 @@ export function ManualForm({
               </div>
               <Input
                 value={option.text}
-                onChange={(e) => updateOption(index, e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateOption(index, e.target.value)}
                 placeholder={`선택지 ${index + 1}의 내용`}
                 className={`flex-1 text-sm border-gray-200 focus:ring-1 focus:ring-gray-400 ${
                   question.answer === index ? 'bg-white' : ''
@@ -1168,7 +1177,7 @@ export function ManualForm({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={(e) => removeOption(index, e)}
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => removeOption(index, e)}
                 className="h-10 w-10 rounded-full p-0 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
               >
                 <Trash2 className="h-4 w-4" />
@@ -1185,7 +1194,7 @@ export function ManualForm({
         {/* 해설 이미지 갤러리 - PasteForm 스타일로 변경 */}
         {question.explanationImages.length > 0 && (
           <div className="mb-4 grid grid-cols-1 gap-4">
-            {question.explanationImages.map((img, idx) => (
+            {question.explanationImages.map((img: string, idx: number) => (
               <div 
                 key={`exp-img-${idx}`} 
                 className="relative group overflow-hidden rounded-lg border shadow-sm"
@@ -1194,7 +1203,7 @@ export function ManualForm({
                   type="button" 
                   size="sm" 
                   variant="destructive"
-                  onClick={() => removeImage(idx, true)}
+                  onClick={(e: React.MouseEvent<HTMLButtonElement>) => removeImage(idx, true)}
                   className="absolute top-2 right-2 h-6 w-6 p-0 rounded-full z-10 opacity-70 
                            group-hover:opacity-100 transition-opacity bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-700 border-none"
                 >
@@ -1202,7 +1211,7 @@ export function ManualForm({
                 </Button>
                 <div 
                   className="w-full transition-transform duration-300 hover:scale-105 cursor-zoom-in"
-                  onClick={() => handleImageZoom(img)}
+                  onClick={(e: React.MouseEvent<HTMLDivElement>) => handleImageZoom(img)}
                 >
                   <img 
                     src={img} 
@@ -1221,7 +1230,7 @@ export function ManualForm({
           <div 
             ref={explanationDropzoneRef}
             data-image-area="true"
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent<HTMLDivElement>) => {
               e.stopPropagation();
               handleImageAreaClick('explanation');
             }}
@@ -1232,7 +1241,7 @@ export function ManualForm({
                 setActiveImageType('explanation');
               }
             }}
-            onMouseLeave={(e) => {
+            onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
               e.stopPropagation();
               handleImageAreaMouseLeave();
             }}
@@ -1257,7 +1266,7 @@ export function ManualForm({
             type="file" 
             accept="image/*" 
             className="hidden" 
-            onChange={(e) => handleImageUpload(e, true)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleImageUpload(e, true)}
           />
         </div>
         
@@ -1265,7 +1274,7 @@ export function ManualForm({
           <Textarea
             ref={explanationRef}
             value={question.explanation || ""}
-            onChange={(e) => setQuestion({...question, explanation: e.target.value})}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setQuestion({...question, explanation: e.target.value})}
             onPaste={handleTextAreaPaste}
             className="min-h-[100px]"
             placeholder="해설 내용을 입력하세요. (선택사항)"
@@ -1289,17 +1298,16 @@ export function ManualForm({
         </Button>
       </div>
 
-      {/* 이미지 확대 모달 추가 */}
-      <Dialog open={!!zoomedImage} onOpenChange={(open) => !open && setZoomedImage(null)}>
-        <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden border-0">
+      {/* 이미지 확대 모달 */}
+      <Dialog open={!!zoomedImage} onOpenChange={() => setZoomedImage(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto p-2">
+          {/* 접근성을 위한 DialogTitle 추가 (시각적으로 숨김) */}
+          <VisuallyHidden>
+            <DialogTitle>확대 이미지</DialogTitle>
+            <DialogDescription>선택한 이미지의 확대된 모습입니다.</DialogDescription>
+          </VisuallyHidden>
           {zoomedImage && (
-            <div className="w-full h-full flex items-center justify-center bg-black bg-opacity-90 p-4">
-              <img
-                src={zoomedImage}
-                alt="큰 이미지 보기"
-                className="max-w-full max-h-[80vh] object-contain"
-              />
-            </div>
+            <img src={zoomedImage} alt="Zoomed view" className="w-full h-auto object-contain" />
           )}
         </DialogContent>
       </Dialog>

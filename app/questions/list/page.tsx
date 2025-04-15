@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { ImageIcon, BookOpen, User, Calendar, ZoomIn, X } from "lucide-react";
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 export default function QuestionsListPage() {
   const { toast } = useToast();
@@ -456,25 +457,16 @@ export default function QuestionsListPage() {
         {renderExplanationDialog()}
       </Dialog>
 
-      {/* 이미지 확대 모달 */}
-      <Dialog open={!!zoomedImage} onOpenChange={(open) => !open && setZoomedImage(null)}>
-        <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden">
+      {/* 이미지 확대 다이얼로그 */}
+      <Dialog open={!!zoomedImage} onOpenChange={() => setZoomedImage(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto p-2">
+          {/* 접근성을 위한 DialogTitle 추가 (시각적으로 숨김) */}
+          <VisuallyHidden>
+            <DialogTitle>확대 이미지</DialogTitle>
+            <DialogDescription>선택한 이미지의 확대된 모습입니다.</DialogDescription>
+          </VisuallyHidden>
           {zoomedImage && (
-            <div className="relative w-full h-full bg-black bg-opacity-90 p-4 flex items-center justify-center">
-              <Button 
-                variant="outline" 
-                size="icon"
-                className="absolute top-2 right-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-700 border-none"
-                onClick={() => setZoomedImage(null)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-              <img 
-                src={zoomedImage} 
-                alt="확대된 이미지"
-                className="w-auto h-auto object-contain max-h-[80vh]"
-              />
-            </div>
+            <img src={zoomedImage} alt="Zoomed view" className="w-full h-auto object-contain" />
           )}
         </DialogContent>
       </Dialog>
