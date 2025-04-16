@@ -5,6 +5,6 @@ export default {
   out: './drizzle',
   driver: 'pg',
   dbCredentials: {
-    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@quizapp-db:5432/quizapp',
+    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@quizapp-db-dev:5432/quizapp',
   },
 } satisfies Config; 

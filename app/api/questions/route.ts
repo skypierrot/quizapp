@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { questions } from "@/db/schema/questions";
-import { eq, sql, and, inArray } from "drizzle-orm";
+import { eq, sql, and, inArray, SQL, Placeholder, desc, asc } from "drizzle-orm";
 import { auth } from "@clerk/nextjs";
-import { desc } from "drizzle-orm";
 // import { auth } from "@clerk/nextjs"; // 인증은 프로젝트 후반부에 구현 예정
+import { IQuestion } from '@/types'
 
 // 임시 사용자 ID (개발용)
 const DEV_USER_ID = "dev_user_123";
@@ -44,8 +44,11 @@ export async function POST(req: NextRequest) {
     // }
 
     // 요청 본문 파싱
-    const questionData = await req.json();
+    const body = await req.json();
+    const questionData: IQuestion = body;
     console.log("수신된 문제 데이터:", questionData);
+    // tags 타입 확인 로그 추가
+    console.log('[DEBUG] Type of questionData.tags:', typeof questionData.tags, 'Is Array:', Array.isArray(questionData.tags));
     
     // 기본 유효성 검사
     if (!questionData.content || !questionData.options || questionData.answer === undefined || questionData.answer < 0) {
@@ -55,35 +58,43 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 데이터베이스에 저장
-    const insertedQuestion = await db.insert(questions).values({
+    // --- 데이터 흐름 추적 로그 ---
+    console.log('[API Route] Received tags:', questionData.tags);
+    console.log('[API Route] Received tags type:', typeof questionData.tags, Array.isArray(questionData.tags));
+    // --- 로그 추가 끝 ---
+
+    // --- DB Insert 직전 값 확인 로그 ---
+    console.log('[API Route] Value before DB Insert (tags):', questionData.tags);
+    console.log('[API Route] Type before DB Insert (tags):', typeof questionData.tags, Array.isArray(questionData.tags));
+    // --- 로그 추가 끝 ---
+
+    // Drizzle 표준 방식으로 Insert (JavaScript 배열 직접 전달)
+    const result = await db
+    .insert(questions)
+    .values({
       content: questionData.content,
       options: questionData.options,
       answer: questionData.answer,
-      explanation: questionData.explanation || null,
+      explanation: questionData.explanation,
+      tags: questionData.tags, // <<--- JavaScript 배열 그대로 전달
       images: questionData.images || [],
       explanationImages: questionData.explanationImages || [],
-      tags: questionData.tags || [],
-      userId: DEV_USER_ID, // 임시 사용자 ID
+      userId: DEV_USER_ID,
       createdAt: new Date(),
       updatedAt: new Date(),
-    }).returning({
-      id: questions.id,
-      content: questions.content
-    });
+    })
+    .returning({ id: questions.id, tags: questions.tags })
 
-    console.log("문제 저장 성공:", insertedQuestion[0].id);
+    // 로그 메시지도 표준 방식임을 명시하도록 수정
+    console.log('[API Route] DB Insert Result (Standard Drizzle):', result);
 
-    return NextResponse.json(
-      { 
-        message: "문제가 성공적으로 저장되었습니다.",
-        question: insertedQuestion[0]
-      },
-      { status: 201 }
-    );
-
-  } catch (error) {
+    return NextResponse.json(result[0], { status: 201 })
+  } catch (error: any) {
     console.error("문제 저장 중 오류 발생:", error);
+    // --- 에러 상세 로그 ---
+    console.error('[API Route] Error Message:', error instanceof Error ? error.message : error);
+    console.error('[API Route] Error Stack:', error instanceof Error ? error.stack : null);
+    // --- 로그 추가 끝 ---
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "문제 저장 중 오류가 발생했습니다." },
       { status: 500 }
@@ -114,40 +125,39 @@ export async function GET(req: NextRequest) {
     //   );
     // }
 
-    // URL 쿼리 파라미터 파싱
     const url = new URL(req.url);
     const page = parseInt(url.searchParams.get("page") || "1");
     const limit = parseInt(url.searchParams.get("limit") || "10");
     const skip = (page - 1) * limit;
-    const tag = url.searchParams.get("tag");
+    const tagsParam = url.searchParams.get("tags");
     
-    // 조건 설정
-    let conditions = eq(questions.userId, DEV_USER_ID);
-    
-    // tag 필터링이 있을 경우 추가
-    if (tag) {
-      // JSON 배열에서 특정 값을 찾는 SQL 표현식 (PostgreSQL)
-      const tagValue = JSON.stringify([tag]);
-      const tagCondition = sql`${questions.tags}::jsonb @> ${tagValue}::jsonb`;
-      conditions = and(conditions, tagCondition);
+    let conditions: SQL<unknown> | undefined = undefined;
+
+    if (tagsParam) {
+      const tagsArray = tagsParam.split(',').map(t => t.trim()).filter(t => t);
+      
+      if (tagsArray.length > 0) {
+        const tagsJsonbArray = JSON.stringify(tagsArray);
+        const tagsCondition = sql`questions.tags @> ${tagsJsonbArray}::jsonb`;
+        
+        conditions = conditions ? and(conditions, tagsCondition) : tagsCondition;
+      }
     }
 
-    // 데이터베이스에서 문제 조회
+    const baseCondition = eq(questions.userId, DEV_USER_ID);
+    conditions = conditions ? and(baseCondition, conditions) : baseCondition;
+
     const fetchedQuestions = await db.select().from(questions)
       .where(conditions)
-      .orderBy(desc(questions.createdAt))
+      .orderBy(asc(questions.createdAt))
       .limit(limit)
       .offset(skip);
 
-    // 전체 개수 조회 - 단순화된 방식
-    const countQuery = await db.select()
-      .from(questions)
-      .where(conditions);
-    
-    const total = countQuery.length;
+    const countResult = await db.select({ count: sql`count(*)` }).from(questions).where(conditions);
+    const total = Number(countResult[0].count);
     const totalPages = Math.ceil(total / limit);
 
-    console.log(`문제 조회 성공: ${fetchedQuestions.length}개 조회됨`);
+    console.log(`문제 조회 성공 (조건 적용됨): ${fetchedQuestions.length}개 조회됨, 총 ${total}개`);
 
     return NextResponse.json({
       questions: fetchedQuestions,

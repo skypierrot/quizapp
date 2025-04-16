@@ -6,6 +6,7 @@ import {
   integer,
   json,
   uuid,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 import { images, imageStatusEnum } from "./images";
@@ -69,7 +70,7 @@ export const questionsLegacy = pgTable("questions_legacy", {
   // 문제 이미지 URL
   contentImage: text("content_image"),
   // 선택지 (복잡한 구조를 위해 수정)
-  options: json("options").$type<QuestionOption[]>().notNull(),
+  options: jsonb("options").$type<QuestionOption[]>().notNull(),
   answer: integer("answer").notNull(),
   explanation: text("explanation"),
   // 해설 이미지 URL
@@ -77,7 +78,7 @@ export const questionsLegacy = pgTable("questions_legacy", {
   // 문제 이미지 URL
   imageUrl: text("image_url"),
   // 태그 (구조화된 데이터로 수정)
-  tags: json("tags").$type<QuestionTag>().notNull(),
+  tags: jsonb("tags").$type<QuestionTag>().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -90,7 +91,7 @@ export const examResults = pgTable("exam_results", {
   score: integer("score").notNull(),
   totalQuestions: integer("total_questions").notNull(),
   correctAnswers: integer("correct_answers").notNull(),
-  wrongAnswers: json("wrong_answers").$type<number[]>().notNull(),
+  wrongAnswers: jsonb("wrong_answers").$type<number[]>().notNull(),
   completedAt: timestamp("completed_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

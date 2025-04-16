@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, asyncDB, checkDBConnection } from "@/lib/db";
+import { db, asyncDB, checkDBConnection } from "@/db";
 import { questions } from "@/db/schema/questions";
 import { eq } from "drizzle-orm";
 import { auth } from "@clerk/nextjs";
@@ -31,14 +31,13 @@ const ensureDBConnection = async () => {
 
 // 단일 문제 조회
 export async function GET(
-  req: NextRequest,
+  request: Request,
   { params }: { params: { questionId: string } }
 ) {
   try {
-    // DB 연결 확인
-    const isDBConnected = await ensureDBConnection();
-    if (!isDBConnected) {
-      console.error("데이터베이스 연결 실패");
+    const isDBConnectedGET = await checkDBConnection();
+    if (!isDBConnectedGET) {
+      console.error("데이터베이스 연결 실패 (GET)");
       return NextResponse.json(
         { error: "서버 연결 오류. 잠시 후 다시 시도해주세요." },
         { status: 503 }
@@ -55,8 +54,7 @@ export async function GET(
     //   );
     // }
     
-    const paramsData = await Promise.resolve(params);
-    const questionId = paramsData.questionId;
+    const { questionId } = params;
 
     // 비동기 DB 인스턴스 가져오기
     const dbInstance = await asyncDB.get();
@@ -76,9 +74,9 @@ export async function GET(
 
     return NextResponse.json({ question });
   } catch (error) {
-    console.error("문제 조회 중 오류 발생:", error);
+    console.error("GET /api/questions/[id] Error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "문제 조회 중 오류가 발생했습니다." },
+      { error: error instanceof Error ? error.message : "문제 조회 중 오류 발생" },
       { status: 500 }
     );
   }
@@ -86,14 +84,13 @@ export async function GET(
 
 // 단일 문제 업데이트
 export async function PUT(
-  req: NextRequest,
+  request: NextRequest,
   { params }: { params: { questionId: string } }
 ) {
   try {
-    // DB 연결 확인
-    const isDBConnected = await ensureDBConnection();
-    if (!isDBConnected) {
-      console.error("데이터베이스 연결 실패");
+    const isDBConnectedPUT = await checkDBConnection();
+    if (!isDBConnectedPUT) {
+      console.error("데이터베이스 연결 실패 (PUT)");
       return NextResponse.json(
         { error: "서버 연결 오류. 잠시 후 다시 시도해주세요." },
         { status: 503 }
@@ -110,9 +107,8 @@ export async function PUT(
     //   );
     // }
     
-    const paramsData = await Promise.resolve(params);
-    const questionId = paramsData.questionId;
-    const updateData = await req.json();
+    const { questionId } = params;
+    const updateData = await request.json();
     
     // 비동기 DB 인스턴스 가져오기
     const dbInstance = await asyncDB.get();
@@ -146,9 +142,9 @@ export async function PUT(
 
     return NextResponse.json({ question: updatedQuestion });
   } catch (error) {
-    console.error("문제 업데이트 중 오류 발생:", error);
+    console.error("PUT /api/questions/[id] Error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "문제 업데이트 중 오류가 발생했습니다." },
+      { error: error instanceof Error ? error.message : "문제 업데이트 중 오류 발생" },
       { status: 500 }
     );
   }
@@ -156,14 +152,13 @@ export async function PUT(
 
 // 단일 문제 삭제
 export async function DELETE(
-  req: NextRequest,
+  request: Request,
   { params }: { params: { questionId: string } }
 ) {
   try {
-    // DB 연결 확인
-    const isDBConnected = await ensureDBConnection();
-    if (!isDBConnected) {
-      console.error("데이터베이스 연결 실패");
+    const isDBConnectedDELETE = await checkDBConnection();
+    if (!isDBConnectedDELETE) {
+      console.error("데이터베이스 연결 실패 (DELETE)");
       return NextResponse.json(
         { error: "서버 연결 오류. 잠시 후 다시 시도해주세요." },
         { status: 503 }
@@ -180,8 +175,7 @@ export async function DELETE(
     //   );
     // }
 
-    const paramsData = await Promise.resolve(params);
-    const questionId = paramsData.questionId;
+    const { questionId } = params;
     
     // 비동기 DB 인스턴스 가져오기
     const dbInstance = await asyncDB.get();
@@ -208,9 +202,9 @@ export async function DELETE(
       message: "문제가 성공적으로 삭제되었습니다."
     });
   } catch (error) {
-    console.error("문제 삭제 중 오류 발생:", error);
+    console.error("DELETE /api/questions/[id] Error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "문제 삭제 중 오류가 발생했습니다." },
+      { error: error instanceof Error ? error.message : "문제 삭제 중 오류 발생" },
       { status: 500 }
     );
   }

@@ -4,8 +4,8 @@ import {
   text,
   primaryKey,
   integer,
-  json,
   uuid,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { users } from "./index";
 
@@ -14,18 +14,18 @@ export const questions = pgTable("questions", {
   id: uuid("id").primaryKey().defaultRandom(),
   // 문제 내용
   content: text("content").notNull(),
-  // 선택지 (텍스트 배열로 저장)
-  options: json("options").$type<string[]>().notNull(),
+  // 선택지 (표준 jsonb 사용)
+  options: jsonb("options").$type<string[]>().notNull(),
   // 정답 (인덱스 번호)
   answer: integer("answer").notNull(),
   // 해설
   explanation: text("explanation"),
-  // 태그 (단순 문자열 배열로 저장)
-  tags: json("tags").$type<string[]>().default([]),
-  // 문제 이미지 URL (여러 개 가능)
-  images: json("images").$type<string[]>().default([]),
-  // 해설 이미지 URL (여러 개 가능)
-  explanationImages: json("explanation_images").$type<string[]>().default([]),
+  // 태그 (표준 jsonb 사용)
+  tags: jsonb("tags").$type<string[]>().default([]),
+  // 문제 이미지 URL (표준 jsonb 사용)
+  images: jsonb("images").$type<string[]>().default([]),
+  // 해설 이미지 URL (표준 jsonb 사용)
+  explanationImages: jsonb("explanation_images").$type<string[]>().default([]),
   // 생성자 (uuid에서 text로 변경)
   userId: text("user_id"),
   // 타임스탬프

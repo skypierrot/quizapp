@@ -50,13 +50,13 @@ async function getExamById(id: string) {
 }
 
 interface ExamPageProps {
-  params: {
-    id: string;
-  };
+  params: { id: string };
+  searchParams?: { [key: string]: string | string[] | undefined };
 }
 
-export default async function ExamPage({ params }: ExamPageProps) {
-  const exam = await getExamById(params.id);
+export default async function ExamPage({ params }: ExamPageProps) {""
+  const examId = params.id;
+  const exam = await getExamById(examId);
   
   return (
     <div className="container mx-auto py-8 px-4">

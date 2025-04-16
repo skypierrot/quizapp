@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, ChangeEvent, CompositionEvent } from "react"
 import { parseQuestionsImproved } from "@/utils/questionParser"
 import { IQuestion } from "@/types"
 import { Input } from "@/components/ui/input"
@@ -98,6 +98,7 @@ export function PasteForm({
   const [year, setYear] = useState<string>("")
   const [session, setSession] = useState<string>("")
   const [subject, setSubject] = useState<string>("")
+  const [isYearValid, setIsYearValid] = useState<boolean>(true);
   
   // 문제별 태그 관련 상태
   const [questionTagInput, setQuestionTagInput] = useState("")
@@ -758,6 +759,18 @@ export function PasteForm({
     });
   };
 
+  // 년도 유효성 검사 함수 (재사용 또는 utils로 분리 가능)
+  const validateYear = (value: string): boolean => {
+    return /^\d{4}$/.test(value);
+  };
+  
+  // 년도 입력 변경 핸들러
+  const handleYearChange = (e: ChangeEvent<HTMLInputElement> | CompositionEvent<HTMLInputElement>) => {
+    const newValue = (e.target as HTMLInputElement).value;
+    setYear(newValue);
+    setIsYearValid(validateYear(newValue));
+  };
+
   const handleSubmit = async () => {
     if (parsedQuestions.length === 0) {
       setErrorMessage("등록할 문제가 없습니다. 먼저 문제를 파싱해주세요.")
@@ -771,22 +784,57 @@ export function PasteForm({
       return;
     }
     
+    // --- 수정: 필수 기본 태그 검증 강화 ---
+    const trimmedExamName = examName.trim();
+    const trimmedYear = year.trim();
+    const trimmedSession = session.trim();
+    
+    // 필수 태그 입력 및 년도 형식 확인
+    if (!trimmedExamName || !trimmedYear || !trimmedSession || !validateYear(trimmedYear)) { // 년도 형식 검증 추가
+      // safeToast 사용 및 variant 명시 (ToastVariant 타입에 맞게 조정 필요)
+      safeToast("필수 태그 오류", "시험명, 년도(YYYY 형식), 회차는 필수 입력 항목입니다.", "destructive" as ToastVariant); // 'destructive'가 없다면 'error' 등으로 변경
+      setIsSubmitting(false); // 제출 중단 시 상태 복원
+      // 년도 형식이 잘못된 경우 상태 업데이트하여 시각적 피드백 제공
+      if (!validateYear(trimmedYear)) {
+        setIsYearValid(false);
+      }
+      return; // 제출 중단
+    }
+    // --- 검증 끝 ---
+    
     setIsSubmitting(true);
     setErrorMessage("");
     
     try {
       // 수정 모드인 경우 단일 문제만 업데이트
       if (isEditMode && questionId) {
-        // API에 전송할 데이터 준비
         const questionToUpdate = parsedQuestions[0];
         
+        // --- 추가: 수정 모드 태그 조합 ---
+        const combinedTags = [
+          `시험명:${trimmedExamName}`,
+          `년도:${trimmedYear}`,
+          `회차:${trimmedSession}`,
+          ...(subject.trim() ? [`과목:${subject.trim()}`] : []),
+          ...globalTags, // 사용자가 추가한 전역 기타 태그 (수정 모드에서도 반영)
+          ...(questionToUpdate.tags || []) // 기존 개별 태그 유지 (기본 태그 필터링 제거 - 중복 제거 로직에서 처리)
+        ].filter((tag, index, self) => self.indexOf(tag) === index); // 중복 제거
+        
+        const questionPayload = {
+          ...questionToUpdate,
+          tags: combinedTags
+        };
+        // --- 태그 조합 끝 ---
+
+        console.log('수정할 문제 데이터 (태그 포함):', questionPayload); // 로그 추가
+
         // API 호출
         const response = await fetch(`/api/questions/${questionId}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(questionToUpdate),
+          body: JSON.stringify(questionPayload), // 태그가 포함된 페이로드 사용
         });
         
         if (!response.ok) {
@@ -794,7 +842,7 @@ export function PasteForm({
           throw new Error(errorData.error || `문제 수정 실패`);
         }
         
-        safeToast("문제 수정 완료", "문제가 성공적으로 수정되었습니다.");
+        safeToast("문제 수정 완료", "문제가 성공적으로 수정되었습니다.", "success" as ToastVariant); // variant 추가
         
         // 성공 콜백이 있으면 호출
         if (onSuccess) {
@@ -808,8 +856,25 @@ export function PasteForm({
         for (let i = 0; i < parsedQuestions.length; i++) {
           const question = parsedQuestions[i];
           
+          // --- 추가: 등록 모드 태그 조합 ---
+          const combinedTags = [
+            `시험명:${trimmedExamName}`,
+            `년도:${trimmedYear}`,
+            `회차:${trimmedSession}`,
+            ...(subject.trim() ? [`과목:${subject.trim()}`] : []),
+            ...globalTags, // 사용자가 추가한 전역 기타 태그
+            ...(question.tags || []) // 파싱 시 생성된 개별 태그 유지 (기본 태그 필터링 제거 - 중복 제거 로직에서 처리)
+          ].filter((tag, index, self) => self.indexOf(tag) === index); // 중복 제거
+          
+          const questionPayload = {
+            ...question,
+            tags: combinedTags
+          };
+          // --- 태그 조합 끝 ---
+          
           try {
-            console.log(`문제 ${i + 1} 전송 데이터:`, question);
+            // 전송 직전 데이터 구조 확인 로그 추가
+            console.log(`[DEBUG] 문제 ${i + 1} 전송 직전 Payload:`, JSON.stringify(questionPayload, null, 2));
             
             // API 호출
             const response = await fetch('/api/questions', {
@@ -817,7 +882,7 @@ export function PasteForm({
               headers: {
                 'Content-Type': 'application/json',
               },
-              body: JSON.stringify(question),
+              body: JSON.stringify(questionPayload), // 태그가 포함된 페이로드 사용
             });
             
             if (!response.ok) {
@@ -839,16 +904,18 @@ export function PasteForm({
         
         // 결과 메시지 표시
         if (errors.length === 0) {
-          safeToast("문제 등록 성공", `${savedQuestions.length}개의 문제가 성공적으로 등록되었습니다.`);
+          safeToast("문제 등록 성공", `${savedQuestions.length}개의 문제가 성공적으로 등록되었습니다.`, "success" as ToastVariant); // variant 추가
           
           // 성공 시 초기화
           setParsedQuestions([]);
           setPasteValue("");
           setGlobalTags([]);
           setGlobalTagInput("");
+          // 기본 태그 필드도 초기화할지 여부는 선택사항
+          // setExamName(""); setYear(""); setSession(""); setSubject("");
         } else {
           // 일부 문제만 성공한 경우
-          safeToast("일부 문제 등록 성공", `${savedQuestions.length}개의 문제가 등록되었습니다. ${errors.length}개의 문제에서 오류가 발생했습니다.`, "warning");
+          safeToast("일부 문제 등록 성공", `${savedQuestions.length}개의 문제가 등록되었습니다. ${errors.length}개의 문제에서 오류가 발생했습니다.`, "warning" as ToastVariant); // variant 추가
           
           console.error("문제 등록 실패:", errors);
         }
@@ -860,7 +927,7 @@ export function PasteForm({
       safeToast(
         isEditMode ? "문제 수정 실패" : "문제 등록 실패",
         error instanceof Error ? error.message : "문제 저장 중 오류가 발생했습니다.",
-        "destructive"
+        "destructive" as ToastVariant // variant 추가
       );
     } finally {
       setIsSubmitting(false);
@@ -934,11 +1001,13 @@ export function PasteForm({
               <Input 
                 type="text" 
                 value={year} 
-                onChange={(e) => setYear(e.target.value)}
-                onCompositionEnd={(e) => setYear((e.target as HTMLInputElement).value)}
-                className={`text-sm h-8 ${!year.trim() ? 'border-red-300' : ''}`}
-                placeholder="2024"
+                onChange={handleYearChange}
+                onCompositionEnd={handleYearChange}
+                className={`text-sm h-8 ${!year.trim() || !isYearValid ? 'border-red-300' : ''}`}
+                placeholder="YYYY (예: 2024)"
+                maxLength={4}
               />
+              {!isYearValid && <p className="text-xs text-red-500 mt-1">년도는 4자리 숫자로 입력하세요.</p>}
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">

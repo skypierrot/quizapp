@@ -38,7 +38,7 @@ const Navbar = () => {
                 <NavigationMenuTrigger>시험 준비</NavigationMenuTrigger>
                 <NavigationMenuContent>
                   <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
-                    <ListItem href="/exams" title="문제 은행">
+                    <ListItem href="/bank" title="문제 은행">
                       시험별 문제를 체계적으로 학습하세요
                     </ListItem>
                     <ListItem href="/practice" title="모의고사">
@@ -113,7 +113,7 @@ const Navbar = () => {
             <div className="space-y-2">
               <h3 className="font-medium text-sm">시험 준비</h3>
               <ul className="pl-4 space-y-2">
-                <li><Link href="/exams" className="text-gray-600 hover:text-gray-900">문제 은행</Link></li>
+                <li><Link href="/bank" className="text-gray-600 hover:text-gray-900">문제 은행</Link></li>
                 <li><Link href="/practice" className="text-gray-600 hover:text-gray-900">모의고사</Link></li>
                 <li><Link href="/wrong-answers" className="text-gray-600 hover:text-gray-900">오답 노트</Link></li>
                 <li><Link href="/statistics" className="text-gray-600 hover:text-gray-900">학습 통계</Link></li>

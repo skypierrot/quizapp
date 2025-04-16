@@ -32,7 +32,7 @@ export default function Home() {
       <section className="bg-gray-50 py-12">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12">주요 기능</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
             <Card className="shadow-sm hover:shadow-md transition-shadow">
               <CardHeader>
                 <CardTitle>문제 은행</CardTitle>
@@ -42,7 +42,7 @@ export default function Home() {
               </CardContent>
               <CardFooter>
                 <Button variant="outline" asChild className="w-full">
-                  <Link href="/exams">문제 은행 보기</Link>
+                  <Link href="/bank">문제 은행 보기</Link>
                 </Button>
               </CardFooter>
             </Card>
@@ -61,7 +61,7 @@ export default function Home() {
               </CardFooter>
             </Card>
             
-            <Card className="shadow-sm hover:shadow-md transition-shadow sm:col-span-2 md:col-span-1">
+            <Card className="shadow-sm hover:shadow-md transition-shadow">
               <CardHeader>
                 <CardTitle>오답 노트</CardTitle>
               </CardHeader>
@@ -71,6 +71,20 @@ export default function Home() {
               <CardFooter>
                 <Button variant="outline" asChild className="w-full">
                   <Link href="/wrong-answers">오답 노트 보기</Link>
+                </Button>
+              </CardFooter>
+            </Card>
+
+            <Card className="shadow-sm hover:shadow-md transition-shadow">
+              <CardHeader>
+                <CardTitle>문제 관리</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p>등록된 문제를 수정하거나 새로운 문제를 추가할 수 있습니다. (관리자)</p>
+              </CardContent>
+              <CardFooter>
+                <Button variant="outline" asChild className="w-full">
+                  <Link href="/questions/list">문제 관리하기</Link>
                 </Button>
               </CardFooter>
             </Card>

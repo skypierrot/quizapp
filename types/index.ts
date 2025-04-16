@@ -22,18 +22,17 @@ export interface IExam {
 
 // 문제 인터페이스
 export interface IQuestion {
-  id: string | number;
-  number: number;
+  id?: string;
   content: string;
-  options: IOption[] | string[];
+  options: string[];
   answer: number;
-  examples?: string[];
-  explanation?: string;
-  images: string[];
-  explanationImages: string[];
-  created_at?: Date;
-  updated_at?: Date;
+  explanation?: string | null;
+  images?: string[];
+  explanationImages?: string[];
   tags?: string[];
+  userId?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface IOption {

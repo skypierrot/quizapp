@@ -1,21 +1,17 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { ManualForm } from "@/components/question/ManualForm";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { IQuestion } from "@/types";
 
-interface EditQuestionPageProps {
-  params: {
-    questionId: string;
-  };
-}
+export default function EditQuestionPage() {
+  const params = useParams<{ questionId: string }>();
+  const questionId = params.questionId;
 
-export default function EditQuestionPage({ params }: EditQuestionPageProps) {
-  const { questionId } = params;
   const { toast } = useToast();
   const router = useRouter();
   const [question, setQuestion] = useState<IQuestion | null>(null);
@@ -23,32 +19,31 @@ export default function EditQuestionPage({ params }: EditQuestionPageProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchQuestion = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/questions/${questionId}`);
-        
-        if (!response.ok) {
-          throw new Error("문제를 불러오는데 실패했습니다.");
+    if (questionId) {
+      const fetchQuestion = async () => {
+        try {
+          setLoading(true);
+          const response = await fetch(`/api/questions/${questionId}`);
+          
+          if (!response.ok) {
+            throw new Error("문제를 불러오는데 실패했습니다.");
+          }
+          
+          const data = await response.json();
+          setQuestion(data.question);
+        } catch (error) {
+          console.error("문제 로딩 오류:", error);
+          setError(error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.");
+        } finally {
+          setLoading(false);
         }
-        
-        const data = await response.json();
-        setQuestion(data.question);
-      } catch (error) {
-        console.error("문제 로딩 오류:", error);
-        setError(error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.");
-      } finally {
-        setLoading(false);
-      }
-    };
+      };
 
-    fetchQuestion();
+      fetchQuestion();
+    }
   }, [questionId]);
 
-  // 문제 데이터를 ManualForm에서 사용 가능한 형식으로 변환
   const convertToFormData = (data: any) => {
-    // API에서 가져온 데이터를 폼에서 사용할 수 있는 형식으로 변환
-    // 필요시 확장
     return {
       id: data.id,
       number: data.number || 1,
@@ -67,8 +62,6 @@ export default function EditQuestionPage({ params }: EditQuestionPageProps) {
       title: "문제 수정 완료",
       description: "문제가 성공적으로 수정되었습니다.",
     });
-    
-    // 문제 목록 페이지로 리다이렉트
     router.push("/questions/list");
   };
 
@@ -100,11 +93,15 @@ export default function EditQuestionPage({ params }: EditQuestionPageProps) {
     );
   }
 
+  if (!questionId) {
+    return <div className="container py-8">ID 로딩 중...</div>;
+  }
+
   return (
     <div className="container py-8">
-      <h1 className="text-3xl font-bold mb-6">문제 수정</h1>
+      <h1 className="text-3xl font-bold mb-6">문제 수정 (ID: {questionId})</h1>
       
-      {question && (
+      {question ? (
         <div className="space-y-6">
           <p className="text-gray-600 mb-4">
             문제 내용, 선택지, 정답, 해설 등을 직접 수정하세요.
@@ -117,6 +114,13 @@ export default function EditQuestionPage({ params }: EditQuestionPageProps) {
             apiMethod="PUT"
           />
         </div>
+      ) : (
+        <div className="container py-8">
+           <Alert variant="default">
+             <AlertTitle>정보</AlertTitle>
+             <AlertDescription>해당 문제를 찾을 수 없거나 로드 중입니다.</AlertDescription>
+           </Alert>
+         </div>
       )}
     </div>
   );
