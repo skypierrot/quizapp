@@ -1,11 +1,12 @@
 'use client' // Make this a Client Component
 
 import { useParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import React from 'react';
 import StudyPageHeader from '@/components/study/StudyPageHeader';
 import { IQuestion } from '@/types'; // Import IQuestion interface
 import { Button } from "@/components/ui/button"; // Import Button component
+import Breadcrumb from '@/components/common/Breadcrumb'; // Import Breadcrumb
 
 /**
  * 특정 시험 문제 학습 페이지 (기존 SolvePage)
@@ -23,6 +24,14 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showExplanation, setShowExplanation] = useState<Record<string, boolean>>({});
+  // Add state for new toggle features
+  const [showAllAnswers, setShowAllAnswers] = useState(false);
+  const [showAllExplanations, setShowAllExplanations] = useState(false);
+  // Add state for single view mode
+  const [isSingleViewMode, setIsSingleViewMode] = useState(false);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  // Add state for individual answer visibility
+  const [showIndividualAnswer, setShowIndividualAnswer] = useState<Record<string, boolean>>({});
 
   // Restore useEffect for decoding parameters
   useEffect(() => {
@@ -126,26 +135,131 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
     }));
   };
 
-  // --- Render Logic ---
-  // ... (Conditional rendering for loading/error/no questions states) ...
+  // Handler to toggle showing all answers
+  const handleToggleShowAllAnswers = () => {
+    setShowAllAnswers(prev => !prev);
+  };
 
-  // Ensure decodedParams is available before rendering header
+  // Handler to toggle showing all explanations
+  const handleToggleShowAllExplanations = () => {
+    const nextShowState = !showAllExplanations;
+    setShowAllExplanations(nextShowState);
+    // Update individual explanation states based on the new global state
+    const newShowExplanation: Record<string, boolean> = {};
+    questions.forEach(q => {
+      if (q.id) {
+        newShowExplanation[q.id] = nextShowState;
+      }
+    });
+    setShowExplanation(newShowExplanation);
+  };
+
+  // Handler to toggle single view mode
+  const handleToggleSingleViewMode = () => {
+    setIsSingleViewMode(prev => !prev);
+    setCurrentQuestionIndex(0); // Reset index when toggling mode
+  };
+
+  // Handler to toggle individual answer visibility
+  const toggleIndividualAnswer = (questionId: string | undefined) => {
+    if (!questionId) return;
+    setShowIndividualAnswer(prev => ({
+      ...prev,
+      [questionId]: !prev[questionId]
+    }));
+  };
+
+  // Wrap navigation handlers in useCallback
+  const handlePrevQuestion = useCallback(() => {
+    setCurrentQuestionIndex(prev => Math.max(0, prev - 1));
+  }, []); // No dependencies needed if it only uses setCurrentQuestionIndex setter
+
+  const handleNextQuestion = useCallback(() => {
+    // Need questions.length as a dependency
+    setCurrentQuestionIndex(prev => Math.min(questions.length - 1, prev + 1));
+  }, [questions.length]); // Add questions.length dependency
+
+  // useEffect for keyboard navigation in single view mode
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only act if in single view mode
+      if (!isSingleViewMode) return;
+
+      if (event.key === 'ArrowLeft') {
+        // Check condition directly here before calling handler
+        if (currentQuestionIndex > 0) {
+           handlePrevQuestion();
+        }
+      } else if (event.key === 'ArrowRight') {
+         // Check condition directly here before calling handler
+         if (currentQuestionIndex < questions.length - 1) {
+            handleNextQuestion();
+         }
+      }
+    };
+
+    // Add listener only when in single view mode
+    if (isSingleViewMode) {
+      window.addEventListener('keydown', handleKeyDown);
+    } else {
+      // Ensure listener is removed if mode changes
+      window.removeEventListener('keydown', handleKeyDown);
+    }
+
+    // Cleanup function to remove the listener when the component unmounts or dependencies change
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  // Dependencies: mode, current index (for checks), questions length (for checks), and handlers
+  }, [isSingleViewMode, currentQuestionIndex, questions.length, handlePrevQuestion, handleNextQuestion]);
+
+  // Define breadcrumb items dynamically
+  const breadcrumbItems = decodedParams ? [
+    { label: '홈', href: '/' },
+    { label: '문제 은행', href: '/bank' },
+    // Ensure params.examName exists and is a string for the href
+    { label: decodedParams.examName, href: typeof params.examName === 'string' ? `/bank/${params.examName}` : '/bank' }, 
+    { label: `${decodedParams.year}년 ${decodedParams.session}`, href: '', isCurrent: true },
+  ] : [];
+
+  // --- Render Logic ---
   if (!decodedParams) {
      return <div>Waiting for parameters...</div>;
   }
+  if (loading) {
+    // Keep loading rendering simple, maybe place breadcrumb later
+    return <div className="container mx-auto py-8 text-center">로딩 중...</div>;
+  }
+  if (error) {
+    // Keep error rendering simple
+    return <div className="container mx-auto py-8 text-center text-red-500">오류: {error}</div>;
+  }
+
+  // Determine which questions to display based on the mode
+  const questionsToDisplay = isSingleViewMode && questions.length > 0
+    ? [questions[currentQuestionIndex]]
+    : questions;
 
   return (
     <div className="container mx-auto py-8">
-      {/* Update component usage from SolvePageHeader to StudyPageHeader */}
+      {/* Add Breadcrumb component */} 
+      <Breadcrumb items={breadcrumbItems} />
+
+      {/* Pass new state and handlers to the header */}
       <StudyPageHeader
-        encodedExamName={decodedParams.examName}
-        encodedYear={decodedParams.year}
-        encodedSession={decodedParams.session}
+        encodedExamName={params.examName as string} // Pass raw encoded params
+        encodedYear={params.year as string}
+        encodedSession={params.session as string}
+        isShowingAllAnswers={showAllAnswers}
+        isShowingAllExplanations={showAllExplanations}
+        isSingleViewMode={isSingleViewMode} // Pass single view state
+        onToggleShowAllAnswers={handleToggleShowAllAnswers}
+        onToggleShowAllExplanations={handleToggleShowAllExplanations}
+        onToggleSingleViewMode={handleToggleSingleViewMode} // Pass single view toggle handler
       />
 
-      {/* Question list rendering */}
-      {/* Apply grid layout: default 1 column, 2 columns on medium screens and up */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6"> 
+      {/* Question list rendering - Use questionsToDisplay */}
+      <div className={`mt-8 ${isSingleViewMode ? '' : 'grid grid-cols-1 md:grid-cols-2 gap-6'}`}> 
         {loading ? (
           <p>문제를 불러오는 중...</p>
         ) : error ? (
@@ -153,16 +267,19 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
         ) : questions.length === 0 ? (
           <p>해당 시험에 대한 문제가 없습니다.</p>
         ) : (
-          questions.map((question, index) => {
+          // Map over questionsToDisplay instead of questions
+          questionsToDisplay.map((question, displayIndex) => {
+            // Use currentQuestionIndex for question number in single view mode
+            const questionNumber = isSingleViewMode ? currentQuestionIndex + 1 : displayIndex + 1;
             // Add log to inspect the question object just before rendering the card
-            console.log(`[Render Debug] Rendering card for Question ${index}. Data:`, question);
-            console.log(`[Render Debug] Images for Question ${index}:`, question.images);
+            console.log(`[Render Debug] Rendering card for Question ${displayIndex}. Data:`, question);
+            console.log(`[Render Debug] Images for Question ${displayIndex}:`, question.images);
 
             return (
-              // Each question card is now a grid item - Apply medium shadow
-              <div key={question.id || index} className="p-4 border border-gray-300 rounded shadow-md bg-white flex flex-col">
-                {/* Question Content - Remove flex-grow */}
-                <p className="font-semibold mb-3">문제 {index + 1}:</p>
+              // Pass questionNumber to the card content
+              <div key={question.id || displayIndex} className={`p-4 border border-gray-300 rounded shadow-md bg-white flex flex-col ${isSingleViewMode ? 'mb-6' : ''}`}>
+                {/* Use questionNumber for display */}
+                <p className="font-semibold mb-3">문제 {questionNumber}:</p>
                 <div 
                   className="mb-2 prose max-w-none font-bold text-lg" /* Removed flex-grow */
                   dangerouslySetInnerHTML={{ __html: question.content }} 
@@ -173,49 +290,67 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
                   <div className="my-4 space-y-2">
                     {question.images.map((imgSrc, imgIndex) => {
                       if (typeof imgSrc === 'string' && imgSrc.trim() !== '') {
-                        // Prepend the data URL prefix for base64 images
-                        const dataUrl = imgSrc.startsWith('data:image') ? imgSrc : `data:image/png;base64,${imgSrc}`;
+                        // const dataUrl = imgSrc.startsWith('data:image') ? imgSrc : `data:image/png;base64,${imgSrc}`; // Remove data URL formatting
                         return (
                           <img 
                             key={`q-${question.id}-img-${imgIndex}`} 
-                            src={dataUrl} // Use the formatted data URL
-                            alt={`문제 ${index + 1} 이미지 ${imgIndex + 1}`}
+                            src={imgSrc} // Use direct imgSrc (should be file path now)
+                            alt={`문제 ${questionNumber} 이미지 ${imgIndex + 1}`}
                             className="max-w-full h-auto rounded border border-gray-200"
                           />
                         );
                       }
-                      return null; // Render nothing if imgSrc is invalid
+                      return null;
                     })}
                   </div>
                 )}
 
-                {/* Options */}
+                {/* Options - Update highlighting logic */}
                 <div className="space-y-[0.1rem] mb-4">
-                  {question.options.map((option, optionIndex) => (
-                    <div key={optionIndex} className="flex items-start p-2 rounded hover:bg-gray-100">
-                      <span className="mr-2 font-medium text-gray-700">{optionIndex + 1}.</span>
-                      <span>{option}</span>
-                    </div>
-                  ))}
+                  {question.options.map((option, optionIndex) => {
+                    const isCorrectAnswer = optionIndex === question.answer;
+                    // Highlight if global showAllAnswers OR individual showIndividualAnswer is true
+                    const shouldHighlight = (showAllAnswers || showIndividualAnswer[question.id || '']) && isCorrectAnswer;
+                    const highlightClass = shouldHighlight ? 'bg-yellow-200 font-semibold' : 'hover:bg-gray-100';
+                    return (
+                      <div 
+                        key={optionIndex} 
+                        className={`flex items-start p-2 rounded ${highlightClass}`}
+                      >
+                        <span className="mr-2 font-medium text-gray-700">{optionIndex + 1}.</span>
+                        <span>{option}</span>
+                      </div>
+                    );
+                  })}
                 </div>
 
-                {/* Explanation Toggle Button - Remove mt-auto */}
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => toggleExplanation(question.id)} 
-                  disabled={!question.id}
-                  className="mb-3" /* Removed mt-auto */
-                >
-                  {showExplanation[question.id || ''] ? '해설 숨기기' : '해설 보기'}
-                </Button>
+                {/* Action Buttons Area - Distribute space */}
+                <div className="flex items-center mt-auto pt-3 border-t border-gray-100 gap-2"> {/* Add gap */} 
+                   {/* Add Show Answer Button - Make it grow */}
+                   <Button 
+                     variant="outline" 
+                     size="sm" 
+                     onClick={() => toggleIndividualAnswer(question.id)} 
+                     disabled={!question.id}
+                     className="flex-grow" // Add flex-grow, remove mr-2
+                   >
+                     {showIndividualAnswer[question.id || ''] ? '정답 숨기기' : '정답 보기'}
+                   </Button>
+                   {/* Existing Show Explanation Button - Make it grow */}
+                   <Button 
+                     variant="outline" 
+                     size="sm" 
+                     onClick={() => toggleExplanation(question.id)} 
+                     disabled={!question.id}
+                     className="flex-grow" // Add flex-grow
+                   >
+                     {showExplanation[question.id || ''] ? '해설 숨기기' : '해설 보기'}
+                   </Button>
+                </div>
 
-                {/* Conditional Explanation Area */}
+                {/* Conditional Explanation Area - Remove blue answer text */}
                 {question.id && showExplanation[question.id] && (
                   <div className="mt-3 pt-3 border-t border-gray-200 bg-gray-50 p-3 rounded">
-                    <p className="font-semibold text-blue-600 mb-2">
-                      정답: {question.answer + 1}. {question.options[question.answer]}
-                    </p>
                     {question.explanation ? (
                       <div className="prose prose-sm max-w-none">
                         <p className="font-semibold mb-1">해설:</p>
@@ -226,18 +361,17 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
                           <div className="mt-3 space-y-2">
                             {question.explanationImages.map((imgSrc, imgIndex) => {
                               if (typeof imgSrc === 'string' && imgSrc.trim() !== '') {
-                                // Prepend the data URL prefix for base64 images
-                                const dataUrl = imgSrc.startsWith('data:image') ? imgSrc : `data:image/png;base64,${imgSrc}`;
+                                // const dataUrl = imgSrc.startsWith('data:image') ? imgSrc : `data:image/png;base64,${imgSrc}`; // Remove data URL formatting
                                 return (
                                   <img 
                                     key={`exp-${question.id}-img-${imgIndex}`} 
-                                    src={dataUrl} // Use the formatted data URL
+                                    src={imgSrc} // Use direct imgSrc (should be file path now)
                                     alt={`해설 이미지 ${imgIndex + 1}`}
                                     className="max-w-full h-auto rounded border border-gray-200"
                                   />
                                 );
                               }
-                              return null; // Render nothing if imgSrc is invalid
+                              return null;
                             })}
                           </div>
                         )}
@@ -252,6 +386,31 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
           })
         )}
       </div>
+
+      {/* Pagination for Single View Mode */}
+      {isSingleViewMode && questions.length > 0 && (
+        <div className="mt-8 flex justify-between items-center">
+          <Button
+            onClick={handlePrevQuestion}
+            disabled={currentQuestionIndex === 0}
+            variant="outline"
+            size="default"
+          >
+            이전 문제
+          </Button>
+          <span className="text-gray-700 font-medium">
+            {currentQuestionIndex + 1} / {questions.length}
+          </span>
+          <Button
+            onClick={handleNextQuestion}
+            disabled={currentQuestionIndex >= questions.length - 1}
+            variant="outline"
+            size="default"
+          >
+            다음 문제
+          </Button>
+        </div>
+      )}
     </div>
   )
 } 

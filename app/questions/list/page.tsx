@@ -16,6 +16,7 @@ import {
 import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { ImageIcon, BookOpen, User, Calendar, ZoomIn, X } from "lucide-react";
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import Breadcrumb from '@/components/common/Breadcrumb';
 
 export default function QuestionsListPage() {
   const { toast } = useToast();
@@ -28,6 +29,12 @@ export default function QuestionsListPage() {
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [visibleTagsCount, setVisibleTagsCount] = useState<Record<string, number>>({});
   const tagContainersRef = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Define breadcrumb items
+  const breadcrumbItems = [
+    { label: '홈', href: '/' },
+    { label: '문제 목록', href: '/questions/list', isCurrent: true },
+  ];
 
   const fetchQuestions = async () => {
     try {
@@ -386,7 +393,10 @@ export default function QuestionsListPage() {
   );
 
   return (
-    <div className="container py-8 px-4 sm:px-6 max-w-full md:max-w-7xl mx-auto">
+    <div className="container mx-auto py-8 px-4">
+      {/* Add Breadcrumb */}
+      <Breadcrumb items={breadcrumbItems} />
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl md:text-3xl font-bold">문제 목록</h1>
         <div className="flex flex-wrap items-center gap-3">

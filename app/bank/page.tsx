@@ -1,4 +1,6 @@
-import React from 'react';
+'use client'; // Convert to Client Component
+
+import React, { useState, useEffect } from 'react'; // Import hooks
 import Link from 'next/link';
 import {
   Card,
@@ -7,81 +9,149 @@ import {
   CardContent,
   CardDescription
 } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Input } from "@/components/ui/input"; // Import Input for search
+import { Search } from 'lucide-react'; // Import Search icon
+import { IExamInstance } from '@/types'; // Import from common types
+import Breadcrumb from '@/components/common/Breadcrumb'; // Import Breadcrumb
 
-// API 응답 및 데이터 타입을 위한 인터페이스 정의
-interface IExamInstance {
-  examName: string;
-  year: string;
-  session: string;
-  questionCount: number;
-}
+// Remove local duplicate interface definitions if they exist
+// interface IExamInstance { ... }
+// interface IExamInstancesResponse { ... }
 
-interface IExamInstancesResponse {
-  examInstances: IExamInstance[];
+// Keep GroupedExams if only used here, or move to types/index.ts
+interface GroupedExams {
+  [examName: string]: IExamInstance[];
 }
 
 /**
  * 문제 은행 페이지 (시험 선택 페이지)
  * 등록된 문제들을 시험명/년도/회차 기준으로 그룹화하여 보여줍니다.
  */
-export default async function BankPage() {
+export default function BankPage() {
+  // State variables for data, loading, error, and search term
+  const [groupedExams, setGroupedExams] = useState<GroupedExams>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  let examInstances: IExamInstance[] = [];
-  let fetchError: string | null = null;
+  // Fetch data on component mount
+  useEffect(() => {
+    const fetchAndGroupExams = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Use relative path for API calls from client components
+        const response = await fetch('/api/exam-instances', { 
+          cache: 'no-store',
+        });
 
-  try {
-    const apiUrl = process.env.APP_URL || 'http://quizapp-dev:3000';
-    const response = await fetch(`${apiUrl}/api/exam-instances`, {
-      cache: 'no-store',
-    });
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `API 호출 실패: ${response.statusText}`);
+        }
 
-    if (!response.ok) {
-      throw new Error(`API 호출 실패: ${response.statusText}`);
-    }
+        const data = await response.json(); 
+        const examInstances: IExamInstance[] = data.examInstances || [];
 
-    const data: IExamInstancesResponse = await response.json();
-    examInstances = data.examInstances || [];
+        // Group instances by examName (same logic as before)
+        const grouped: GroupedExams = examInstances.reduce((acc, instance) => {
+          if (!acc[instance.examName]) {
+            acc[instance.examName] = [];
+          }
+          acc[instance.examName].push(instance);
+          return acc;
+        }, {} as GroupedExams);
 
-  } catch (error) {
-    console.error("문제 은행 데이터 로딩 실패:", error);
-    fetchError = error instanceof Error ? error.message : "알 수 없는 오류 발생";
+        setGroupedExams(grouped);
+      } catch (err) {
+        console.error("문제 은행 데이터 로딩 실패:", err);
+        setError(err instanceof Error ? err.message : "데이터 로딩 중 오류가 발생했습니다.");
+        setGroupedExams({}); // Clear data on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAndGroupExams();
+  }, []); // Empty dependency array means run once on mount
+
+  // Handle search input change
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
+  };
+
+  // Filter grouped exams based on search term
+  const filteredEntries = Object.entries(groupedExams).filter(([examName]) =>
+    examName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Define breadcrumb items for the main bank page
+  const breadcrumbItems = [
+    { label: '홈', href: '/' },
+    { label: '문제 은행', href: '/bank', isCurrent: true }, // Current page
+  ];
+
+  // Render loading state
+  if (loading) {
+    return <div className="container mx-auto py-8 text-center">로딩 중...</div>;
+  }
+
+  // Render error state
+  if (error) {
+    return <div className="container mx-auto py-8 text-center text-red-500">데이터 로딩 중 오류 발생: {error}</div>;
   }
 
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-6">문제 은행</h1>
+      {/* Add Breadcrumb component */}
+      <Breadcrumb items={breadcrumbItems} />
 
-      {fetchError && (
-        <p className="text-red-500">데이터 로딩 중 오류 발생: {fetchError}</p>
-      )}
+      {/* Title and Search Area Wrapper */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+        {/* Title - Remove suffix and bottom margin */}
+        <h1 className="text-3xl font-bold">문제 은행</h1>
+        
+        {/* Search Input Area - Remove bottom margin, keep responsive width on Input */}
+        <div className="relative mt-4 md:mt-0"> {/* Add top margin on mobile */}
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Input
+            type="text"
+            placeholder="시험명 검색..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            className="pl-10 w-full md:w-auto lg:w-80" // Adjust width for responsiveness
+          />
+        </div>
+      </div>
 
-      {!fetchError && examInstances.length === 0 ? (
-        <p className="text-gray-500">등록된 시험 문제 그룹이 없습니다.</p>
+      {/* Conditional rendering based on search results */}
+      {filteredEntries.length === 0 ? (
+        <p className="text-gray-500">{searchTerm ? '검색 결과가 없습니다.' : '등록된 시험 종류가 없습니다.'}</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {examInstances.map((instance) => {
-            const examPath = [
-              instance.examName,
-              instance.year,
-              instance.session
-            ].map(encodeURIComponent).join('/');
-            const detailUrl = `/study/${examPath}`;
-            const cardKey = `${instance.examName}-${instance.year}-${instance.session}`;
+        <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          {filteredEntries.map(([examName, instances]) => {
+            const encodedExamName = encodeURIComponent(examName);
+            const detailUrl = `/bank/${encodedExamName}`;
+            const instanceCount = instances.length;
 
             return (
-              <Link href={detailUrl} key={cardKey}>
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full flex flex-col">
-                  <CardHeader>
-                    <CardTitle className="text-xl mb-2">{instance.examName}</CardTitle>
-                    <CardDescription>
-                      <Badge variant="outline" className="mr-2 text-sm">{instance.year}</Badge>
-                      <Badge variant="secondary" className="text-sm">{instance.session}</Badge>
-                    </CardDescription>
+              // Link to the specific exam detail page
+              <Link href={detailUrl} key={examName}>
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer flex flex-col">
+                  {/* Use nested divs inside CardHeader for precise responsive layout */}
+                  <CardHeader className="py-3">
+                    {/* Outer div handles the responsive flex/block switching */}
+                    <div className="block max-sm:flex max-sm:items-baseline max-sm:justify-between">
+                      {/* Inner div for Exam Name */}
+                      <div className="text-xl font-bold mb-1 max-sm:mb-0 max-sm:mr-2">
+                        {examName}
+                      </div>
+                      {/* Inner div for Instance Count */}
+                      <div className="text-sm text-gray-600 max-sm:flex-shrink-0">
+                        총 {instanceCount}개의 시험 등록됨
+                      </div>
+                    </div>
                   </CardHeader>
-                  <CardContent className="flex-grow flex items-end">
-                    <p className="text-sm text-gray-600">문항 수: {instance.questionCount}개</p>
-                  </CardContent>
                 </Card>
               </Link>
             );

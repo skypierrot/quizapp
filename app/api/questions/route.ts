@@ -5,9 +5,22 @@ import { eq, sql, and, inArray, SQL, Placeholder, desc, asc } from "drizzle-orm"
 import { auth } from "@clerk/nextjs";
 // import { auth } from "@clerk/nextjs"; // 인증은 프로젝트 후반부에 구현 예정
 import { IQuestion } from '@/types'
+// Node.js 모듈 import
+import fs from 'fs';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid'; // UUID 생성을 위해
 
 // 임시 사용자 ID (개발용)
 const DEV_USER_ID = "dev_user_123";
+const UPLOAD_DIR = path.join(process.cwd(), 'public', 'images', 'uploaded');
+
+// 디렉토리 생성 함수 (존재하지 않을 경우)
+const ensureUploadDirExists = (dirPath: string) => {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+    console.log(`Created directory: ${dirPath}`);
+  }
+};
 
 // DB 연결 상태 확인 헬퍼 함수 - 간소화된 버전
 const ensureDBConnection = async () => {
@@ -46,7 +59,8 @@ export async function POST(req: NextRequest) {
     // 요청 본문 파싱
     const body = await req.json();
     const questionData: IQuestion = body;
-    console.log("수신된 문제 데이터:", questionData);
+    console.log("수신된 문제 데이터 (일부):", { ...questionData, images: '[...]', explanationImages: '[...]' }); // 이미지 데이터는 로그에서 제외
+    
     // tags 타입 확인 로그 추가
     console.log('[DEBUG] Type of questionData.tags:', typeof questionData.tags, 'Is Array:', Array.isArray(questionData.tags));
     
@@ -68,25 +82,90 @@ export async function POST(req: NextRequest) {
     console.log('[API Route] Type before DB Insert (tags):', typeof questionData.tags, Array.isArray(questionData.tags));
     // --- 로그 추가 끝 ---
 
-    // Drizzle 표준 방식으로 Insert (JavaScript 배열 직접 전달)
+    // --- 이미지 처리 로직 --- 
+    const questionId = uuidv4(); // 새 문제 ID 미리 생성
+    const questionImageDir = path.join(UPLOAD_DIR, questionId);
+    ensureUploadDirExists(questionImageDir); // 문제별 디렉토리 생성
+
+    const imagePaths: string[] = [];
+    const explanationImagePaths: string[] = [];
+
+    // Base64 이미지 처리 함수
+    const processBase64Image = (base64String: string, subDir: string): string | null => {
+      try {
+        // Data URL 형식 확인 및 분리 (예: data:image/png;base64,iVBOR...)
+        const match = base64String.match(/^data:(image\/\w+);base64,(.*)$/);
+        if (!match) {
+          console.warn('Invalid base64 image format received.');
+          return null; // 유효하지 않은 형식이면 처리 중단
+        }
+        
+        const mimeType = match[1]; // 예: image/png
+        const base64Data = match[2];
+        const extension = mimeType.split('/')[1] || 'png'; // 확장자 추출 (기본값 png)
+        const fileName = `${uuidv4()}.${extension}`;
+        const filePath = path.join(questionImageDir, fileName);
+        const publicPath = `/images/uploaded/${questionId}/${fileName}`; // 웹 접근 경로
+
+        // Base64 디코딩 및 파일 저장
+        fs.writeFileSync(filePath, base64Data, { encoding: 'base64' });
+        console.log(`Image saved: ${publicPath}`);
+        return publicPath;
+      } catch (imgError) {
+        console.error('Error processing base64 image:', imgError);
+        return null; // 오류 발생 시 null 반환
+      }
+    };
+
+    // 문제 이미지 처리
+    if (questionData.images && Array.isArray(questionData.images)) {
+      for (const base64Image of questionData.images) {
+        if (typeof base64Image === 'string') {
+          const imagePath = processBase64Image(base64Image, questionId);
+          if (imagePath) {
+            imagePaths.push(imagePath);
+          }
+        }
+      }
+    }
+
+    // 해설 이미지 처리
+    if (questionData.explanationImages && Array.isArray(questionData.explanationImages)) {
+      for (const base64Image of questionData.explanationImages) {
+        if (typeof base64Image === 'string') {
+          const imagePath = processBase64Image(base64Image, questionId);
+          if (imagePath) {
+            explanationImagePaths.push(imagePath);
+          }
+        }
+      }
+    }
+    // --- 이미지 처리 로직 끝 --- 
+
+    // --- DB Insert 값 확인 로그 (경로 배열) ---
+    console.log('[API Route] Value before DB Insert (imagePaths):', imagePaths);
+    console.log('[API Route] Value before DB Insert (explanationImagePaths):', explanationImagePaths);
+    // --- 로그 추가 끝 ---
+
+    // Drizzle Insert (파일 경로 배열 사용)
     const result = await db
     .insert(questions)
     .values({
+      id: questionId, // 미리 생성한 ID 사용
       content: questionData.content,
       options: questionData.options,
       answer: questionData.answer,
       explanation: questionData.explanation,
-      tags: questionData.tags, // <<--- JavaScript 배열 그대로 전달
-      images: questionData.images || [],
-      explanationImages: questionData.explanationImages || [],
+      tags: questionData.tags,
+      images: imagePaths, // <<--- 파일 경로 배열 저장
+      explanationImages: explanationImagePaths, // <<--- 파일 경로 배열 저장
       userId: DEV_USER_ID,
       createdAt: new Date(),
       updatedAt: new Date(),
     })
     .returning({ id: questions.id, tags: questions.tags })
 
-    // 로그 메시지도 표준 방식임을 명시하도록 수정
-    console.log('[API Route] DB Insert Result (Standard Drizzle):', result);
+    console.log('[API Route] DB Insert Result (with image paths):', result);
 
     return NextResponse.json(result[0], { status: 201 })
   } catch (error: any) {

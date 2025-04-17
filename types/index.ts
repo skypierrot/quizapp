@@ -60,5 +60,13 @@ export interface IExamResult {
   createdAt: Date;
 }
 
+// 시험 인스턴스 인터페이스 (API 응답용)
+export interface IExamInstance {
+  examName: string;
+  year: string;
+  session: string;
+  questionCount: number;
+}
+
 // 확장된 Toast 타입 정의
 export type ToastType = "default" | "destructive" | "success" | "warning";

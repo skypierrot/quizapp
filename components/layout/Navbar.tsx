@@ -5,7 +5,7 @@ import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMe
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
 import { forwardRef, useState } from 'react';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, MenuSquare, XSquare } from 'lucide-react';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -13,7 +13,7 @@ const Navbar = () => {
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
   return (
-    <header className="w-full border-b bg-white">
+    <header className="relative z-40 w-full border-b bg-white">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center">
           <Link href="/" className="text-xl font-bold text-gray-900">
@@ -23,11 +23,11 @@ const Navbar = () => {
         
         {/* 모바일 햄버거 메뉴 버튼 */}
         <button 
-          className="md:hidden p-2" 
+          className="md:hidden p-3" 
           onClick={toggleMenu}
           aria-label={isMenuOpen ? "메뉴 닫기" : "메뉴 열기"}
         >
-          {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          {isMenuOpen ? <XSquare size={24} className="pointer-events-none" /> : <MenuSquare size={24} className="pointer-events-none" />}
         </button>
         
         {/* 데스크탑 메뉴 */}

@@ -1,10 +1,17 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ManualForm } from "@/components/question/ManualForm"
 import { PasteForm } from "@/components/question/PasteForm"
+import Breadcrumb from '@/components/common/Breadcrumb';
 
 export default function NewQuestionPage() {
+  const breadcrumbItems = [
+    { label: '홈', href: '/' },
+    { label: '문제 등록', href: '/questions/new', isCurrent: true },
+  ];
+
   return (
     <div className="container mx-auto py-8 px-4">
+      <Breadcrumb items={breadcrumbItems} />
       <h1 className="text-2xl md:text-3xl font-bold mb-6">새 문제 생성</h1>
       
       <Tabs defaultValue="paste" className="w-full">
