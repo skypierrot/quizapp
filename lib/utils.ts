@@ -1,14 +1,8 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+export function cn(...classes: (string | undefined | null | false)[]) {
+  return classes.filter(Boolean).join(' ')
 }
 
-/**
- * 고유 ID 생성
- * @returns 임의의 문자열 ID
- */
-export function generateId(): string {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+// 고유 ID 생성 함수
+export function generateId(prefix = 'id') {
+  return `${prefix}_${Math.random().toString(36).slice(2, 10)}_${Date.now()}`
 }

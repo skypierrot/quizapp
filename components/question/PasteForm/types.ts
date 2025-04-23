@@ -14,8 +14,8 @@ export interface IParsedQuestion {
   options: IOption[];
   answer: number | null;
   tags: ITag[];
-  images: string[];
-  explanationImages: string[];
+  images: { url: string; hash: string }[];
+  explanationImages: { url: string; hash: string }[];
   examples?: string[];
   explanation?: string;
   created_at?: string;
@@ -132,8 +132,14 @@ export const ParsedQuestionSchema = z.object({
   options: z.array(z.string()).min(2, "최소 2개 이상의 선택지가 필요합니다"),
   answer: z.number().nullable(),
   tags: z.array(TagSchema),
-  images: z.array(z.string()),
-  explanationImages: z.array(z.string()),
+  images: z.array(z.object({
+    url: z.string(),
+    hash: z.string()
+  })),
+  explanationImages: z.array(z.object({
+    url: z.string(),
+    hash: z.string()
+  })),
   examples: z.array(z.string()).optional(),
   explanation: z.string().optional(),
   created_at: z.string().optional(),

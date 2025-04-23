@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from 'uuid'; // UUID 생성을 위해
 
 // 임시 사용자 ID (개발용)
 const DEV_USER_ID = "dev_user_123";
+const TMP_DIR = path.join(process.cwd(), 'public', 'images', 'tmp');
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'images', 'uploaded');
 
 // 디렉토리 생성 함수 (존재하지 않을 경우)
@@ -34,6 +35,39 @@ const ensureDBConnection = async () => {
   }
 };
 
+function moveTmpToUploaded(tmpUrl: string): string {
+  // 슬래시 중복 제거
+  const normalizedUrl = tmpUrl.replace(/\\/g, '/').replace(/\/{2,}/g, '/');
+  if (normalizedUrl.startsWith('/images/uploaded/')) {
+    const filename = path.basename(normalizedUrl);
+    return `/images/uploaded/${filename}`;
+  }
+  if (!normalizedUrl.startsWith('/images/tmp/')) return normalizedUrl;
+
+  const filename = path.basename(normalizedUrl);
+  const tmpPath = path.join(TMP_DIR, filename);
+  const uploadedPath = path.join(UPLOAD_DIR, filename);
+
+  if (!fs.existsSync(tmpPath)) {
+    console.error('[이미지 이동 오류] 임시파일 없음:', tmpPath);
+    return normalizedUrl;
+  }
+
+  try {
+    fs.renameSync(tmpPath, uploadedPath);
+  } catch (e) {
+    console.error('[이미지 이동 오류] 파일 이동 실패:', tmpPath, '→', uploadedPath, e);
+    return normalizedUrl;
+  }
+
+  if (!fs.existsSync(uploadedPath)) {
+    console.error('[이미지 이동 오류] 이동 후 파일 없음:', uploadedPath);
+    return normalizedUrl;
+  }
+
+  return `/images/uploaded/${filename}`;
+}
+
 export async function POST(req: NextRequest) {
   try {
     // DB 연결 확인
@@ -46,134 +80,107 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 인증 확인 (임시로 비활성화)
-    // const { userId } = auth();
-    
-    // if (!userId) {
-    //   return NextResponse.json(
-    //     { error: "인증되지 않은 사용자입니다." },
-    //     { status: 401 }
-    //   );
-    // }
+    // form-data 파싱
+    const formData = await req.formData();
+    // 텍스트 필드 파싱
+    const content = formData.get('content') as string;
+    const optionsRaw = formData.get('options') as string; // JSON string
+    const answer = Number(formData.get('answer'));
+    const explanation = formData.get('explanation') as string;
+    const tagsRaw = formData.get('tags') as string; // JSON string
 
-    // 요청 본문 파싱
-    const body = await req.json();
-    const questionData: IQuestion = body;
-    console.log("수신된 문제 데이터 (일부):", { ...questionData, images: '[...]', explanationImages: '[...]' }); // 이미지 데이터는 로그에서 제외
-    
-    // tags 타입 확인 로그 추가
-    console.log('[DEBUG] Type of questionData.tags:', typeof questionData.tags, 'Is Array:', Array.isArray(questionData.tags));
-    
-    // 기본 유효성 검사
-    if (!questionData.content || !questionData.options || questionData.answer === undefined || questionData.answer < 0) {
+    // 유효성 검사
+    if (!content || !optionsRaw || answer === undefined || answer < 0) {
       return NextResponse.json(
         { error: "필수 필드가 누락되었습니다." },
         { status: 400 }
       );
     }
 
-    // --- 데이터 흐름 추적 로그 ---
-    console.log('[API Route] Received tags:', questionData.tags);
-    console.log('[API Route] Received tags type:', typeof questionData.tags, Array.isArray(questionData.tags));
-    // --- 로그 추가 끝 ---
+    // JSON 파싱
+    let options;
+    let tags;
+    try {
+      options = JSON.parse(optionsRaw);
+      tags = tagsRaw ? JSON.parse(tagsRaw) : [];
+    } catch (e) {
+      return NextResponse.json(
+        { error: "options/tags 파싱 오류" },
+        { status: 400 }
+      );
+    }
 
-    // --- DB Insert 직전 값 확인 로그 ---
-    console.log('[API Route] Value before DB Insert (tags):', questionData.tags);
-    console.log('[API Route] Type before DB Insert (tags):', typeof questionData.tags, Array.isArray(questionData.tags));
-    // --- 로그 추가 끝 ---
+    // 선택지 이미지에도 moveTmpToUploaded 적용 (문제/해설 이미지와 동일한 방식)
+    options = options.map((opt: any) => ({
+      ...opt,
+      images: (opt.images || []).map((img: any) => {
+        if (typeof img === "string") {
+          return moveTmpToUploaded(img);
+        }
+        if (
+          img.url &&
+          (img.url.startsWith('/images/tmp/') || img.url.startsWith('/images/uploaded/'))
+        ) {
+          return { ...img, url: moveTmpToUploaded(img.url) };
+        }
+        return img;
+      })
+    }));
 
-    // --- 이미지 처리 로직 --- 
-    const questionId = uuidv4(); // 새 문제 ID 미리 생성
+    // 문제 ID 및 디렉토리 생성
+    const questionId = uuidv4();
     const questionImageDir = path.join(UPLOAD_DIR, questionId);
-    ensureUploadDirExists(questionImageDir); // 문제별 디렉토리 생성
+    ensureUploadDirExists(questionImageDir);
 
-    const imagePaths: string[] = [];
-    const explanationImagePaths: string[] = [];
-
-    // Base64 이미지 처리 함수
-    const processBase64Image = (base64String: string, subDir: string): string | null => {
-      try {
-        // Data URL 형식 확인 및 분리 (예: data:image/png;base64,iVBOR...)
-        const match = base64String.match(/^data:(image\/\w+);base64,(.*)$/);
-        if (!match) {
-          console.warn('Invalid base64 image format received.');
-          return null; // 유효하지 않은 형식이면 처리 중단
-        }
-        
-        const mimeType = match[1]; // 예: image/png
-        const base64Data = match[2];
-        const extension = mimeType.split('/')[1] || 'png'; // 확장자 추출 (기본값 png)
-        const fileName = `${uuidv4()}.${extension}`;
-        const filePath = path.join(questionImageDir, fileName);
-        const publicPath = `/images/uploaded/${questionId}/${fileName}`; // 웹 접근 경로
-
-        // Base64 디코딩 및 파일 저장
-        fs.writeFileSync(filePath, base64Data, { encoding: 'base64' });
-        console.log(`Image saved: ${publicPath}`);
-        return publicPath;
-      } catch (imgError) {
-        console.error('Error processing base64 image:', imgError);
-        return null; // 오류 발생 시 null 반환
-      }
-    };
-
-    // 문제 이미지 처리
-    if (questionData.images && Array.isArray(questionData.images)) {
-      for (const base64Image of questionData.images) {
-        if (typeof base64Image === 'string') {
-          const imagePath = processBase64Image(base64Image, questionId);
-          if (imagePath) {
-            imagePaths.push(imagePath);
-          }
-        }
-      }
+    // 문제 이미지/해설 이미지 파싱 (파일 X, URL 배열)
+    const imagesRaw = formData.get('images') as string;
+    const explanationImagesRaw = formData.get('explanationImages') as string;
+    let imageObjects: { url: string; hash: string }[] = [];
+    let explanationImageObjects: { url: string; hash: string }[] = [];
+    try {
+      imageObjects = imagesRaw ? JSON.parse(imagesRaw) : [];
+      explanationImageObjects = explanationImagesRaw ? JSON.parse(explanationImagesRaw) : [];
+    } catch (e) {
+      return NextResponse.json(
+        { error: "images/explanationImages 파싱 오류" },
+        { status: 400 }
+      );
     }
-
-    // 해설 이미지 처리
-    if (questionData.explanationImages && Array.isArray(questionData.explanationImages)) {
-      for (const base64Image of questionData.explanationImages) {
-        if (typeof base64Image === 'string') {
-          const imagePath = processBase64Image(base64Image, questionId);
-          if (imagePath) {
-            explanationImagePaths.push(imagePath);
-          }
-        }
+    // 임시폴더 이미지 이동 및 url 변경
+    imageObjects = imageObjects.map(img => {
+      if (img.url.startsWith('/images/tmp/')) {
+        return { ...img, url: moveTmpToUploaded(img.url) };
       }
-    }
-    // --- 이미지 처리 로직 끝 --- 
+      return img;
+    });
+    explanationImageObjects = explanationImageObjects.map(img => {
+      if (img.url.startsWith('/images/tmp/')) {
+        return { ...img, url: moveTmpToUploaded(img.url) };
+      }
+      return img;
+    });
 
-    // --- DB Insert 값 확인 로그 (경로 배열) ---
-    console.log('[API Route] Value before DB Insert (imagePaths):', imagePaths);
-    console.log('[API Route] Value before DB Insert (explanationImagePaths):', explanationImagePaths);
-    // --- 로그 추가 끝 ---
-
-    // Drizzle Insert (파일 경로 배열 사용)
+    // Drizzle Insert
     const result = await db
-    .insert(questions)
-    .values({
-      id: questionId, // 미리 생성한 ID 사용
-      content: questionData.content,
-      options: questionData.options,
-      answer: questionData.answer,
-      explanation: questionData.explanation,
-      tags: questionData.tags,
-      images: imagePaths, // <<--- 파일 경로 배열 저장
-      explanationImages: explanationImagePaths, // <<--- 파일 경로 배열 저장
-      userId: DEV_USER_ID,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .returning({ id: questions.id, tags: questions.tags })
+      .insert(questions)
+      .values({
+        id: questionId,
+        content,
+        options,
+        answer,
+        explanation,
+        tags,
+        images: imageObjects,
+        explanationImages: explanationImageObjects,
+        userId: DEV_USER_ID,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning({ id: questions.id, tags: questions.tags });
 
-    console.log('[API Route] DB Insert Result (with image paths):', result);
-
-    return NextResponse.json(result[0], { status: 201 })
+    return NextResponse.json(result[0], { status: 201 });
   } catch (error: any) {
     console.error("문제 저장 중 오류 발생:", error);
-    // --- 에러 상세 로그 ---
-    console.error('[API Route] Error Message:', error instanceof Error ? error.message : error);
-    console.error('[API Route] Error Stack:', error instanceof Error ? error.stack : null);
-    // --- 로그 추가 끝 ---
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "문제 저장 중 오류가 발생했습니다." },
       { status: 500 }

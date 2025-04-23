@@ -24,11 +24,11 @@ export interface IExam {
 export interface IQuestion {
   id?: string;
   content: string;
-  options: string[];
+  options: IOption[];
   answer: number;
   explanation?: string | null;
-  images?: string[];
-  explanationImages?: string[];
+  images?: { url: string; hash: string }[];
+  explanationImages?: { url: string; hash: string }[];
   tags?: string[];
   userId?: string;
   createdAt?: Date;
@@ -38,7 +38,19 @@ export interface IQuestion {
 export interface IOption {
   number: number;
   text: string;
-  images?: string[];
+  images: { url: string; hash: string }[];
+}
+
+export interface IManualQuestion {
+  id?: string;
+  number?: number;
+  content: string;
+  options: IOption[];
+  answer: number;
+  images: { url: string; hash: string }[];
+  explanation?: string;
+  explanationImages: { url: string; hash: string }[];
+  tags: string[];
 }
 
 export interface IQuestionImage {
@@ -70,3 +82,5 @@ export interface IExamInstance {
 
 // 확장된 Toast 타입 정의
 export type ToastType = "default" | "destructive" | "success" | "warning";
+
+export * from './question';

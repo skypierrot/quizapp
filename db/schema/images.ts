@@ -13,7 +13,8 @@ export const images = pgTable('images', {
   mimeType: varchar('mime_type', { length: 50 }).notNull(),
   questionId: integer('question_id'),
   optionId: integer('option_id'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  status: imageStatusEnum('status').default('active').notNull(), // 상태 필드 추가
+  status: text('status').default('active'), // 'active' | 'pending_deletion' | 'deleted'
+  lastCheckedAt: timestamp('last_checked_at').defaultNow(),
 }); 

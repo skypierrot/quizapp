@@ -7,7 +7,7 @@
 export interface IOption {
   id: string;
   content: string;
-  images?: string[];
+  images?: { url: string; hash: string }[];
 }
 
 /**
@@ -47,8 +47,8 @@ export interface IParsedQuestion {
   options: IOption[];
   answer: number | null;
   tags: ITag[];
-  images: string[];
-  explanationImages: string[];
+  images: { url: string; hash: string }[];
+  explanationImages: { url: string; hash: string }[];
   examples?: string[];
   explanation?: string;
   created_at?: string;
