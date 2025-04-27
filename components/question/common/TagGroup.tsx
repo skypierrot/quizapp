@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { X } from 'lucide-react'
 import React from 'react'
 
-interface TagSectionProps {
+interface TagGroupProps {
   examName: string
   year: string
   isYearValid: boolean
@@ -22,7 +22,7 @@ interface TagSectionProps {
   onRemoveTag: (tag: string) => void
 }
 
-export function TagSection({
+export function TagGroup({
   examName,
   year,
   isYearValid,
@@ -37,7 +37,7 @@ export function TagSection({
   onTagInputChange,
   onAddTag,
   onRemoveTag
-}: TagSectionProps) {
+}: TagGroupProps) {
   return (
     <div className="space-y-4">
       <div className="flex flex-col">

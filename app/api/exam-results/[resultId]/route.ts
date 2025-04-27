@@ -5,12 +5,14 @@ import { examResults } from '@/db/schema/examResults';
 import { eq } from 'drizzle-orm';
 import { getAuth } from '@clerk/nextjs/server';
 
-export async function GET(
-  request: NextRequest,
-  context: any
-) {
+export async function GET(request: NextRequest) {
+  // URL에서 resultId 추출
+  const url = new URL(request.url);
+  const paths = url.pathname.split('/');
+  const resultIdx = paths.indexOf('exam-results');
+  const resultIdString = resultIdx !== -1 ? paths[resultIdx + 1] : undefined;
+
   const { userId } = getAuth(request as any);
-  const resultIdString = context.params?.resultId;
 
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

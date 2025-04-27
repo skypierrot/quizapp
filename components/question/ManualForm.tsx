@@ -19,18 +19,18 @@ import { convertToBase64, handleImageUpload } from "@/utils/image";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { IParsedQuestion } from "./PasteForm/types";
-import { ManualImageArea } from "./ManualForm/ManualImageArea"
-import { ManualImagePreview } from "./ManualForm/ManualImagePreview"
+import { ImageArea } from "./common/ImageArea"
+import { ImagePreview } from "./common/ImagePreview"
 import { useManualFormImage } from "@/hooks/question/useManualFormImage"
 import { useManualFormTag } from "@/hooks/question/useManualFormTag"
 import { IManualQuestion, IOption } from '@/types'
 import { useManualFormOption } from '@/hooks/question/useManualFormOption'
-import { QuestionContentSection } from './ManualForm/QuestionContentSection'
-import { OptionsSection } from './ManualForm/OptionsSection'
-import { ExplanationSection } from './ManualForm/ExplanationSection'
-import { ImageSection } from './ManualForm/ImageSection'
-import { TagSection } from './ManualForm/TagSection'
-import { SubmitSection } from './ManualForm/SubmitSection'
+import { QuestionContent } from './common/QuestionContent'
+import { Options } from './common/Options'
+import { Explanation } from './common/Explanation'
+import { ImageGroup } from './common/ImageGroup'
+import { TagGroup } from './common/TagGroup'
+import { SubmitSection } from './common/SubmitSection'
 
 export interface ManualFormProps {
   initialData?: IManualQuestion;
@@ -303,8 +303,15 @@ export function ManualForm({
       // --- FormData 방식 끝 ---
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "문제 저장 중 오류가 발생했습니다.");
+        const errorText = await response.text();
+        let errorMessage = errorText;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorText;
+        } catch (e) {
+          // JSON 파싱 실패 시 원본 텍스트 사용
+        }
+        throw new Error(errorMessage || (isEditMode ? "문제 수정 중 오류가 발생했습니다." : "문제 저장 중 오류가 발생했습니다."));
       }
       
       const responseData = await response.json();
@@ -358,7 +365,7 @@ export function ManualForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <TagSection
+      <TagGroup
         examName={examName}
         year={year}
         isYearValid={isYearValid}
@@ -374,16 +381,16 @@ export function ManualForm({
         onAddTag={tagManager.addTag}
         onRemoveTag={tagManager.removeTag}
       />
-      <QuestionContentSection
-            value={question.content}
+      <QuestionContent
+        value={question.content}
         onChange={e => setQuestion({ ...question, content: e.target.value })}
         onPaste={manualImage.handleTextAreaPaste}
         inputRef={manualImage.contentRef}
       />
       {/* 문제 이미지 업로드 영역 - 문제 입력 아래에만 렌더링 */}
-      <ImageSection
-        questionImages={mapAndFilterImageUrls(question.images)}
-        explanationImages={[]}
+      <ImageGroup
+        questionImages={normalizeImages(question.images)}
+        explanationImages={normalizeImages([])}
         onRemoveImage={manualImage.removeImage}
         onZoomImage={manualImage.handleImageZoom}
         onImageAreaClick={manualImage.handleImageAreaClick}
@@ -396,8 +403,8 @@ export function ManualForm({
         handleImageUpload={manualImage.handleImageUpload}
         type="question"
       />
-      <OptionsSection
-        options={question.options}
+      <Options
+        options={question.options.map(opt => ({ ...opt, images: normalizeImages(opt.images) }))}
         answer={question.answer}
         onAddOption={optionManager.addOption}
         onRemoveOption={optionManager.removeOption}
@@ -407,17 +414,17 @@ export function ManualForm({
         onOptionImageRemove={optionManager.onOptionImageRemove}
         onOptionImageZoom={optionManager.onOptionImageZoom}
       />
-      <ExplanationSection
+      <Explanation
         value={question.explanation || ''}
         onChange={e => setQuestion({ ...question, explanation: e.target.value })}
         onPaste={manualImage.handleTextAreaPaste}
         inputRef={manualImage.explanationRef}
       />
       {/* 해설 이미지 업로드 영역 - 해설 입력 아래에만 렌더링 */}
-      <ImageSection
-        questionImages={[]}
-        explanationImages={mapAndFilterImageUrls(question.explanationImages)}
-        onRemoveImage={manualImage.removeImage}
+      <ImageGroup
+        questionImages={normalizeImages([])}
+        explanationImages={normalizeImages(question.explanationImages)}
+        onRemoveImage={(idx) => manualImage.removeImage(idx, true)}
         onZoomImage={manualImage.handleImageZoom}
         onImageAreaClick={manualImage.handleImageAreaClick}
         onImageAreaMouseEnter={() => manualImage.setIsImageAreaActive(true)}

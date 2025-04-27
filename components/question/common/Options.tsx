@@ -2,8 +2,8 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Plus, Trash2 } from 'lucide-react'
 import React, { useState } from 'react'
-import { ManualImageArea } from './ManualImageArea'
-import { ManualImagePreview } from './ManualImagePreview'
+import { ImageArea } from './ImageArea'
+import { ImagePreview } from './ImagePreview'
 
 interface Option {
   number: number
@@ -11,7 +11,7 @@ interface Option {
   images: { url: string; hash: string }[]
 }
 
-interface OptionsSectionProps {
+interface OptionsProps {
   options: Option[]
   answer: number
   onAddOption: () => void
@@ -23,7 +23,7 @@ interface OptionsSectionProps {
   onOptionImageZoom: (imageUrl: string) => void
 }
 
-export function OptionsSection({
+export function Options({
   options,
   answer,
   onAddOption,
@@ -33,7 +33,7 @@ export function OptionsSection({
   onOptionImageUpload,
   onOptionImageRemove,
   onOptionImageZoom
-}: OptionsSectionProps) {
+}: OptionsProps) {
   const [activeOptionIndex, setActiveOptionIndex] = useState<number | null>(null);
   const [isOptionImageAreaActive, setIsOptionImageAreaActive] = useState(false);
 
@@ -95,7 +95,7 @@ export function OptionsSection({
             {/* 이미지 업로드/미리보기 영역 */}
             <div className="flex flex-wrap gap-2 items-center mt-1">
               {option.images && option.images.length > 0 && option.images.map((img, imgIdx) => (
-                <ManualImagePreview
+                <ImagePreview
                   key={img.hash}
                   image={img}
                   index={imgIdx}
@@ -104,7 +104,7 @@ export function OptionsSection({
                   onZoom={onOptionImageZoom}
                 />
               ))}
-              <ManualImageArea
+              <ImageArea
                 type="option"
                 isActive={activeOptionIndex === index && isOptionImageAreaActive}
                 onActivate={() => {

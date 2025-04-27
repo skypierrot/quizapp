@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button"
 import { X } from "lucide-react"
 import React from "react"
 
-interface ManualImagePreviewProps {
+interface ImagePreviewProps {
   image: string | { url: string; hash: string };
   onRemove: () => void;
   onZoom: (imageUrl: string) => void;
@@ -10,7 +10,7 @@ interface ManualImagePreviewProps {
   index: number;
 }
 
-export const ManualImagePreview: React.FC<ManualImagePreviewProps> = ({
+export const ImagePreview: React.FC<ImagePreviewProps> = ({
   image,
   onRemove,
   onZoom,
@@ -36,7 +36,8 @@ export const ManualImagePreview: React.FC<ManualImagePreviewProps> = ({
         <img
           src={imageUrl}
           alt={`${isExplanation ? '해설' : '문제'} 이미지 ${index + 1}`}
-          className="w-full max-h-[300px] object-contain"
+          className="w-full max-w-[400px] h-auto max-h-[400px] object-contain mx-auto rounded-md shadow"
+          style={{ display: 'block' }}
         />
       </div>
     </div>

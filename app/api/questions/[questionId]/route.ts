@@ -3,9 +3,47 @@ import { db, asyncDB, checkDBConnection } from "@/db";
 import { questions } from "@/db/schema/questions";
 import { eq } from "drizzle-orm";
 import { auth } from "@clerk/nextjs";
+import fs from 'fs';
+import path from 'path';
 
 // 임시 사용자 ID (개발용)
 const DEV_USER_ID = "dev_user_123";
+
+const TMP_DIR = path.join(process.cwd(), 'public', 'images', 'tmp');
+const UPLOAD_DIR = path.join(process.cwd(), 'public', 'images', 'uploaded');
+
+function moveTmpToUploaded(tmpUrl: string): string {
+  // 슬래시 중복 제거
+  const normalizedUrl = tmpUrl.replace(/\\/g, '/').replace(/\/{2,}/g, '/');
+  if (normalizedUrl.startsWith('/images/uploaded/')) {
+    const filename = path.basename(normalizedUrl);
+    return `/images/uploaded/${filename}`;
+  }
+  if (!normalizedUrl.startsWith('/images/tmp/')) return normalizedUrl;
+
+  const filename = path.basename(normalizedUrl);
+  const tmpPath = path.join(TMP_DIR, filename);
+  const uploadedPath = path.join(UPLOAD_DIR, filename);
+
+  if (!fs.existsSync(tmpPath)) {
+    console.error('[이미지 이동 오류] 임시파일 없음:', tmpPath);
+    return normalizedUrl;
+  }
+
+  try {
+    fs.renameSync(tmpPath, uploadedPath);
+  } catch (e) {
+    console.error('[이미지 이동 오류] 파일 이동 실패:', tmpPath, '→', uploadedPath, e);
+    return normalizedUrl;
+  }
+
+  if (!fs.existsSync(uploadedPath)) {
+    console.error('[이미지 이동 오류] 이동 후 파일 없음:', uploadedPath);
+    return normalizedUrl;
+  }
+
+  return `/images/uploaded/${filename}`;
+}
 
 // DB 연결 상태 확인 헬퍼 함수
 const ensureDBConnection = async () => {
@@ -99,47 +137,104 @@ export async function PUT(
 
     // 인증 확인 (임시로 비활성화)
     // const { userId } = auth();
-    
     // if (!userId) {
     //   return NextResponse.json(
     //     { error: "인증되지 않은 사용자입니다." },
     //     { status: 401 }
     //   );
     // }
-    
+
     const { questionId } = params;
-    const updateData = await request.json();
-    
+    const formData = await request.formData();
+    const content = formData.get('content') as string;
+    const optionsRaw = formData.get('options') as string;
+    const answer = Number(formData.get('answer'));
+    const explanation = formData.get('explanation') as string;
+    const tagsRaw = formData.get('tags') as string;
+    // JSON 파싱
+    let options;
+    let tags;
+    try {
+      options = JSON.parse(optionsRaw);
+      tags = tagsRaw ? JSON.parse(tagsRaw) : [];
+    } catch (e) {
+      return NextResponse.json(
+        { error: "options/tags 파싱 오류" },
+        { status: 400 }
+      );
+    }
+    // options의 각 images에도 moveTmpToUploaded 적용 (POST와 동일)
+    options = options.map((opt: any) => ({
+      ...opt,
+      images: (opt.images || []).map((img: any) => {
+        if (typeof img === "string") {
+          return moveTmpToUploaded(img);
+        }
+        if (
+          img.url &&
+          (img.url.startsWith('/images/tmp/') || img.url.startsWith('/images/uploaded/'))
+        ) {
+          return { ...img, url: moveTmpToUploaded(img.url) };
+        }
+        return img;
+      })
+    }));
+    // 이미지 파싱
+    const imagesRaw = formData.get('images') as string;
+    const explanationImagesRaw = formData.get('explanationImages') as string;
+    let imageObjects: { url: string; hash: string }[] = [];
+    let explanationImageObjects: { url: string; hash: string }[] = [];
+    try {
+      imageObjects = imagesRaw ? JSON.parse(imagesRaw) : [];
+      explanationImageObjects = explanationImagesRaw ? JSON.parse(explanationImagesRaw) : [];
+      // tmp 경로를 uploaded로 이동 및 url 변경
+      imageObjects = imageObjects.map(img => {
+        if (img.url && img.url.startsWith('/images/tmp/')) {
+          return { ...img, url: moveTmpToUploaded(img.url) };
+        }
+        return img;
+      });
+      explanationImageObjects = explanationImageObjects.map(img => {
+        if (img.url && img.url.startsWith('/images/tmp/')) {
+          return { ...img, url: moveTmpToUploaded(img.url) };
+        }
+        return img;
+      });
+    } catch (e) {
+      return NextResponse.json(
+        { error: "images/explanationImages 파싱 오류" },
+        { status: 400 }
+      );
+    }
     // 비동기 DB 인스턴스 가져오기
     const dbInstance = await asyncDB.get();
-
     // 문제 존재 여부 확인
     const existingQuestion = await dbInstance.query.questions.findFirst({
       where: eq(questions.id, questionId)
     });
-
     if (!existingQuestion) {
       return NextResponse.json(
         { error: "문제를 찾을 수 없습니다." },
         { status: 404 }
       );
     }
-
     // 문제 업데이트
     await dbInstance.update(questions)
       .set({
-        ...updateData,
+        content,
+        options,
+        answer,
+        explanation,
+        tags,
+        images: imageObjects,
+        explanationImages: explanationImageObjects,
         updatedAt: new Date()
       })
       .where(eq(questions.id, questionId));
-
-    console.log("문제 업데이트 성공:", questionId);
-
     // 업데이트된 문제 반환
     const updatedQuestion = await dbInstance.query.questions.findFirst({
       where: eq(questions.id, questionId)
     });
-
     return NextResponse.json({ question: updatedQuestion });
   } catch (error) {
     console.error("PUT /api/questions/[id] Error:", error);

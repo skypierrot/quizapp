@@ -2,14 +2,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import React from 'react'
 
-interface ExplanationSectionProps {
+interface ExplanationProps {
   value: string
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
   onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void
   inputRef?: React.RefObject<HTMLTextAreaElement>
 }
 
-export function ExplanationSection({ value, onChange, onPaste, inputRef }: ExplanationSectionProps) {
+export function Explanation({ value, onChange, onPaste, inputRef }: ExplanationProps) {
   return (
     <div>
       <Label className="block mb-2 font-medium">해설 (선택사항)</Label>

@@ -2,14 +2,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import React from 'react'
 
-interface QuestionContentSectionProps {
+interface QuestionContentProps {
   value: string
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
   onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void
   inputRef?: React.RefObject<HTMLTextAreaElement>
 }
 
-export function QuestionContentSection({ value, onChange, onPaste, inputRef }: QuestionContentSectionProps) {
+export function QuestionContent({ value, onChange, onPaste, inputRef }: QuestionContentProps) {
   return (
     <div>
       <Label className="block mb-2 font-medium">문제 내용</Label>

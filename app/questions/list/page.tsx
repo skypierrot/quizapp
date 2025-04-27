@@ -58,7 +58,7 @@ function QuestionCard({
             </div>
             <div className="flex items-center gap-1 text-sm text-gray-500">
               <Calendar className="h-3 w-3" />
-              <span>{new Date(question.createdAt).toLocaleDateString()}</span>
+              <span>{question.createdAt ? new Date(question.createdAt).toLocaleDateString() : ''}</span>
             </div>
           </div>
         </div>
@@ -88,7 +88,7 @@ function QuestionCard({
                       key={idx}
                       src={getImageUrl(img)}
                       alt={`문제 이미지 ${idx + 1}`}
-                      className="w-48 h-auto object-contain border rounded-md cursor-zoom-in"
+                      className="w-full max-w-[400px] h-auto max-h-[300px] object-contain border rounded cursor-zoom-in"
                       onClick={() => onImageZoom(getImageUrl(img))}
                     />
                   ))}
@@ -105,7 +105,7 @@ function QuestionCard({
                       key={idx}
                       src={getImageUrl(img)}
                       alt={`해설 이미지 ${idx + 1}`}
-                      className="w-48 h-auto object-contain border rounded-md cursor-zoom-in"
+                      className="w-full max-w-[400px] h-auto max-h-[300px] object-contain border rounded cursor-zoom-in"
                       onClick={() => onImageZoom(getImageUrl(img))}
                     />
                   ))}
@@ -118,7 +118,14 @@ function QuestionCard({
                 <h4 className="text-sm font-medium mb-1">선택지</h4>
                 <div className="space-y-1">
                   {question.options.map((option, idx) => (
-                    <div key={idx} className={`p-2 rounded-md text-sm ${question.answer === idx ? 'bg-black text-white' : 'bg-gray-100'}`}>
+                    <div
+                      key={idx}
+                      className={`p-3 rounded-md text-base transition-all duration-150
+                        ${question.answer === idx
+                          ? 'border-2 bg-green-50 text-black font-extrabold shadow-lg ring-2 ring-green-300 hover:bg-green-100'
+                          : 'border border-gray-200 bg-gray-100 text-gray-800 hover:bg-gray-50'}
+                      `}
+                    >
                       {idx + 1}. {option.text}
                       {/* 선택지 이미지 */}
                       {option.images && option.images.length > 0 && (
@@ -128,7 +135,7 @@ function QuestionCard({
                               key={imgIdx}
                               src={getImageUrl(img)}
                               alt={`선택지${idx + 1} 이미지${imgIdx + 1}`}
-                              className="w-24 h-24 object-contain border rounded"
+                              className="w-full max-w-[400px] h-auto max-h-[300px] object-contain border rounded"
                               onClick={() => onImageZoom(getImageUrl(img))}
                             />
                           ))}
@@ -151,9 +158,11 @@ function QuestionCard({
           <Link href={`/questions/edit/${question.id}`} className="flex-1">
             <Button variant="outline" size="sm" className="flex-1 w-full h-10">✏️ 수정</Button>
           </Link>
-          <Button variant="outline" size="sm" className="flex-1 w-full h-10 hover:bg-gray-100 hover:text-gray-700" onClick={() => onDelete(question.id)}>
-            🗑️ 삭제
-          </Button>
+          {question.id && (
+            <Button variant="outline" size="sm" className="flex-1 w-full h-10 hover:bg-gray-100 hover:text-gray-700" onClick={() => onDelete(question.id!)}>
+              🗑️ 삭제
+            </Button>
+          )}
         </div>
       </CardFooter>
     </Card>
@@ -190,7 +199,7 @@ function QuestionDetailDialog({ open, question, onClose }: { open: boolean; ques
                     key={idx}
                     src={getImageUrl(img)}
                     alt={`문제 이미지 ${idx + 1}`}
-                    className="w-48 h-auto object-contain border rounded"
+                    className="w-full max-w-[400px] h-auto max-h-[300px] object-contain border rounded"
                   />
                 ))}
               </div>
@@ -200,7 +209,14 @@ function QuestionDetailDialog({ open, question, onClose }: { open: boolean; ques
             <h3 className="font-semibold mb-2">선택지</h3>
             <div className="space-y-2">
               {question.options.map((opt, idx) => (
-                <div key={idx} className={`p-3 rounded-md ${question.answer === idx ? "bg-black text-white" : "bg-gray-100"}`}>
+                <div
+                  key={idx}
+                  className={`p-3 rounded-md text-base transition-all duration-150
+                    ${question.answer === idx
+                      ? 'border-2 bg-green-50 text-black font-extrabold shadow-lg ring-2 ring-green-300 hover:bg-green-100'
+                      : 'border border-gray-200 bg-gray-100 text-gray-800 hover:bg-gray-50'}
+                  `}
+                >
                   {idx + 1}. {opt.text}
                   {opt.images && opt.images.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2">
@@ -209,7 +225,7 @@ function QuestionDetailDialog({ open, question, onClose }: { open: boolean; ques
                           key={imgIdx}
                           src={getImageUrl(img)}
                           alt={`선택지${idx + 1} 이미지${imgIdx + 1}`}
-                          className="w-24 h-24 object-contain border rounded"
+                          className="w-full max-w-[400px] h-auto max-h-[300px] object-contain border rounded"
                         />
                       ))}
                     </div>
@@ -233,7 +249,7 @@ function QuestionDetailDialog({ open, question, onClose }: { open: boolean; ques
                     key={idx}
                     src={getImageUrl(img)}
                     alt={`해설 이미지 ${idx + 1}`}
-                    className="w-48 h-auto object-contain border rounded"
+                    className="w-full max-w-[400px] h-auto max-h-[300px] object-contain border rounded"
                   />
                 ))}
               </div>

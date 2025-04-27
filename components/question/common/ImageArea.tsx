@@ -1,7 +1,7 @@
 import { ImageIcon } from "lucide-react"
 import React, { useRef } from "react"
 
-interface ManualImageAreaProps {
+interface ImageAreaProps {
   type: 'question' | 'explanation' | 'option';
   isActive: boolean;
   onActivate: () => void;
@@ -9,7 +9,7 @@ interface ManualImageAreaProps {
   heightClass?: string;
 }
 
-export const ManualImageArea: React.FC<ManualImageAreaProps> = ({
+export const ImageArea: React.FC<ImageAreaProps> = ({
   type,
   isActive,
   onActivate,

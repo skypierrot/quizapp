@@ -1,6 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ManualForm } from "@/components/question/ManualForm"
-import { PasteForm } from "@/components/question/PasteForm"
+import PasteForm from "@/components/question/PasteForm"
 import Breadcrumb from '@/components/common/Breadcrumb';
 
 export default function NewQuestionPage() {

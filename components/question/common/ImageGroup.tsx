@@ -1,26 +1,31 @@
 import React from 'react'
-import { ManualImageArea } from './ManualImageArea'
-import { ManualImagePreview } from './ManualImagePreview'
+import { ImageArea } from './ImageArea'
+import { ImagePreview } from './ImagePreview'
 
-interface ImageSectionProps {
-  questionImages: string[]
-  explanationImages: string[]
-  onRemoveImage: (index: number, isExplanation?: boolean) => void
-  onZoomImage: (imageUrl: string) => void
-  onImageAreaClick: (type: 'question' | 'explanation') => void
-  onImageAreaMouseEnter: (type: 'question' | 'explanation') => void
-  onImageAreaMouseLeave: () => void
-  questionImageInputRef: React.RefObject<HTMLInputElement>
-  explanationImageInputRef: React.RefObject<HTMLInputElement>
-  activeImageType: 'question' | 'explanation' | null
-  isImageAreaActive: boolean
-  handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>, isExplanation?: boolean) => void
-  type?: 'question' | 'explanation'
-  handleDrop?: (e: React.DragEvent<Element>, isExplanation?: boolean) => void
-  handleTextAreaPaste?: (e: React.ClipboardEvent<Element>) => void
+interface IImage {
+  url: string;
+  hash: string;
 }
 
-export function ImageSection({
+interface ImageGroupProps {
+  questionImages: IImage[];
+  explanationImages: IImage[];
+  onRemoveImage: (idx: number, isExplanation?: boolean) => void;
+  onZoomImage: (url: string) => void;
+  onImageAreaClick: (type: 'question' | 'explanation') => void;
+  onImageAreaMouseEnter: (type: 'question' | 'explanation') => void;
+  onImageAreaMouseLeave: () => void;
+  questionImageInputRef: React.RefObject<HTMLInputElement>;
+  explanationImageInputRef: React.RefObject<HTMLInputElement>;
+  activeImageType: 'question' | 'explanation' | null | undefined;
+  isImageAreaActive: boolean;
+  handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>, isExplanation?: boolean) => void;
+  type?: 'question' | 'explanation' | null;
+  handleDrop?: (e: React.DragEvent<Element>, isExplanation?: boolean) => void;
+  handleTextAreaPaste?: (e: React.ClipboardEvent<Element>) => void;
+}
+
+export function ImageGroup({
   questionImages,
   explanationImages,
   onRemoveImage,
@@ -36,7 +41,7 @@ export function ImageSection({
   type,
   handleDrop,
   handleTextAreaPaste
-}: ImageSectionProps) {
+}: ImageGroupProps) {
   if (type === 'question') {
     return (
       <>
@@ -44,17 +49,17 @@ export function ImageSection({
         {questionImages.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
             {questionImages.map((img, imgIdx) => (
-              <ManualImagePreview
+              <ImagePreview
                 key={`question-image-${imgIdx}`}
                 image={img}
                 index={imgIdx}
-                onRemove={() => onRemoveImage(imgIdx, false)}
+                onRemove={() => onRemoveImage(imgIdx)}
                 onZoom={onZoomImage}
               />
             ))}
           </div>
         )}
-        <ManualImageArea
+        <ImageArea
           type="question"
           isActive={activeImageType === 'question' && isImageAreaActive}
           onActivate={() => onImageAreaClick('question')}
@@ -70,18 +75,18 @@ export function ImageSection({
         {explanationImages.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
             {explanationImages.map((img, imgIdx) => (
-              <ManualImagePreview
+              <ImagePreview
                 key={`explanation-image-${imgIdx}`}
                 image={img}
                 index={imgIdx}
                 isExplanation={true}
-                onRemove={() => onRemoveImage(imgIdx, true)}
+                onRemove={() => onRemoveImage(imgIdx)}
                 onZoom={onZoomImage}
               />
             ))}
           </div>
         )}
-        <ManualImageArea
+        <ImageArea
           type="explanation"
           isActive={activeImageType === 'explanation' && isImageAreaActive}
           onActivate={() => onImageAreaClick('explanation')}
@@ -97,17 +102,17 @@ export function ImageSection({
       {questionImages.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
           {questionImages.map((img, imgIdx) => (
-            <ManualImagePreview
+            <ImagePreview
               key={`question-image-${imgIdx}`}
               image={img}
               index={imgIdx}
-              onRemove={() => onRemoveImage(imgIdx, false)}
+              onRemove={() => onRemoveImage(imgIdx)}
               onZoom={onZoomImage}
             />
           ))}
         </div>
       )}
-      <ManualImageArea
+      <ImageArea
         type="question"
         isActive={activeImageType === 'question' && isImageAreaActive}
         onActivate={() => onImageAreaClick('question')}
@@ -117,18 +122,18 @@ export function ImageSection({
       {explanationImages.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
           {explanationImages.map((img, imgIdx) => (
-            <ManualImagePreview
+            <ImagePreview
               key={`explanation-image-${imgIdx}`}
               image={img}
               index={imgIdx}
               isExplanation={true}
-              onRemove={() => onRemoveImage(imgIdx, true)}
+              onRemove={() => onRemoveImage(imgIdx)}
               onZoom={onZoomImage}
             />
           ))}
         </div>
       )}
-      <ManualImageArea
+      <ImageArea
         type="explanation"
         isActive={activeImageType === 'explanation' && isImageAreaActive}
         onActivate={() => onImageAreaClick('explanation')}
