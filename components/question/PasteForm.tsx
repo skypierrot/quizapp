@@ -12,6 +12,9 @@ import { parseQuestionsImproved } from "@/utils/questionParser";
 import { IManualQuestion, ToastType } from "@/types";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { SubmitSection } from "./common/SubmitSection";
+import { useUniversalImageUpload } from "@/hooks/useUniversalImageUpload";
+import { useImageZoom } from '@/hooks/useImageZoom';
+import { ImageZoomModal } from '@/components/common/ImageZoomModal';
 
 // images 객체 배열을 string[]로 변환하는 유틸 함수
 const mapAndFilterImageUrls = (images: { url: string; hash: string }[] = []) => images.map(img => img.url).filter(Boolean);
@@ -40,24 +43,10 @@ export default function PasteForm() {
   const [questionTagInputs, setQuestionTagInputs] = useState<{ [idx: number]: string }>({});
   const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // 문제 이미지 업로드 훅
-  const questionImageUpload = useImageUpload((file, url) => {
-    if (currentImageIdx !== null) {
-      setQuestions(prev => prev.map((q, i) =>
-        i === currentImageIdx ? { ...q, images: [...q.images, { url, hash: "" }] } : q
-      ));
-    }
-  });
-  // 해설 이미지 업로드 훅
-  const explanationImageUpload = useImageUpload((file, url) => {
-    if (currentImageIdx !== null) {
-      setQuestions(prev => prev.map((q, i) =>
-        i === currentImageIdx ? { ...q, explanationImages: [...q.explanationImages, { url, hash: "" }] } : q
-      ));
-    }
-  });
-  // 선택지 이미지 업로드 훅 (선택지별로 구현 필요)
-  // ... (생략: 필요시 추가 구현)
+  // universal 이미지 업로드 훅 (문제/해설 구분 없이 사용)
+  const questionImageUpload = useUniversalImageUpload();
+  const explanationImageUpload = useUniversalImageUpload();
+  const imageZoom = useImageZoom();
 
   // 이미지 업로드 핸들러 (문제/해설 구분, 유효성 검사 포함)
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isExplanation = false) => {
@@ -69,8 +58,8 @@ export default function PasteForm() {
     }
     if (file.size > MAX_IMAGE_SIZE) {
       toast({ title: "5MB 이하 이미지만 업로드 가능합니다.", variant: "error" });
-      return;
-    }
+        return;
+      }
     setQuestions(prev => prev.map((q, i) => {
       if (i !== currentImageIdx) return q;
       const targetImages = isExplanation ? q.explanationImages : q.images;
@@ -96,10 +85,10 @@ export default function PasteForm() {
     ));
   };
 
-  // 이미지 확대(미리보기)
-  const handleZoomImage = (url: string) => {
-    window.open(url, "_blank");
-  };
+  // 이미지 확대(미리보기) - imageZoom 훅 사용
+  // const handleZoomImage = (url: string) => {
+  //   window.open(url, "_blank"); // 이전 방식 제거
+  // };
 
   // 붙여넣기 → 파싱
   const handleParse = () => {
@@ -109,7 +98,7 @@ export default function PasteForm() {
       return;
     }
     setQuestions(parsed.map(q => ({
-      ...q,
+          ...q,
       images: [],
       explanationImages: [],
       tags: [],
@@ -119,7 +108,7 @@ export default function PasteForm() {
         text: typeof opt.text === "string" ? opt.text : String(opt),
         images: Array.isArray(opt.images) ? opt.images : [],
       })),
-    })));
+        })));
     setQuestionTags(parsed.map(() => []));
     setPasteText("");
   };
@@ -239,52 +228,52 @@ export default function PasteForm() {
 
   // 문제별 추가 태그 입력 UI 컴포넌트 분리
   function TagInput({ value, tags, onChange, onAdd, onRemove }: { value: string; tags: string[]; onChange: (v: string) => void; onAdd: (tag: string) => void; onRemove: (tag: string) => void }) {
-    return (
+  return (
       <div className="mb-4 p-3 border border-gray-200 rounded-md">
         <h4 className="text-sm font-medium mb-2">추가 태그</h4>
-        <div className="flex gap-2 mb-2">
+          <div className="flex gap-2 mb-2">
           <input
-            type="text"
+              type="text" 
             value={value}
             onChange={e => onChange(e.target.value)}
             className="text-sm border rounded px-2 py-1 flex-1"
             placeholder="예: 필기, 핵심개념, 중요문제 등"
             onKeyDown={e => {
-              if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                e.preventDefault();
+                          if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                            e.preventDefault();
                 if (value.trim()) {
                   onAdd(value.trim());
                   onChange("");
                 }
-              }
-            }}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
+                          }
+                        }}
+                      />
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
             onClick={() => {
               if (value.trim()) {
                 onAdd(value.trim());
                 onChange("");
               }
             }}
-          >
-            추가
-          </Button>
-        </div>
+                      >
+                        추가
+                      </Button>
+                    </div>
         {tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
+                    <div className="flex flex-wrap gap-2 mt-2">
             {tags.map((tag, i) => (
               <span key={i} className="bg-gray-100 border rounded px-2 py-1 text-xs flex items-center gap-1">
-                {tag}
+                          {tag}
                 <button type="button" onClick={() => onRemove(tag)} className="ml-1 text-gray-500 hover:text-gray-700">×</button>
               </span>
-            ))}
-          </div>
-        )}
+                      ))}
+                    </div>
+                  )}
         <p className="text-xs text-gray-500 mt-2">기본 태그 외에 추가로 문제를 분류할 태그를 입력하세요. 입력 후 Enter 또는 추가 버튼을 클릭하세요.</p>
-      </div>
+                </div>
     );
   }
 
@@ -318,7 +307,7 @@ export default function PasteForm() {
           placeholder="문제와 선택지를 붙여넣으세요."
         />
         <Button onClick={handleParse} disabled={!pasteText.trim()}>문제 자동분류</Button>
-      </div>
+                  </div>
       {/* 분류된 문제 리스트 */}
       {questions.map((q, idx) => (
         <div
@@ -337,7 +326,7 @@ export default function PasteForm() {
             questionImages={q.images}
             explanationImages={[]}
             onRemoveImage={(imgIdx: number, isExplanation?: boolean) => handleRemoveImage(idx, imgIdx, isExplanation)}
-            onZoomImage={handleZoomImage}
+            onZoomImage={imageZoom.showZoom}
             onImageAreaClick={type => {
               setCurrentImageIdx(idx);
               setActiveImageType(type);
@@ -415,9 +404,7 @@ export default function PasteForm() {
                   : qq
               ));
             }}
-            onOptionImageZoom={url => {
-              window.open(url, "_blank");
-            }}
+            onOptionImageZoom={imageZoom.showZoom}
           />
           <Explanation
             value={q.explanation || ""}
@@ -430,7 +417,7 @@ export default function PasteForm() {
             questionImages={[]}
             explanationImages={q.explanationImages}
             onRemoveImage={(imgIdx: number, isExplanation?: boolean) => handleRemoveImage(idx, imgIdx, isExplanation)}
-            onZoomImage={handleZoomImage}
+            onZoomImage={imageZoom.showZoom}
             onImageAreaClick={type => {
               setCurrentImageIdx(idx);
               setActiveImageType(type);
@@ -447,7 +434,7 @@ export default function PasteForm() {
             activeImageType={activeImageType ?? undefined}
             isImageAreaActive={isImageAreaActive}
             handleImageUpload={handleImageUpload}
-            type="explanation"
+                      type="explanation" 
           />
           <TagInput
             value={questionTagInputs[idx] || ""}
@@ -458,10 +445,12 @@ export default function PasteForm() {
               setQuestionTagInputs(inputs => ({ ...inputs, [idx]: "" }));
             }}
             onRemove={tag => handleRemoveQuestionTag(idx, tag)}
-          />
-        </div>
+              />
+            </div>
       ))}
       <SubmitSection isSubmitting={isSubmitting} isEditMode={false} />
+      {/* 이미지 확대 모달 추가 */}
+      <ImageZoomModal src={imageZoom.zoomedImage} onClose={imageZoom.closeZoom} />
     </form>
   );
 } 

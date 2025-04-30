@@ -3,73 +3,74 @@ import { IImageUploadResult, ImageType } from "@/types/question";
 import { ToastType } from "@/types/toast";
 
 /**
- * 파일을 base64 문자열로 변환합니다.
+ * 파일을 base64 문자열로 변환합니다. (현재 사용 안 함)
  * @param file 변환할 파일 객체
  * @returns Promise<string> base64 문자열
  */
-export const convertToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = error => reject(error);
-  });
-};
+// export const convertToBase64 = (file: File): Promise<string> => {
+//   return new Promise((resolve, reject) => {
+//     const reader = new FileReader();
+//     reader.readAsDataURL(file);
+//     reader.onload = () => resolve(reader.result as string);
+//     reader.onerror = error => reject(error);
+//   });
+// };
 
 /**
- * 이미지 파일을 처리하고 base64 문자열로 변환합니다.
+ * 이미지 파일을 처리하고 base64 문자열로 변환합니다. (현재 사용 안 함)
  * 이미지 크기 제한 검사도 수행합니다.
  * @param file 이미지 파일
  * @param maxSizeMB 최대 크기(MB)
  * @returns Promise<IImageUploadResult> 처리 결과
  */
-export const handleImageUpload = async (
-  file: File, 
-  maxSizeMB: number = 10
-): Promise<IImageUploadResult> => {
-  // 이미지 타입 검사
-  if (!file.type.startsWith('image/')) {
-    return {
-      success: false,
-      message: "이미지 파일만 업로드 가능합니다."
-    };
-  }
-
-  // 크기 제한 검사 (기본 10MB)
-  const maxSize = maxSizeMB * 1024 * 1024;
-  if (file.size > maxSize) {
-    return {
-      success: false,
-      message: `${maxSizeMB}MB 이하의 이미지만 업로드 가능합니다.`
-    };
-  }
-
-  try {
-    const base64 = await convertToBase64(file);
-    return {
-      success: true,
-      message: "이미지가 성공적으로 변환되었습니다.",
-      imageUrl: base64
-    };
-  } catch (error) {
-    console.error("이미지 변환 오류:", error);
-    return {
-      success: false,
-      message: "이미지 처리 중 오류가 발생했습니다."
-    };
-  }
-};
+// export const handleImageUpload = async (
+//   file: File, 
+//   maxSizeMB: number = 10
+// ): Promise<IImageUploadResult> => {
+//   // 이미지 타입 검사
+//   if (!file.type.startsWith('image/')) {
+//     return {
+//       success: false,
+//       message: "이미지 파일만 업로드 가능합니다."
+//     };
+//   }
+// 
+//   // 크기 제한 검사 (기본 10MB)
+//   const maxSize = maxSizeMB * 1024 * 1024;
+//   if (file.size > maxSize) {
+//     return {
+//       success: false,
+//       message: `${maxSizeMB}MB 이하의 이미지만 업로드 가능합니다.`
+//     };
+//   }
+// 
+//   try {
+//     const base64 = await convertToBase64(file);
+//     return {
+//       success: true,
+//       message: "이미지가 성공적으로 변환되었습니다.",
+//       imageUrl: base64
+//     };
+//   } catch (error) {
+//     console.error("이미지 변환 오류:", error);
+//     return {
+//       success: false,
+//       message: "이미지 처리 중 오류가 발생했습니다."
+//     };
+//   }
+// };
 
 /**
- * 클립보드 이벤트에서 이미지를 추출하고 처리합니다.
+ * 클립보드 이벤트에서 이미지 파일을 추출합니다.
+ * 이미지 크기 제한 검사도 수행합니다.
  * @param e 클립보드 이벤트
  * @param maxSizeMB 최대 크기(MB)
- * @returns Promise<IImageUploadResult> 처리 결과
+ * @returns Promise<File | { success: false; message: string }> 추출된 파일 객체 또는 오류 객체
  */
 export const handlePasteImage = async (
   e: ClipboardEvent,
   maxSizeMB: number = 10
-): Promise<IImageUploadResult> => {
+): Promise<File | { success: false; message: string }> => {
   if (!e.clipboardData) {
     return {
       success: false,
@@ -95,7 +96,25 @@ export const handlePasteImage = async (
     };
   }
 
-  return await handleImageUpload(imageFile, maxSizeMB);
+  // 이미지 타입 검사 (추가)
+  if (!imageFile.type.startsWith('image/')) {
+    return {
+      success: false,
+      message: "이미지 파일만 붙여넣기 가능합니다."
+    };
+  }
+
+  // 크기 제한 검사
+  const maxSize = maxSizeMB * 1024 * 1024;
+  if (imageFile.size > maxSize) {
+    return {
+      success: false,
+      message: `${maxSizeMB}MB 이하의 이미지만 붙여넣기 가능합니다.`
+    };
+  }
+
+  // Base64 변환 대신 File 객체 반환
+  return imageFile;
 };
 
 /**

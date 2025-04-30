@@ -1,0 +1,36 @@
+import React from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { CommonImage } from './CommonImage';
+
+interface ImageZoomModalProps {
+  src: string | null;
+  onClose: () => void;
+}
+
+export function ImageZoomModal({ src, onClose }: ImageZoomModalProps) {
+  return (
+    <Dialog open={!!src} onOpenChange={onClose}>
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto p-2">
+        {/* Accessibility */}
+        <VisuallyHidden>
+          <DialogTitle>확대 이미지</DialogTitle>
+          <DialogDescription>선택한 이미지의 확대된 모습입니다.</DialogDescription>
+        </VisuallyHidden>
+        {src && (
+          <CommonImage
+            src={src}
+            alt="확대 이미지"
+            className="w-full h-auto"
+            containerClassName="w-full h-full flex items-center justify-center"
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+} 

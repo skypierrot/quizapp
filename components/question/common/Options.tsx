@@ -93,7 +93,7 @@ export function Options({
               </Button>
             </div>
             {/* 이미지 업로드/미리보기 영역 */}
-            <div className="flex flex-wrap gap-2 items-center mt-1">
+            <div className="space-y-2 mt-1">
               {option.images && option.images.length > 0 && option.images.map((img, imgIdx) => (
                 <ImagePreview
                   key={img.hash}
@@ -102,6 +102,7 @@ export function Options({
                   isExplanation={false}
                   onRemove={() => onOptionImageRemove(index, imgIdx)}
                   onZoom={onOptionImageZoom}
+                  className="mb-2"
                 />
               ))}
               <ImageArea

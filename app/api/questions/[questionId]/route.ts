@@ -143,7 +143,7 @@ export async function PUT(
     //     { status: 401 }
     //   );
     // }
-
+    
     const { questionId } = params;
     const formData = await request.formData();
     const content = formData.get('content') as string;

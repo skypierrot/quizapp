@@ -47,7 +47,7 @@ export function ImageGroup({
       <>
         {/* 문제 이미지 */}
         {questionImages.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+          <div className="mb-3">
             {questionImages.map((img, imgIdx) => (
               <ImagePreview
                 key={`question-image-${imgIdx}`}
@@ -55,6 +55,7 @@ export function ImageGroup({
                 index={imgIdx}
                 onRemove={() => onRemoveImage(imgIdx)}
                 onZoom={onZoomImage}
+                className="mb-2"
               />
             ))}
           </div>
@@ -73,7 +74,7 @@ export function ImageGroup({
       <>
         {/* 해설 이미지 */}
         {explanationImages.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+          <div className="mb-3">
             {explanationImages.map((img, imgIdx) => (
               <ImagePreview
                 key={`explanation-image-${imgIdx}`}
@@ -82,6 +83,7 @@ export function ImageGroup({
                 isExplanation={true}
                 onRemove={() => onRemoveImage(imgIdx)}
                 onZoom={onZoomImage}
+                className="mb-2"
               />
             ))}
           </div>
@@ -100,7 +102,7 @@ export function ImageGroup({
     <>
       {/* 문제 이미지 */}
       {questionImages.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+        <div className="mb-3">
           {questionImages.map((img, imgIdx) => (
             <ImagePreview
               key={`question-image-${imgIdx}`}
@@ -108,6 +110,7 @@ export function ImageGroup({
               index={imgIdx}
               onRemove={() => onRemoveImage(imgIdx)}
               onZoom={onZoomImage}
+              className="mb-2"
             />
           ))}
         </div>
@@ -120,7 +123,7 @@ export function ImageGroup({
       />
       {/* 해설 이미지 */}
       {explanationImages.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+        <div className="mb-3">
           {explanationImages.map((img, imgIdx) => (
             <ImagePreview
               key={`explanation-image-${imgIdx}`}
@@ -129,6 +132,7 @@ export function ImageGroup({
               isExplanation={true}
               onRemove={() => onRemoveImage(imgIdx)}
               onZoom={onZoomImage}
+              className="mb-2"
             />
           ))}
         </div>

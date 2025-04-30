@@ -46,7 +46,7 @@ function QuestionCard({
   detailView: boolean;
   onImageZoom: (url: string) => void;
 }) {
-  return (
+    return (
     <Card className="h-full overflow-hidden flex flex-col">
       <CardHeader className="p-4 pb-2 space-y-2 bg-gray-50">
         <div className="flex justify-between items-center">
@@ -65,10 +65,10 @@ function QuestionCard({
         {question.tags && question.tags.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {question.tags.map((tag, idx) => (
-              <Badge key={idx} variant="outline" className="text-xs">
-                {tag}
-              </Badge>
-            ))}
+                      <Badge key={idx} variant="outline" className="text-xs">
+                        {tag}
+                      </Badge>
+                    ))}
           </div>
         )}
       </CardHeader>
@@ -102,7 +102,7 @@ function QuestionCard({
                 <div className="flex flex-col gap-3">
                   {question.explanationImages.map((img, idx) => (
                     <img
-                      key={idx}
+                      key={idx} 
                       src={getImageUrl(img)}
                       alt={`해설 이미지 ${idx + 1}`}
                       className="w-full max-w-[400px] h-auto max-h-[300px] object-contain border rounded cursor-zoom-in"
@@ -160,8 +160,8 @@ function QuestionCard({
           </Link>
           {question.id && (
             <Button variant="outline" size="sm" className="flex-1 w-full h-10 hover:bg-gray-100 hover:text-gray-700" onClick={() => onDelete(question.id!)}>
-              🗑️ 삭제
-            </Button>
+            🗑️ 삭제
+          </Button>
           )}
         </div>
       </CardFooter>
@@ -354,8 +354,8 @@ export default function QuestionsListPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl md:text-3xl font-bold">문제 목록</h1>
         <div className="flex flex-wrap items-center gap-3">
-          <Button
-            variant={detailView ? "default" : "outline"}
+          <Button 
+            variant={detailView ? "default" : "outline"} 
             size="default"
             className="gap-1 h-10"
             onClick={() => setDetailView((v) => !v)}

@@ -31,6 +31,9 @@ import { Explanation } from './common/Explanation'
 import { ImageGroup } from './common/ImageGroup'
 import { TagGroup } from './common/TagGroup'
 import { SubmitSection } from './common/SubmitSection'
+import { useUniversalImageUpload } from '@/hooks/useUniversalImageUpload';
+import { useImageZoom } from '@/hooks/useImageZoom';
+import { ImageZoomModal } from '@/components/common/ImageZoomModal';
 
 export interface ManualFormProps {
   initialData?: IManualQuestion;
@@ -176,6 +179,11 @@ export function ManualForm({
   // useManualFormImage 훅 사용
   const manualImage = useManualFormImage({ question, setQuestion });
 
+  // 이미지 업로드 공통 훅 사용
+  const questionImageUpload = useUniversalImageUpload();
+  const explanationImageUpload = useUniversalImageUpload();
+  const imageZoom = useImageZoom();
+
   // 년도 유효성 검사 함수
   const validateYear = (value: string): boolean => {
     return /^\d{4}$/.test(value);
@@ -294,14 +302,14 @@ export function ManualForm({
       formData.append('images', JSON.stringify(question.images));
       // 해설 이미지 URL 배열 추가
       formData.append('explanationImages', JSON.stringify(question.explanationImages));
-
+      
       const response = await fetch(url, {
         method,
         body: formData
         // Content-Type은 브라우저가 자동으로 설정
       });
       // --- FormData 방식 끝 ---
-
+      
       if (!response.ok) {
         const errorText = await response.text();
         let errorMessage = errorText;
@@ -382,7 +390,7 @@ export function ManualForm({
         onRemoveTag={tagManager.removeTag}
       />
       <QuestionContent
-        value={question.content}
+            value={question.content}
         onChange={e => setQuestion({ ...question, content: e.target.value })}
         onPaste={manualImage.handleTextAreaPaste}
         inputRef={manualImage.contentRef}
@@ -392,7 +400,7 @@ export function ManualForm({
         questionImages={normalizeImages(question.images)}
         explanationImages={normalizeImages([])}
         onRemoveImage={manualImage.removeImage}
-        onZoomImage={manualImage.handleImageZoom}
+        onZoomImage={imageZoom.showZoom}
         onImageAreaClick={manualImage.handleImageAreaClick}
         onImageAreaMouseEnter={() => manualImage.setIsImageAreaActive(true)}
         onImageAreaMouseLeave={() => manualImage.setIsImageAreaActive(false)}
@@ -412,7 +420,7 @@ export function ManualForm({
         onSetAnswer={optionManager.setQuestionAnswer}
         onOptionImageUpload={optionManager.onOptionImageUpload}
         onOptionImageRemove={optionManager.onOptionImageRemove}
-        onOptionImageZoom={optionManager.onOptionImageZoom}
+        onOptionImageZoom={imageZoom.showZoom}
       />
       <Explanation
         value={question.explanation || ''}
@@ -425,7 +433,7 @@ export function ManualForm({
         questionImages={normalizeImages([])}
         explanationImages={normalizeImages(question.explanationImages)}
         onRemoveImage={(idx) => manualImage.removeImage(idx, true)}
-        onZoomImage={manualImage.handleImageZoom}
+        onZoomImage={imageZoom.showZoom}
         onImageAreaClick={manualImage.handleImageAreaClick}
         onImageAreaMouseEnter={() => manualImage.setIsImageAreaActive(true)}
         onImageAreaMouseLeave={() => manualImage.setIsImageAreaActive(false)}
@@ -437,19 +445,8 @@ export function ManualForm({
         type="explanation"
       />
       <SubmitSection isSubmitting={isSubmitting} isEditMode={isEditMode} />
-      {/* 이미지 확대 모달 */}
-      <Dialog open={!!manualImage.zoomedImage} onOpenChange={() => manualImage.setZoomedImage(null)}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto p-2">
-          {/* 접근성을 위한 DialogTitle 추가 (시각적으로 숨김) */}
-          <VisuallyHidden>
-            <DialogTitle>확대 이미지</DialogTitle>
-            <DialogDescription>선택한 이미지의 확대된 모습입니다.</DialogDescription>
-          </VisuallyHidden>
-          {manualImage.zoomedImage && (
-            <img src={manualImage.zoomedImage} alt="Zoomed view" className="w-full h-auto object-contain" />
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* 이미지 확대 모달 - 새로운 모달 사용 */}
+      <ImageZoomModal src={imageZoom.zoomedImage} onClose={imageZoom.closeZoom} />
     </form>
   );
 }
