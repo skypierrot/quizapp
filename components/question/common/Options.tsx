@@ -96,7 +96,7 @@ export function Options({
             <div className="space-y-2 mt-1">
               {option.images && option.images.length > 0 && option.images.map((img, imgIdx) => (
                 <ImagePreview
-                  key={img.hash}
+                  key={img.hash || `option-${index}-image-${imgIdx}`}
                   image={img}
                   index={imgIdx}
                   isExplanation={false}

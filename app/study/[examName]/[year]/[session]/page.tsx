@@ -7,6 +7,7 @@ import StudyPageHeader from '@/components/study/StudyPageHeader';
 import { IQuestion } from '@/types'; // Import IQuestion interface
 import { Button } from "@/components/ui/button"; // Import Button component
 import Breadcrumb from '@/components/common/Breadcrumb'; // Import Breadcrumb
+import { CommonImage } from "@/components/common/CommonImage"; // CommonImage 임포트 추가
 
 /**
  * 특정 시험 문제 학습 페이지 (기존 SolvePage)
@@ -288,15 +289,17 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
                 {/* Question Images - Format src as data URL for base64 */}
                 {question.images && question.images.length > 0 && (
                   <div className="my-4 space-y-2">
-                    {question.images.map((imgSrc, imgIndex) => {
+                    {question.images.map((imgSrc: any, imgIndex) => {
                       if (typeof imgSrc === 'string' && imgSrc.trim() !== '') {
-                        // const dataUrl = imgSrc.startsWith('data:image') ? imgSrc : `data:image/png;base64,${imgSrc}`; // Remove data URL formatting
+                        // img 태그를 CommonImage 컴포넌트로 교체
                         return (
-                          <img 
-                            key={`q-${question.id}-img-${imgIndex}`} 
-                            src={imgSrc} // Use direct imgSrc (should be file path now)
+                          <CommonImage
+                            key={`q-${question.id}-img-${imgIndex}`}
+                            src={imgSrc} // imgSrc는 URL 문자열
                             alt={`문제 ${questionNumber} 이미지 ${imgIndex + 1}`}
-                            className="max-w-full h-auto rounded border border-gray-200"
+                            className="block max-w-full h-auto object-contain mx-auto border rounded"
+                            containerClassName="flex items-center justify-center"
+                            maintainAspectRatio={true}
                           />
                         );
                       }
@@ -318,7 +321,7 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
                         className={`flex items-start p-2 rounded ${highlightClass}`}
                       >
                         <span className="mr-2 font-medium text-gray-700">{optionIndex + 1}.</span>
-                        <span>{option}</span>
+                        <span>{option.text}</span>
                       </div>
                     );
                   })}
@@ -359,15 +362,17 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
                         {/* Explanation Images - Format src as data URL for base64 */}
                         {question.explanationImages && question.explanationImages.length > 0 && (
                           <div className="mt-3 space-y-2">
-                            {question.explanationImages.map((imgSrc, imgIndex) => {
+                            {question.explanationImages.map((imgSrc: any, imgIndex) => {
                               if (typeof imgSrc === 'string' && imgSrc.trim() !== '') {
-                                // const dataUrl = imgSrc.startsWith('data:image') ? imgSrc : `data:image/png;base64,${imgSrc}`; // Remove data URL formatting
+                                // img 태그를 CommonImage 컴포넌트로 교체
                                 return (
-                                  <img 
-                                    key={`exp-${question.id}-img-${imgIndex}`} 
-                                    src={imgSrc} // Use direct imgSrc (should be file path now)
+                                  <CommonImage
+                                    key={`exp-${question.id}-img-${imgIndex}`}
+                                    src={imgSrc}
                                     alt={`해설 이미지 ${imgIndex + 1}`}
-                                    className="max-w-full h-auto rounded border border-gray-200"
+                                    className="block max-w-full h-auto object-contain mx-auto border rounded"
+                                    containerClassName="flex items-center justify-center"
+                                    maintainAspectRatio={true}
                                   />
                                 );
                               }

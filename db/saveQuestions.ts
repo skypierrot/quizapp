@@ -49,29 +49,32 @@ export async function saveQuestions(questionsArr: any[]) {
   if (!isDBConnected) throw new Error('DB 연결 실패');
   const results = [];
   for (const q of questionsArr) {
-    // 옵션 이미지 이동
+    // 옵션 이미지 이동 및 최종 형태({url}) 변환
     const options = (q.options || []).map((opt: any) => ({
       ...opt,
-      images: (opt.images || []).map((img: any) => {
-        if (typeof img === 'string') return moveTmpToUploaded(img);
+      images: (opt.images || []).map((img: any): { url: string } => {
+        if (typeof img === 'string') return { url: moveTmpToUploaded(img) };
         if (img.url && (img.url.startsWith('/images/tmp/') || img.url.startsWith('/images/uploaded/')))
-          return { ...img, url: moveTmpToUploaded(img.url) };
-        return img;
-      })
+          return { url: moveTmpToUploaded(img.url) };
+        return { url: img.url || img };
+      }).filter(img => img.url)
     }));
-    // 문제/해설 이미지 이동
-    let imageObjects = (q.images || []).map((img: any) => {
+    // 문제 이미지 이동 및 최종 형태({url}) 변환
+    let imageObjects = (q.images || []).map((img: any): { url: string } => {
+      if (typeof img === 'string') return { url: moveTmpToUploaded(img) };
       if (img.url && img.url.startsWith('/images/tmp/')) {
-        return { ...img, url: moveTmpToUploaded(img.url) };
+        return { url: moveTmpToUploaded(img.url) };
       }
-      return img;
-    });
-    let explanationImageObjects = (q.explanationImages || []).map((img: any) => {
+      return { url: img.url || img };
+    }).filter(img => img.url);
+    // 해설 이미지 이동 및 최종 형태({url}) 변환
+    let explanationImageObjects = (q.explanationImages || []).map((img: any): { url: string } => {
+      if (typeof img === 'string') return { url: moveTmpToUploaded(img) };
       if (img.url && img.url.startsWith('/images/tmp/')) {
-        return { ...img, url: moveTmpToUploaded(img.url) };
+        return { url: moveTmpToUploaded(img.url) };
       }
-      return img;
-    });
+      return { url: img.url || img };
+    }).filter(img => img.url);
     // 문제 ID
     const questionId = q.id || uuidv4();
     const questionImageDir = path.join(UPLOAD_DIR, questionId);

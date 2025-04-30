@@ -17,6 +17,7 @@ import { ImageIcon, BookOpen, User, Calendar } from "lucide-react";
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { IQuestion } from "@/types";
+import { CommonImage } from "@/components/common/CommonImage";
 
 // 이미지 URL 추출 유틸
 const getImageUrl = (img: { url: string } | string) => {
@@ -84,11 +85,13 @@ function QuestionCard({
                 <h4 className="text-sm font-medium mb-2">문제 이미지</h4>
                 <div className="flex flex-col gap-3">
                   {question.images.map((img, idx) => (
-                    <img
+                    <CommonImage
                       key={idx}
                       src={getImageUrl(img)}
                       alt={`문제 이미지 ${idx + 1}`}
-                      className="w-full max-w-[400px] h-auto max-h-[300px] object-contain border rounded cursor-zoom-in"
+                      className="block max-w-full h-auto object-contain mx-auto border rounded"
+                      containerClassName="max-w-[400px] max-h-[300px] flex items-center justify-center cursor-zoom-in"
+                      maintainAspectRatio={true}
                       onClick={() => onImageZoom(getImageUrl(img))}
                     />
                   ))}
@@ -101,11 +104,13 @@ function QuestionCard({
                 <h4 className="text-sm font-medium mb-2">해설 이미지</h4>
                 <div className="flex flex-col gap-3">
                   {question.explanationImages.map((img, idx) => (
-                    <img
-                      key={idx} 
+                    <CommonImage
+                      key={idx}
                       src={getImageUrl(img)}
                       alt={`해설 이미지 ${idx + 1}`}
-                      className="w-full max-w-[400px] h-auto max-h-[300px] object-contain border rounded cursor-zoom-in"
+                      className="block max-w-full h-auto object-contain mx-auto border rounded"
+                      containerClassName="max-w-[400px] max-h-[300px] flex items-center justify-center cursor-zoom-in"
+                      maintainAspectRatio={true}
                       onClick={() => onImageZoom(getImageUrl(img))}
                     />
                   ))}
@@ -131,11 +136,13 @@ function QuestionCard({
                       {option.images && option.images.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-2">
                           {option.images.map((img, imgIdx) => (
-                            <img
+                            <CommonImage
                               key={imgIdx}
                               src={getImageUrl(img)}
                               alt={`선택지${idx + 1} 이미지${imgIdx + 1}`}
-                              className="w-full max-w-[400px] h-auto max-h-[300px] object-contain border rounded"
+                              className="block max-w-full h-auto object-contain mx-auto border rounded"
+                              containerClassName="max-w-[400px] max-h-[300px] flex items-center justify-center cursor-zoom-in"
+                              maintainAspectRatio={true}
                               onClick={() => onImageZoom(getImageUrl(img))}
                             />
                           ))}
@@ -195,11 +202,13 @@ function QuestionDetailDialog({ open, question, onClose }: { open: boolean; ques
             {question.images && question.images.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
                 {question.images.map((img, idx) => (
-                  <img
+                  <CommonImage
                     key={idx}
                     src={getImageUrl(img)}
                     alt={`문제 이미지 ${idx + 1}`}
-                    className="w-full max-w-[400px] h-auto max-h-[300px] object-contain border rounded"
+                    className="block max-w-full h-auto object-contain mx-auto border rounded"
+                    containerClassName="max-w-[400px] max-h-[300px] flex items-center justify-center cursor-zoom-in"
+                    maintainAspectRatio={true}
                   />
                 ))}
               </div>
@@ -221,11 +230,13 @@ function QuestionDetailDialog({ open, question, onClose }: { open: boolean; ques
                   {opt.images && opt.images.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2">
                       {opt.images.map((img, imgIdx) => (
-                        <img
+                        <CommonImage
                           key={imgIdx}
                           src={getImageUrl(img)}
                           alt={`선택지${idx + 1} 이미지${imgIdx + 1}`}
-                          className="w-full max-w-[400px] h-auto max-h-[300px] object-contain border rounded"
+                          className="block max-w-full h-auto object-contain mx-auto border rounded"
+                          containerClassName="max-w-[400px] max-h-[300px] flex items-center justify-center cursor-zoom-in"
+                          maintainAspectRatio={true}
                         />
                       ))}
                     </div>
@@ -245,11 +256,13 @@ function QuestionDetailDialog({ open, question, onClose }: { open: boolean; ques
               <h3 className="font-semibold mb-2">해설 이미지</h3>
               <div className="flex flex-wrap gap-2">
                 {question.explanationImages.map((img, idx) => (
-                  <img
+                  <CommonImage
                     key={idx}
                     src={getImageUrl(img)}
                     alt={`해설 이미지 ${idx + 1}`}
-                    className="w-full max-w-[400px] h-auto max-h-[300px] object-contain border rounded"
+                    className="block max-w-full h-auto object-contain mx-auto border rounded"
+                    containerClassName="max-w-[400px] max-h-[300px] flex items-center justify-center cursor-zoom-in"
+                    maintainAspectRatio={true}
                   />
                 ))}
               </div>

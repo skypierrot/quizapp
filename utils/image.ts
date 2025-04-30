@@ -131,4 +131,17 @@ export const showImageToast = (
   // 컴포넌트 내에서만 훅을 사용할 수 있으므로 여기서는 console.log로 대체
   console.log(`[Image Toast] ${title}: ${message} (${type})`);
   // 실제 컴포넌트에서는 useToast 훅을 사용하여 표시
-}; 
+};
+
+/**
+ * 파일의 SHA-256 해시를 계산합니다.
+ * @param file 해시를 계산할 파일 객체
+ * @returns Promise<string> 계산된 해시 문자열 (hex)
+ */
+export async function getFileHash(file: File): Promise<string> {
+  const arrayBuffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+} 

@@ -19,7 +19,7 @@ interface ImageGroupProps {
   explanationImageInputRef: React.RefObject<HTMLInputElement>;
   activeImageType: 'question' | 'explanation' | null | undefined;
   isImageAreaActive: boolean;
-  handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>, isExplanation?: boolean) => void;
+  handleImageUpload?: (e: React.ChangeEvent<HTMLInputElement>, isExplanation?: boolean) => void;
   type?: 'question' | 'explanation' | null;
   handleDrop?: (e: React.DragEvent<Element>, isExplanation?: boolean) => void;
   handleTextAreaPaste?: (e: React.ClipboardEvent<Element>) => void;
@@ -64,7 +64,7 @@ export function ImageGroup({
           type="question"
           isActive={activeImageType === 'question' && isImageAreaActive}
           onActivate={() => onImageAreaClick('question')}
-          onImageUpload={file => handleImageUpload({ target: { files: [file] } } as any, false)}
+          onImageUpload={file => handleImageUpload?.({ target: { files: [file] } } as any, false)}
         />
       </>
     )
@@ -92,7 +92,7 @@ export function ImageGroup({
           type="explanation"
           isActive={activeImageType === 'explanation' && isImageAreaActive}
           onActivate={() => onImageAreaClick('explanation')}
-          onImageUpload={file => handleImageUpload({ target: { files: [file] } } as any, true)}
+          onImageUpload={file => handleImageUpload?.({ target: { files: [file] } } as any, true)}
         />
       </>
     )
@@ -119,7 +119,7 @@ export function ImageGroup({
         type="question"
         isActive={activeImageType === 'question' && isImageAreaActive}
         onActivate={() => onImageAreaClick('question')}
-        onImageUpload={file => handleImageUpload({ target: { files: [file] } } as any, false)}
+        onImageUpload={file => handleImageUpload?.({ target: { files: [file] } } as any, false)}
       />
       {/* 해설 이미지 */}
       {explanationImages.length > 0 && (
@@ -141,7 +141,7 @@ export function ImageGroup({
         type="explanation"
         isActive={activeImageType === 'explanation' && isImageAreaActive}
         onActivate={() => onImageAreaClick('explanation')}
-        onImageUpload={file => handleImageUpload({ target: { files: [file] } } as any, true)}
+        onImageUpload={file => handleImageUpload?.({ target: { files: [file] } } as any, true)}
       />
     </>
   )
