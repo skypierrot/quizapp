@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"; // Import Input for search
 import { Search } from 'lucide-react'; // Import Search icon
 import { IExamInstance } from '@/types'; // Import from common types
 import Breadcrumb from '@/components/common/Breadcrumb'; // Import Breadcrumb
+import { ExamListDisplay } from '@/components/exam-selection/ExamListDisplay'; // 공통 컴포넌트 import
 
 // Remove local duplicate interface definitions if they exist
 // interface IExamInstance { ... }
@@ -27,7 +28,7 @@ interface GroupedExams {
  * 문제 은행 페이지 (시험 선택 페이지)
  * 등록된 문제들을 시험명/년도/회차 기준으로 그룹화하여 보여줍니다.
  */
-export default function BankPage() {
+export default function LearnExamsPage() {
   // State variables for data, loading, error, and search term
   const [groupedExams, setGroupedExams] = useState<GroupedExams>({});
   const [loading, setLoading] = useState(true);
@@ -88,7 +89,7 @@ export default function BankPage() {
   // Define breadcrumb items for the main bank page
   const breadcrumbItems = [
     { label: '홈', href: '/' },
-    { label: '문제 은행', href: '/bank', isCurrent: true }, // Current page
+    { label: '문제 은행', href: '/learn/exams', isCurrent: true },
   ];
 
   // Render loading state
@@ -103,61 +104,14 @@ export default function BankPage() {
 
   return (
     <div className="container mx-auto py-8">
-      {/* Add Breadcrumb component */}
       <Breadcrumb items={breadcrumbItems} />
 
-      {/* Title and Search Area Wrapper */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-        {/* Title - Remove suffix and bottom margin */}
-        <h1 className="text-3xl font-bold">문제 은행</h1>
-        
-        {/* Search Input Area - Remove bottom margin, keep responsive width on Input */}
-        <div className="relative mt-4 md:mt-0"> {/* Add top margin on mobile */}
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="시험명 검색..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-            className="pl-10 w-full md:w-auto lg:w-80" // Adjust width for responsiveness
-          />
-        </div>
-      </div>
-
-      {/* Conditional rendering based on search results */}
-      {filteredEntries.length === 0 ? (
-        <p className="text-gray-500">{searchTerm ? '검색 결과가 없습니다.' : '등록된 시험 종류가 없습니다.'}</p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {filteredEntries.map(([examName, instances]) => {
-            const encodedExamName = encodeURIComponent(examName);
-            const detailUrl = `/bank/${encodedExamName}`;
-            const instanceCount = instances.length;
-
-            return (
-              // Link to the specific exam detail page
-              <Link href={detailUrl} key={examName}>
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer flex flex-col">
-                  {/* Use nested divs inside CardHeader for precise responsive layout */}
-                  <CardHeader className="py-3">
-                    {/* Outer div handles the responsive flex/block switching */}
-                    <div className="block max-sm:flex max-sm:items-baseline max-sm:justify-between">
-                      {/* Inner div for Exam Name */}
-                      <div className="text-xl font-bold mb-1 max-sm:mb-0 max-sm:mr-2">
-                        {examName}
-                      </div>
-                      {/* Inner div for Instance Count */}
-                      <div className="text-sm text-gray-600 max-sm:flex-shrink-0">
-                        총 {instanceCount}개의 시험 등록됨
-                      </div>
-                    </div>
-                  </CardHeader>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
-      )}
+      {/* 공통 컴포넌트 사용 */}
+      <ExamListDisplay
+        groupedExams={groupedExams}
+        basePath="/learn/exams" // 학습 경로 전달
+        title="문제 은행"
+      />
     </div>
   );
 }

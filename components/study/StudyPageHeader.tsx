@@ -13,6 +13,8 @@ interface StudyPageHeaderProps {
   onToggleShowAllAnswers: () => void;
   onToggleShowAllExplanations: () => void;
   onToggleSingleViewMode: () => void;
+  isShufflingEnabled: boolean;
+  onToggleShuffle: () => void;
 }
 
 const StudyPageHeader: React.FC<StudyPageHeaderProps> = ({
@@ -25,6 +27,8 @@ const StudyPageHeader: React.FC<StudyPageHeaderProps> = ({
   onToggleShowAllAnswers,
   onToggleShowAllExplanations,
   onToggleSingleViewMode,
+  isShufflingEnabled,
+  onToggleShuffle,
 }) => {
   let examName = '';
   let year = '';
@@ -48,12 +52,18 @@ const StudyPageHeader: React.FC<StudyPageHeaderProps> = ({
       <h1 className="text-lg md:text-xl font-bold text-gray-800 mb-2 sm:mb-0 flex-shrink min-w-0">
         {`${examName} · ${year}년 · ${session}`}
       </h1>
-      <div className="flex space-x-2 w-full sm:w-auto">
+      <div className="flex flex-wrap items-center justify-start sm:justify-end gap-x-3 gap-y-2 mt-2 sm:mt-0 w-full sm:w-auto">
+        <Button
+          variant={isShufflingEnabled ? "default" : "outline"}
+          size="sm"
+          onClick={onToggleShuffle}
+        >
+          {isShufflingEnabled ? "선택지 섞기 해제" : "선택지 섞기"}
+        </Button>
         <Button
           variant={isShowingAllAnswers ? "default" : "outline"}
           size="sm"
           onClick={onToggleShowAllAnswers}
-          className="flex-grow sm:flex-grow-0"
         >
           {isShowingAllAnswers ? "정답 숨기기" : "정답 보며 학습"}
         </Button>
@@ -61,7 +71,6 @@ const StudyPageHeader: React.FC<StudyPageHeaderProps> = ({
           variant={isShowingAllExplanations ? "default" : "outline"}
           size="sm"
           onClick={onToggleShowAllExplanations}
-          className="flex-grow sm:flex-grow-0"
         >
           {isShowingAllExplanations ? "해설 모두 숨기기" : "해설 보며 학습"}
         </Button>
@@ -69,7 +78,6 @@ const StudyPageHeader: React.FC<StudyPageHeaderProps> = ({
           variant={isSingleViewMode ? "default" : "outline"}
           size="sm"
           onClick={onToggleSingleViewMode}
-          className="flex-grow sm:flex-grow-0"
         >
           {isSingleViewMode ? "전체 문제 보기" : "한 문제씩 보기"}
         </Button>

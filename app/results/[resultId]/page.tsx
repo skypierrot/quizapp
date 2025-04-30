@@ -146,9 +146,11 @@ export default function ResultPage() {
                     <Button variant="outline">
                         전체 다시 풀기
                     </Button>
-                    <Link href="/bank">
-                        <Button>다른 시험 보기</Button>
-                    </Link>
+                    <Button variant="outline" asChild>
+                        <Link href="/learn/exams">
+                            다른 문제 풀어보기
+                        </Link>
+                    </Button>
                 </CardFooter>
             </Card>
         </div>

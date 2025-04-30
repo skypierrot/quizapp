@@ -13,19 +13,12 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
-import { ImageIcon, BookOpen, User, Calendar } from "lucide-react";
+import { ImageIcon, BookOpen, User, Calendar, PlusCircle, Pencil } from "lucide-react";
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { IQuestion } from "@/types";
 import { CommonImage } from "@/components/common/CommonImage";
-
-// 이미지 URL 추출 유틸
-const getImageUrl = (img: { url: string } | string) => {
-  if (!img) return "";
-  const url = typeof img === "string" ? img : img.url;
-  if (!url) return "";
-  return url.startsWith("/images/uploaded/") ? url : `/images/uploaded/${url}`;
-};
+import { getImageUrl } from "@/utils/image";
 
 // 문제 카드(요약/상세) 컴포넌트
 function QuestionCard({
@@ -162,7 +155,7 @@ function QuestionCard({
             <BookOpen className="h-4 w-4" />
             해설
           </Button>
-          <Link href={`/questions/edit/${question.id}`} className="flex-1">
+          <Link href={`/manage/questions/edit/${question.id}`} className="flex-1">
             <Button variant="outline" size="sm" className="flex-1 w-full h-10">✏️ 수정</Button>
           </Link>
           {question.id && (
@@ -376,9 +369,9 @@ export default function QuestionsListPage() {
             <ImageIcon className="h-4 w-4" />
             {detailView ? "상세보기" : "요약보기"}
           </Button>
-          <Link href="/questions/new">
+          <Link href="/manage/questions/new">
             <Button size="default" className="h-10">
-              새 문제 등록
+              <PlusCircle className="mr-2 h-4 w-4" /> 새 문제 등록
             </Button>
           </Link>
         </div>
@@ -389,8 +382,10 @@ export default function QuestionsListPage() {
         <div className="text-center py-8 border rounded-md">
           <p className="text-gray-500">등록된 문제가 없습니다.</p>
           <p className="mt-2">
-            <Link href="/questions/new">
-              <Button variant="link">새 문제 등록하기</Button>
+            <Link href="/manage/questions/new">
+              <Button variant="link">
+                <PlusCircle className="mr-2 h-4 w-4" /> 새 문제 등록하기
+              </Button>
             </Link>
           </p>
         </div>

@@ -6,6 +6,7 @@ import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
 import { forwardRef, useState } from 'react';
 import { Menu, X, MenuSquare, XSquare } from 'lucide-react';
+import { Sheet, SheetContent } from '../ui/sheet';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -38,7 +39,7 @@ const Navbar = () => {
                 <NavigationMenuTrigger>시험 준비</NavigationMenuTrigger>
                 <NavigationMenuContent>
                   <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
-                    <ListItem href="/bank" title="문제 은행">
+                    <ListItem href="/learn/exams" title="문제 은행">
                       시험별 문제를 체계적으로 학습하세요
                     </ListItem>
                     <ListItem href="/practice" title="모의고사">
@@ -58,10 +59,10 @@ const Navbar = () => {
                 <NavigationMenuTrigger>문제 관리</NavigationMenuTrigger>
                 <NavigationMenuContent>
                   <ul className="grid w-[400px] gap-3 p-4">
-                    <ListItem href="/questions/new" title="문제 등록">
+                    <ListItem href="/manage/questions/new" title="문제 등록">
                       새로운 문제를 등록하세요
                     </ListItem>
-                    <ListItem href="/questions/list" title="문제 목록">
+                    <ListItem href="/manage/questions/list" title="문제 목록">
                       등록된 문제를 관리하세요
                     </ListItem>
                   </ul>
@@ -113,39 +114,39 @@ const Navbar = () => {
             <div className="space-y-2">
               <h3 className="font-medium text-sm">시험 준비</h3>
               <ul className="pl-4 space-y-2">
-                <li><Link href="/bank" className="text-gray-600 hover:text-gray-900">문제 은행</Link></li>
-                <li><Link href="/practice" className="text-gray-600 hover:text-gray-900">모의고사</Link></li>
-                <li><Link href="/wrong-answers" className="text-gray-600 hover:text-gray-900">오답 노트</Link></li>
-                <li><Link href="/statistics" className="text-gray-600 hover:text-gray-900">학습 통계</Link></li>
+                <li><Link href="/learn/exams" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>문제 은행</Link></li>
+                <li><Link href="/practice" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>모의고사</Link></li>
+                <li><Link href="/wrong-answers" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>오답 노트</Link></li>
+                <li><Link href="/statistics" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>학습 통계</Link></li>
               </ul>
             </div>
             
             <div className="space-y-2">
               <h3 className="font-medium text-sm">문제 관리</h3>
               <ul className="pl-4 space-y-2">
-                <li><Link href="/questions/new" className="text-gray-600 hover:text-gray-900">문제 등록</Link></li>
-                <li><Link href="/questions/list" className="text-gray-600 hover:text-gray-900">문제 목록</Link></li>
+                <li><Link href="/manage/questions/new" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>문제 등록</Link></li>
+                <li><Link href="/manage/questions/list" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>문제 목록</Link></li>
               </ul>
             </div>
             
             <div className="space-y-2">
               <h3 className="font-medium text-sm">커뮤니티</h3>
               <ul className="pl-4 space-y-2">
-                <li><Link href="/community/notice" className="text-gray-600 hover:text-gray-900">공지사항</Link></li>
-                <li><Link href="/community/forum" className="text-gray-600 hover:text-gray-900">학습 정보 공유</Link></li>
+                <li><Link href="/community/notice" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>공지사항</Link></li>
+                <li><Link href="/community/forum" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>학습 정보 공유</Link></li>
               </ul>
             </div>
             
             <div>
-              <Link href="/guide" className="text-gray-600 hover:text-gray-900">이용 가이드</Link>
+              <Link href="/guide" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>이용 가이드</Link>
             </div>
             
             <div className="flex flex-col gap-2 pt-2">
               <Button variant="outline" asChild className="w-full">
-                <Link href="/sign-in">로그인</Link>
+                <Link href="/sign-in" onClick={toggleMenu}>로그인</Link>
               </Button>
               <Button asChild className="w-full">
-                <Link href="/sign-up">회원가입</Link>
+                <Link href="/sign-up" onClick={toggleMenu}>회원가입</Link>
               </Button>
             </div>
           </div>

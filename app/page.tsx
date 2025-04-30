@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 // 서버 컴포넌트 정의
 export default function Home() {
@@ -43,7 +43,7 @@ export default function Home() {
               </CardContent>
               <CardFooter>
                 <Button variant="outline" asChild className="w-full">
-                  <Link href="/bank">문제 은행 보기</Link>
+                  <Link href="/learn/exams">문제 은행 보기</Link>
                 </Button>
               </CardFooter>
             </Card>
@@ -79,13 +79,11 @@ export default function Home() {
             <Card className="shadow-sm hover:shadow-md transition-shadow">
               <CardHeader>
                 <CardTitle>문제 관리</CardTitle>
+                <CardDescription>등록된 문제를 확인하고 관리하세요.</CardDescription>
               </CardHeader>
-              <CardContent>
-                <p>등록된 문제를 수정하거나 새로운 문제를 추가할 수 있습니다. (관리자)</p>
-              </CardContent>
               <CardFooter>
                 <Button variant="outline" asChild className="w-full">
-                  <Link href="/questions/list">문제 관리하기</Link>
+                  <Link href="/manage/questions/list">문제 관리하기</Link>
                 </Button>
               </CardFooter>
             </Card>

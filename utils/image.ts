@@ -144,4 +144,33 @@ export async function getFileHash(file: File): Promise<string> {
   return Array.from(new Uint8Array(hashBuffer))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
-} 
+}
+
+/**
+ * API 응답 데이터 등에서 이미지 URL을 추출하고 정규화합니다.
+ * 입력값이 문자열이거나 { url: string } 객체 형태일 수 있으며,
+ * 반환되는 URL은 항상 /images/uploaded/ 로 시작하도록 보장합니다 (이미 그렇게 시작하는 경우는 제외).
+ * @param img 이미지 데이터 (string 또는 { url: string })
+ * @returns 정규화된 이미지 URL 문자열 또는 빈 문자열
+ */
+export const getImageUrl = (img: { url: string } | string | undefined | null): string => {
+  if (!img) return ""; // null 또는 undefined 처리
+  const url = typeof img === "string" ? img : img.url;
+  if (!url) return ""; // URL 값이 없는 경우 처리
+
+  // blob: URL은 그대로 반환 (오류 확인용)
+  if (url.startsWith('blob:')) {
+    console.warn("getImageUrl received a blob URL:", url);
+    return url;
+  }
+
+  // 이미 올바른 경로 형식이거나 외부 URL이면 그대로 반환
+  if (url.startsWith("/images/uploaded/") || url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+
+  // 경로 앞에 /images/uploaded/ 추가 (파일 이름만 있는 경우 등)
+  // 경로 맨 앞에 /가 있을 수도 있고 없을 수도 있으므로 제거 후 추가
+  const filename = url.startsWith('/') ? url.substring(1) : url;
+  return `/images/uploaded/${filename}`;
+}; 
