@@ -185,21 +185,31 @@ export async function PUT(
     let imageObjects: { url: string; hash: string }[] = [];
     let explanationImageObjects: { url: string; hash: string }[] = [];
     try {
-      imageObjects = imagesRaw ? JSON.parse(imagesRaw) : [];
-      explanationImageObjects = explanationImagesRaw ? JSON.parse(explanationImagesRaw) : [];
-      // tmp 경로를 uploaded로 이동 및 url 변경
-      imageObjects = imageObjects.map(img => {
-        if (img.url && img.url.startsWith('/images/tmp/')) {
-          return { ...img, url: moveTmpToUploaded(img.url) };
+      const rawImages = imagesRaw ? JSON.parse(imagesRaw) : [];
+      const rawExplanationImages = explanationImagesRaw ? JSON.parse(explanationImagesRaw) : [];
+
+      // Robust URL processing similar to saveQuestions
+      imageObjects = rawImages.map((img: any) => {
+        let finalUrl = '';
+        if (typeof img === 'string') { // Handle case where client sends just a string URL
+           finalUrl = moveTmpToUploaded(img);
+        } else if (img.url) {
+           finalUrl = moveTmpToUploaded(img.url);
         }
-        return img;
-      });
-      explanationImageObjects = explanationImageObjects.map(img => {
-        if (img.url && img.url.startsWith('/images/tmp/')) {
-          return { ...img, url: moveTmpToUploaded(img.url) };
-        }
-        return img;
-      });
+        // Return the structure expected by DB, keeping the hash if present
+        return { url: finalUrl, hash: img.hash || '' };
+      }).filter((img: {url: string}) => img.url && !img.url.startsWith('blob:')); // Filter out blob URLs and invalid ones
+
+      explanationImageObjects = rawExplanationImages.map((img: any) => {
+         let finalUrl = '';
+         if (typeof img === 'string') {
+            finalUrl = moveTmpToUploaded(img);
+         } else if (img.url) {
+            finalUrl = moveTmpToUploaded(img.url);
+         }
+         return { url: finalUrl, hash: img.hash || '' };
+      }).filter((img: {url: string}) => img.url && !img.url.startsWith('blob:')); // Filter out blob URLs
+
     } catch (e) {
       return NextResponse.json(
         { error: "images/explanationImages 파싱 오류" },

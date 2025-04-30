@@ -138,27 +138,36 @@ export async function POST(req: NextRequest) {
     let imageObjects: { url: string; hash: string }[] = [];
     let explanationImageObjects: { url: string; hash: string }[] = [];
     try {
-      imageObjects = imagesRaw ? JSON.parse(imagesRaw) : [];
-      explanationImageObjects = explanationImagesRaw ? JSON.parse(explanationImagesRaw) : [];
+      const rawImages = imagesRaw ? JSON.parse(imagesRaw) : [];
+      const rawExplanationImages = explanationImagesRaw ? JSON.parse(explanationImagesRaw) : [];
+
+      // Robust URL processing similar to PUT handler / saveQuestions
+      imageObjects = rawImages.map((img: any) => {
+         let finalUrl = '';
+         if (typeof img === 'string') {
+            finalUrl = moveTmpToUploaded(img);
+         } else if (img.url) {
+            finalUrl = moveTmpToUploaded(img.url);
+         }
+         return { url: finalUrl, hash: img.hash || '' };
+      }).filter((img: {url: string}) => img.url && !img.url.startsWith('blob:'));
+
+      explanationImageObjects = rawExplanationImages.map((img: any) => {
+          let finalUrl = '';
+          if (typeof img === 'string') {
+             finalUrl = moveTmpToUploaded(img);
+          } else if (img.url) {
+             finalUrl = moveTmpToUploaded(img.url);
+          }
+          return { url: finalUrl, hash: img.hash || '' };
+      }).filter((img: {url: string}) => img.url && !img.url.startsWith('blob:'));
+
     } catch (e) {
       return NextResponse.json(
         { error: "images/explanationImages 파싱 오류" },
         { status: 400 }
       );
     }
-    // 임시폴더 이미지 이동 및 url 변경
-    imageObjects = imageObjects.map(img => {
-      if (img.url.startsWith('/images/tmp/')) {
-        return { ...img, url: moveTmpToUploaded(img.url) };
-      }
-      return img;
-    });
-    explanationImageObjects = explanationImageObjects.map(img => {
-      if (img.url.startsWith('/images/tmp/')) {
-        return { ...img, url: moveTmpToUploaded(img.url) };
-      }
-      return img;
-    });
 
     // Drizzle Insert
     const result = await db
