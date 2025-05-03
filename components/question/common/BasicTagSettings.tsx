@@ -1,29 +1,40 @@
+import * as React from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import React from 'react'
+import { CascadingCombobox } from './CascadingCombobox'
+
+interface Option {
+  value: string;
+  label: string;
+}
 
 interface BasicTagSettingsProps {
   examName: string
+  examNameOptions: Option[]
+  onExamNameChange: (value: string) => void
+  onExamNameCreate: (value: string) => void
+  isLoadingExamNames: boolean
   year: string
-  isYearValid: boolean
+  yearOptions: Option[]
+  onYearChange: (value: string) => void
+  onYearCreate: (value: string) => void
+  isLoadingYears: boolean
+  isYearDisabled: boolean
   session: string
+  sessionOptions: Option[]
+  onSessionChange: (value: string) => void
+  onSessionCreate: (value: string) => void
+  isLoadingSessions: boolean
+  isSessionDisabled: boolean
   subject: string
-  onExamNameChange: (v: string) => void
-  onYearChange: (v: string) => void
-  onSessionChange: (v: string) => void
-  onSubjectChange: (v: string) => void
+  onSubjectChange: (value: string) => void
 }
 
 export function BasicTagSettings({
-  examName,
-  year,
-  isYearValid,
-  session,
-  subject,
-  onExamNameChange,
-  onYearChange,
-  onSessionChange,
-  onSubjectChange
+  examName, examNameOptions, onExamNameChange, onExamNameCreate, isLoadingExamNames,
+  year, yearOptions, onYearChange, onYearCreate, isLoadingYears, isYearDisabled,
+  session, sessionOptions, onSessionChange, onSessionCreate, isLoadingSessions, isSessionDisabled,
+  subject, onSubjectChange
 }: BasicTagSettingsProps) {
   return (
     <div className="mb-4 p-3 border border-gray-200 rounded-md bg-gray-50">
@@ -38,51 +49,60 @@ export function BasicTagSettings({
           <Label className="text-xs text-gray-500 block">
             시험명: <span className="text-red-500 font-bold">*</span>
           </Label>
-          <Input
-            type="text"
+          <CascadingCombobox
+            options={examNameOptions}
             value={examName}
-            onChange={e => onExamNameChange(e.target.value)}
-            className={`h-8 text-sm ${!examName.trim() ? 'border-red-300' : ''} w-full`}
-            placeholder="산업안전기사"
-            required
+            onSelect={onExamNameChange}
+            onCreate={onExamNameCreate}
+            placeholder="시험명 선택 또는 생성"
+            searchPlaceholder="시험명 검색..."
+            emptyStateMessage="시험명을 찾을 수 없습니다."
+            createLabel="새 시험명 생성"
+            isLoading={isLoadingExamNames}
           />
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-gray-500 block">
             년도: <span className="text-red-500 font-bold">*</span>
           </Label>
-          <Input
-            type="text"
+          <CascadingCombobox
+            options={yearOptions}
             value={year}
-            onChange={e => onYearChange(e.target.value)}
-            className={`h-8 text-sm ${!year.trim() || !isYearValid ? 'border-red-300' : ''} w-full`}
-            placeholder="YYYY (예: 2024)"
-            maxLength={4}
-            required
+            onSelect={onYearChange}
+            onCreate={onYearCreate}
+            placeholder="년도 선택 또는 생성"
+            searchPlaceholder="년도 검색..."
+            emptyStateMessage="년도를 찾을 수 없습니다."
+            createLabel="새 년도 생성"
+            disabled={isYearDisabled}
+            isLoading={isLoadingYears}
           />
-          {!isYearValid && <p className="text-xs text-red-500 mt-1">년도는 4자리 숫자로 입력하세요.</p>}
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-gray-500 block">
             회차: <span className="text-red-500 font-bold">*</span>
           </Label>
-          <Input
-            type="text"
+          <CascadingCombobox
+            options={sessionOptions}
             value={session}
-            onChange={e => onSessionChange(e.target.value)}
-            className={`h-8 text-sm ${!session.trim() ? 'border-red-300' : ''} w-full`}
-            placeholder="1회"
-            required
+            onSelect={onSessionChange}
+            onCreate={onSessionCreate}
+            placeholder="회차 선택 또는 생성"
+            searchPlaceholder="회차 검색..."
+            emptyStateMessage="회차를 찾을 수 없습니다."
+            createLabel="새 회차 생성"
+            disabled={isSessionDisabled}
+            isLoading={isLoadingSessions}
           />
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-gray-500 block">과목:</Label>
           <Input
             type="text"
+            placeholder="과목 입력 (선택)"
             value={subject}
-            onChange={e => onSubjectChange(e.target.value)}
+            onChange={(e) => onSubjectChange(e.target.value)}
             className="h-8 text-sm w-full"
-            placeholder="안전관리 (선택)"
           />
         </div>
       </div>

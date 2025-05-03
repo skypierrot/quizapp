@@ -1,5 +1,5 @@
-import { db } from '@/lib/db';
-import { questions } from '@/db/schema/questions';
+import { db } from '@/db';
+import { questions } from '@/db/schema';
 import { sql } from 'drizzle-orm';
 import fs from 'fs';
 import path from 'path';
@@ -52,29 +52,36 @@ export async function saveQuestions(questionsArr: any[]) {
     // 옵션 이미지 이동 및 최종 형태({url}) 변환
     const options = (q.options || []).map((opt: any) => ({
       ...opt,
-      images: (opt.images || []).map((img: any): { url: string } => {
-        if (typeof img === 'string') return { url: moveTmpToUploaded(img) };
-        if (img.url && (img.url.startsWith('/images/tmp/') || img.url.startsWith('/images/uploaded/')))
-          return { url: moveTmpToUploaded(img.url) };
-        return { url: img.url || img };
-      }).filter(img => img.url)
+      images: (opt.images || []).map((img: string | { url: string; hash?: string }): { url: string } | null => {
+        let urlToSave: string | null = null;
+        if (typeof img === 'string') {
+          urlToSave = moveTmpToUploaded(img);
+        } else if (img && img.url) {
+          urlToSave = moveTmpToUploaded(img.url);
+        }
+        return urlToSave ? { url: urlToSave } : null;
+      }).filter((img: { url: string } | null): img is { url: string } => img !== null)
     }));
     // 문제 이미지 이동 및 최종 형태({url}) 변환
-    let imageObjects = (q.images || []).map((img: any): { url: string } => {
-      if (typeof img === 'string') return { url: moveTmpToUploaded(img) };
-      if (img.url && img.url.startsWith('/images/tmp/')) {
-        return { url: moveTmpToUploaded(img.url) };
+    let imageObjects = (q.images || []).map((img: string | { url: string; hash?: string }): { url: string } | null => {
+      let urlToSave: string | null = null;
+      if (typeof img === 'string') {
+        urlToSave = moveTmpToUploaded(img);
+      } else if (img && img.url) {
+        urlToSave = moveTmpToUploaded(img.url);
       }
-      return { url: img.url || img };
-    }).filter(img => img.url);
+      return urlToSave ? { url: urlToSave } : null;
+    }).filter((img: { url: string } | null): img is { url: string } => img !== null);
     // 해설 이미지 이동 및 최종 형태({url}) 변환
-    let explanationImageObjects = (q.explanationImages || []).map((img: any): { url: string } => {
-      if (typeof img === 'string') return { url: moveTmpToUploaded(img) };
-      if (img.url && img.url.startsWith('/images/tmp/')) {
-        return { url: moveTmpToUploaded(img.url) };
+    let explanationImageObjects = (q.explanationImages || []).map((img: string | { url: string; hash?: string }): { url: string } | null => {
+      let urlToSave: string | null = null;
+      if (typeof img === 'string') {
+        urlToSave = moveTmpToUploaded(img);
+      } else if (img && img.url) {
+        urlToSave = moveTmpToUploaded(img.url);
       }
-      return { url: img.url || img };
-    }).filter(img => img.url);
+      return urlToSave ? { url: urlToSave } : null;
+    }).filter((img: { url: string } | null): img is { url: string } => img !== null);
     // 문제 ID
     const questionId = q.id || uuidv4();
     const questionImageDir = path.join(UPLOAD_DIR, questionId);

@@ -8,16 +8,14 @@ export interface IUser {
   updatedAt: Date;
 }
 
-// 시험 인터페이스
+// 시험 인터페이스 (스키마와 일치하도록 수정)
 export interface IExam {
   id: string;
-  title: string;
+  name: string;
   year: number;
-  subject: string;
-  type: string;
-  session: number;
-  createdAt: Date;
-  updatedAt: Date;
+  round: number;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
 }
 
 // 문제 인터페이스
@@ -59,19 +57,6 @@ export interface IQuestionImage {
   type: 'question' | 'option' | 'explanation';
 }
 
-// 시험 결과 인터페이스
-export interface IExamResult {
-  id: string;
-  userId: string;
-  examId: string;
-  score: number;
-  totalQuestions: number;
-  correctAnswers: number;
-  wrongAnswers: number[];
-  completedAt: Date;
-  createdAt: Date;
-}
-
 // 시험 인스턴스 인터페이스 (API 응답용)
 export interface IExamInstance {
   examName: string;
@@ -84,3 +69,29 @@ export interface IExamInstance {
 export type ToastType = "default" | "destructive" | "success" | "warning";
 
 export * from './question';
+
+// Exam Results Types
+export interface IAnswerDetail {
+  questionId: string;
+  selectedOptionIndex: number | null;
+  isCorrect: boolean;
+}
+
+export type INewExamResult = {
+  userId: string;
+  examName: string;
+  examYear: number;
+  examSession: string;
+  answers: IAnswerDetail[];
+  score: number;
+  correctCount: number;
+  totalQuestions: number;
+  elapsedTime: number;
+  limitTime?: number;
+};
+
+export type IExamResult = INewExamResult & {
+  id: number;
+  createdAt: string;
+  updatedAt: string;
+};

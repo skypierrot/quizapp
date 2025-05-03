@@ -7,7 +7,9 @@ import {
   uuid,
   jsonb,
 } from "drizzle-orm/pg-core";
-import { users } from "./index";
+import { relations } from 'drizzle-orm';
+import { users } from "./users";
+import { exams } from "./exams";
 
 // 문제 테이블 정의
 export const questions = pgTable("questions", {
@@ -28,12 +30,17 @@ export const questions = pgTable("questions", {
   explanationImages: jsonb("explanation_images").$type<{ url: string; hash: string }[]>().default([]),
   // 생성자 (uuid에서 text로 변경)
   userId: text("user_id"),
-  // 타임스탬프
+  // 태그스탬프
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  // 시험 정보(외래키)
+  examId: uuid("exam_id").references(() => exams.id),
 });
 
-// 관계 정의 (필요시 추가)
-export const relations = {
-  // 나중에 다른 테이블과의 관계를 추가할 수 있음
-}; 
+// 관계 정의
+export const questionsRelations = relations(questions, ({ one }) => ({
+  exam: one(exams, {
+    fields: [questions.examId],
+    references: [exams.id],
+  }),
+})); 

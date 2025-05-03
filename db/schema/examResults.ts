@@ -8,15 +8,10 @@ import {
   index,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
+import { users } from './users';
+import type { IAnswerDetail } from '@/types';
 // Assuming you have a users table schema defined elsewhere, e.g., in ./users.ts
 // import { users } from './users'; // If you need to define relations
-
-// Define the structure for the 'answers' JSONB field
-interface IAnswerDetail {
-  questionId: string;
-  selectedOptionIndex: number | null; // User might not answer
-  isCorrect: boolean;
-}
 
 export const examResults = pgTable(
   'exam_results',
@@ -58,15 +53,17 @@ export const examResults = pgTable(
   }
 );
 
-// Optional: Define relations if needed, e.g., linking to a users table
-// export const examResultsRelations = relations(examResults, ({ one }) => ({
-//   user: one(users, {
-//     fields: [examResults.userId],
-//     references: [users.id], // Assuming your users table has an 'id' field that matches Clerk's userId
-//   }),
-// }));
+// 관계 정의 추가
+export const examResultsRelations = relations(examResults, ({ one }) => ({
+  user: one(users, {
+    fields: [examResults.userId],
+    references: [users.clerkId], // users 테이블의 clerkId와 연결 (스키마 확인 필요)
+  }),
+  // 필요시 exams 테이블과의 관계도 정의 (현재는 FK 없음)
+  // exam: one(exams, { ... })
+}));
 
 // Define a type for inserting new exam results (optional but good practice)
-export type INewExamResult = typeof examResults.$inferInsert;
+// export type INewExamResult = typeof examResults.$inferInsert;
 // Define a type for selecting exam results (optional but good practice)
-export type IExamResult = typeof examResults.$inferSelect; 
+// export type IExamResult = typeof examResults.$inferSelect; 

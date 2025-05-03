@@ -1,0 +1,27 @@
+{
+  "version": "5",
+  "dialect": "pg",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1744510876418,
+      "tag": "0000_short_bushwacker",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1744519598113,
+      "tag": "0001_puzzling_chronomancer",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1744719898148,
+      "tag": "0002_complete_piledriver",
+      "breakpoints": true
+    }
+  ]
+}

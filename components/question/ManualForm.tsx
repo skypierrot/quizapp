@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useState, useRef, useEffect, ChangeEvent, CompositionEvent } from "react";
+import { useState, useRef, useEffect, ChangeEvent, CompositionEvent, useMemo } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { cn, generateId } from "@/lib/utils";
 import { Loader2, X, Image as ImageIcon, Plus, Trash2 } from "lucide-react";
@@ -15,10 +15,8 @@ import {
 } from "@/components/ui/dialog";
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { ToastType, ToastVariant } from "@/types/toast";
-import { convertToBase64, handleImageUpload } from "@/utils/image";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { IParsedQuestion } from "./PasteForm/types";
 import { ImageArea } from "./common/ImageArea"
 import { ImagePreview } from "./common/ImagePreview"
 import { useManualFormImage } from "@/hooks/question/useManualFormImage"
@@ -34,6 +32,8 @@ import { SubmitSection } from './common/SubmitSection'
 import { useUniversalImageUpload } from '@/hooks/useUniversalImageUpload';
 import { useImageZoom } from '@/hooks/useImageZoom';
 import { ImageZoomModal } from '@/components/common/ImageZoomModal';
+import { BasicTagSettings } from './common/BasicTagSettings';
+import { useCascadingTags } from '@/hooks/question/useCascadingTags';
 
 export interface ManualFormProps {
   initialData?: IManualQuestion;
@@ -52,6 +52,21 @@ const normalizeImages = (imgs: any) => {
   if (!imgs) return [];
   if (typeof imgs[0] === 'string') return imgs.map((url: string) => ({ url, hash: '' }));
   return imgs;
+};
+
+// --- 추가: 초기 태그 값 파싱 헬퍼 ---
+const parseInitialTags = (tags: string[] = []) => {
+  let initialExamName = "";
+  let initialYear = "";
+  let initialSession = "";
+  let initialSubject = "";
+  tags.forEach((tag: string) => {
+    if (tag.startsWith('시험명:')) initialExamName = tag.replace('시험명:', '');
+    else if (tag.startsWith('년도:')) initialYear = tag.replace('년도:', '');
+    else if (tag.startsWith('회차:')) initialSession = tag.replace('회차:', '');
+    else if (tag.startsWith('과목:')) initialSubject = tag.replace('과목:', '');
+  });
+  return { initialExamName, initialYear, initialSession, initialSubject };
 };
 
 export function ManualForm({ 
@@ -106,68 +121,40 @@ export function ManualForm({
   // 상태 관리
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tagInput, setTagInput] = useState<string>("");
-  
-  // 직접 태그 관련 상태 관리
-  const [examName, setExamName] = useState<string>("");
-  const [year, setYear] = useState<string>("");
-  const [isYearValid, setIsYearValid] = useState<boolean>(true);
-  const [session, setSession] = useState<string>("");
-  const [subject, setSubject] = useState<string>("");
-  
-  // 초기 데이터가 있는 경우 기본 태그 정보 설정
-  useEffect(() => {
-    if (initialData && initialData.tags) {
-      // 시험명, 년도, 회차, 과목 태그 파싱
-      initialData.tags.forEach((tag: string) => {
-        if (tag.startsWith('시험명:')) setExamName(tag.replace('시험명:', ''));
-        else if (tag.startsWith('년도:')) setYear(tag.replace('년도:', ''));
-        else if (tag.startsWith('회차:')) setSession(tag.replace('회차:', ''));
-        else if (tag.startsWith('과목:')) setSubject(tag.replace('과목:', ''));
-      });
-    }
-  }, [initialData]);
-  
-  // 파싱된 질문 상태 (TagManager에서 필요한 형식으로 변환)
-  const parsedQuestions: IParsedQuestion[] = [{
-    id: question.id || generateId(),
-    number: question.number || 1,
-    content: question.content,
-    options: question.options.map((opt: IOption, idx: number) => ({
-      id: generateId(),
-      content: opt.text
-    })),
-    answer: question.answer >= 0 ? question.answer : 0,
-    tags: question.tags.map((tag: string) => ({
-      id: generateId(),
-      name: tag,
-      color: 'gray'
-    })),
-    images: [],
-    explanationImages: [],
-    examples: [],
-    explanation: question.explanation || "",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  }];
-  
-  const [parsedQuestionsState, setParsedQuestionsState] = useState<IParsedQuestion[]>(parsedQuestions);
-  
-  // parsedQuestionsState가 변경될 때 question.tags 업데이트
-  useEffect(() => {
-    if (parsedQuestionsState.length > 0) {
-      setQuestion((prev: IManualQuestion) => ({
-        ...prev,
-        tags: parsedQuestionsState[0].tags.map((tag: { id: string; name: string; color: string; }) => tag.name)
-      }));
-    }
-  }, [parsedQuestionsState]);
-  
+
+  // --- 추가: 초기 태그 값 파싱 (훅 호출 전에 수행) ---
+  const initialTags = useMemo(() => parseInitialTags(initialData?.tags), [initialData?.tags]);
+
+  // --- 추가: useCascadingTags 훅 사용 ---
+  const {
+    examName,
+    year,
+    session,
+    subject,
+    examNameOptions,
+    yearOptions,
+    sessionOptions,
+    isLoadingExamNames,
+    isLoadingYears,
+    isLoadingSessions,
+    isYearValid,
+    isYearDisabled,
+    isSessionDisabled,
+    handleExamNameChange,
+    handleYearChange,
+    handleSessionChange,
+    handleExamNameCreate,
+    handleYearCreate,
+    handleSessionCreate,
+    setSubject,
+  } = useCascadingTags(initialTags); // 파싱된 초기값 전달
+
   // useManualFormTag 훅 사용
   const tagManager = useManualFormTag({
     question,
     setQuestion,
-    parsedQuestionsState,
-    setParsedQuestionsState
+    parsedQuestionsState: [],
+    setParsedQuestionsState: () => {}
   })
   
   // useManualFormOption 훅 사용
@@ -183,18 +170,6 @@ export function ManualForm({
   const questionImageUpload = useUniversalImageUpload();
   const explanationImageUpload = useUniversalImageUpload();
   const imageZoom = useImageZoom();
-
-  // 년도 유효성 검사 함수
-  const validateYear = (value: string): boolean => {
-    return /^\d{4}$/.test(value);
-  };
-  
-  // 년도 입력 변경 핸들러
-  const handleYearChange = (e: ChangeEvent<HTMLInputElement> | CompositionEvent<HTMLInputElement>) => {
-    const newValue = (e.target as HTMLInputElement).value;
-    setYear(newValue);
-    setIsYearValid(validateYear(newValue));
-  };
 
   // 폼 제출
   const handleSubmit = async (e: React.FormEvent) => {
@@ -224,34 +199,32 @@ export function ManualForm({
       return;
     }
     
-    // --- 수정: 제출 시 기본 태그 자동 적용 및 검증 ---
+    // --- 수정: 제출 시 기본 태그 자동 적용 및 검증 (훅 값 사용) ---
     const trimmedExamName = examName.trim();
     const trimmedYear = year.trim();
     const trimmedSession = session.trim();
+    const trimmedSubject = subject.trim(); // 과목 값 가져오기
 
-    // 필수 태그 입력 및 년도 형식 확인
-    if (!trimmedExamName || !trimmedYear || !trimmedSession || !validateYear(trimmedYear)) {
+    // 필수 태그 입력 및 년도 형식 확인 (훅의 isYearValid 사용)
+    if (!trimmedExamName || !trimmedYear || !trimmedSession || !isYearValid) { // isYearValid 사용
       toast({
         title: "필수 태그 오류",
         description: "시험명, 년도(YYYY 형식), 회차는 필수 입력 항목입니다.", 
-        variant: "error" // destructive 대신 error 사용 (정의된 타입 확인 필요)
+        variant: "error"
       });
-      // 년도 형식이 잘못된 경우 상태 업데이트하여 시각적 피드백 제공
-      if (!validateYear(trimmedYear)) {
-        setIsYearValid(false);
-      }
+      // 년도 형식 피드백은 isYearValid 상태에 따라 BasicTagSettings 아래에서 처리됨
       return; // 제출 중단
     }
     
-    // 기본 태그 구성
+    // 기본 태그 구성 (훅의 subject 사용)
     const basicTags: string[] = [
       `시험명:${trimmedExamName}`,
       `년도:${trimmedYear}`,
       `회차:${trimmedSession}`,
-      ...(subject.trim() ? [`과목:${subject.trim()}`] : []),
+      ...(trimmedSubject ? [`과목:${trimmedSubject}`] : []), // subject 사용
     ];
     
-    // 기존 태그에서 기본 태그가 아닌 것만 필터링 + 새로운 기본 태그 추가 (중복 제거는 불필요, 덮어쓰기 방식)
+    // 기존 태그에서 기본 태그가 아닌 것만 필터링 + 새로운 기본 태그 추가
     const currentTags = question.tags || [];
     const otherTags = currentTags.filter((tag: string) => 
       !(tag.startsWith('시험명:') || tag.startsWith('년도:') || 
@@ -274,7 +247,7 @@ export function ManualForm({
       explanation: question.explanation || "",
       images: mapAndFilterImageUrls(question.images),
       explanationImages: mapAndFilterImageUrls(question.explanationImages),
-      tags: finalTags, // 자동 적용된 태그 사용
+      tags: finalTags, // 최종 태그 사용
       updatedAt: new Date()
     };
     // --- 자동 적용 및 검증 끝 ---
@@ -282,9 +255,6 @@ export function ManualForm({
     setIsSubmitting(true);
 
     try {
-      // API 데이터 구성 부분에서 tags: finalTags 사용하도록 수정됨
-      console.log('문제 저장/수정 데이터:', apiData);
-      
       // 커스텀 URL과 메서드 사용 또는 기본값 설정
       const url = apiUrl || (isEditMode ? `/api/questions/${questionId}` : "/api/questions");
       const method = apiMethod || (isEditMode ? "PATCH" : "POST");
@@ -297,11 +267,9 @@ export function ManualForm({
       formData.append('options', JSON.stringify(optionsPayload));
       formData.append('answer', question.answer.toString());
       formData.append('explanation', question.explanation || "");
-      formData.append('tags', JSON.stringify(finalTags));
-      // 문제 이미지 URL 배열 추가
-      formData.append('images', JSON.stringify(question.images));
-      // 해설 이미지 URL 배열 추가
-      formData.append('explanationImages', JSON.stringify(question.explanationImages));
+      formData.append('tags', JSON.stringify(finalTags)); // 수정된 finalTags 사용
+      formData.append('images', JSON.stringify(normalizeImages(question.images))); // normalize 적용
+      formData.append('explanationImages', JSON.stringify(normalizeImages(question.explanationImages))); // normalize 적용
       
       const response = await fetch(url, {
         method,
@@ -330,12 +298,11 @@ export function ManualForm({
         variant: "success" // 성공 토스트 variant 추가 (정의된 타입 확인 필요)
       });
       
-      // 성공 콜백이 있으면 호출
       if (onSuccess) {
         onSuccess();
       } else {
-        // 성공 후 폼 초기화 (새로운 문제 등록 모드에서만)
         if (!isEditMode) {
+          // --- 폼 초기화 로직 수정 (question 상태만 초기화) --- 
           setQuestion({
             id: generateId(),
             number: 1,
@@ -352,11 +319,11 @@ export function ManualForm({
             explanationImages: [],
             tags: [] // 초기화 시 tags도 비움
           });
-          // 기본 태그 입력 필드도 초기화
-          setExamName("");
-          setYear("");
-          setSession("");
-          setSubject("");
+          // 제거: 훅에서 관리하는 상태는 여기서 초기화하지 않음
+          // setExamName("");
+          // setYear("");
+          // setSession("");
+          // setSubject("");
         }
       }
     } catch (error) {
@@ -373,22 +340,30 @@ export function ManualForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <TagGroup
+      <BasicTagSettings
         examName={examName}
         year={year}
-        isYearValid={isYearValid}
         session={session}
         subject={subject}
-        tagInput={tagManager.tagInput}
-        tags={question.tags}
-        onExamNameChange={setExamName}
-        onYearChange={setYear}
-        onSessionChange={setSession}
+        examNameOptions={examNameOptions}
+        yearOptions={yearOptions}
+        sessionOptions={sessionOptions}
+        isLoadingExamNames={isLoadingExamNames}
+        isLoadingYears={isLoadingYears}
+        isLoadingSessions={isLoadingSessions}
+        isYearDisabled={isYearDisabled}
+        isSessionDisabled={isSessionDisabled}
+        onExamNameChange={handleExamNameChange}
+        onYearChange={handleYearChange}
+        onSessionChange={handleSessionChange}
+        onExamNameCreate={handleExamNameCreate}
+        onYearCreate={handleYearCreate}
+        onSessionCreate={handleSessionCreate}
         onSubjectChange={setSubject}
-        onTagInputChange={tagManager.setTagInput}
-        onAddTag={tagManager.addTag}
-        onRemoveTag={tagManager.removeTag}
       />
+      {!isYearValid && year && (
+        <p className="text-xs text-red-500 mt-1 ml-1">년도는 4자리 숫자로 입력해주세요.</p>
+      )}
       <QuestionContent
             value={question.content}
         onChange={e => setQuestion({ ...question, content: e.target.value })}

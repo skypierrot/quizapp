@@ -1,0 +1,6 @@
+DROP TABLE "exam_results";--> statement-breakpoint
+DROP TABLE "exams";--> statement-breakpoint
+DROP TABLE "image_history";--> statement-breakpoint
+DROP TABLE "questions";--> statement-breakpoint
+DROP TABLE "questions_legacy";--> statement-breakpoint
+DROP TABLE "users";
