@@ -42,7 +42,7 @@ const Navbar = () => {
                     <ListItem href="/learn/exams" title="문제 은행">
                       시험별 문제를 체계적으로 학습하세요
                     </ListItem>
-                    <ListItem href="/practice" title="모의고사">
+                    <ListItem href="/exams" title="모의고사">
                       실전과 동일한 환경에서 시험을 연습하세요
                     </ListItem>
                     <ListItem href="/wrong-answers" title="오답 노트">
@@ -115,7 +115,7 @@ const Navbar = () => {
               <h3 className="font-medium text-sm">시험 준비</h3>
               <ul className="pl-4 space-y-2">
                 <li><Link href="/learn/exams" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>문제 은행</Link></li>
-                <li><Link href="/practice" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>모의고사</Link></li>
+                <li><Link href="/exams" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>모의고사</Link></li>
                 <li><Link href="/wrong-answers" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>오답 노트</Link></li>
                 <li><Link href="/statistics" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>학습 통계</Link></li>
               </ul>

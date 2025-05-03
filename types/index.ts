@@ -96,3 +96,8 @@ export type IExamResult = INewExamResult & {
   createdAt: string;
   updatedAt: string;
 };
+
+// GroupedExams 인터페이스 추가 및 export
+export interface GroupedExams {
+  [examName: string]: IExamInstance[];
+}

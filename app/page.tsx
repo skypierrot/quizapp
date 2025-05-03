@@ -44,7 +44,7 @@ export default function Home() {
                 </CardContent>
               </Card>
             </Link>
-            <Link href="/practice" className="block group h-full">
+            <Link href="/exams" className="block group h-full">
               <Card className="shadow-sm hover:shadow-md transition-shadow h-full cursor-pointer flex flex-col p-6">
                 <CardHeader className="flex flex-col items-center text-center p-0 mb-2">
                   <CardTitle className="text-xl font-bold text-gray-900 mb-2">모의고사</CardTitle>
