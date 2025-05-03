@@ -222,9 +222,8 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
   // Define breadcrumb items dynamically
   const breadcrumbItems = decodedParams ? [
     { label: '홈', href: '/' },
-    { label: '문제 은행', href: '/bank' },
-    // Ensure params.examName exists and is a string for the href
-    { label: decodedParams.examName, href: typeof params.examName === 'string' ? `/bank/${params.examName}` : '/bank' }, 
+    { label: '문제 은행', href: '/learn/exams' },
+    { label: decodedParams.examName, href: typeof params.examName === 'string' ? `/learn/exams/${params.examName}` : '/learn/exams' }, 
     { label: `${decodedParams.year}년 ${decodedParams.session}`, href: '', isCurrent: true },
   ] : [];
 
@@ -492,4 +491,4 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
 
     </div>
   )
-} 
+}

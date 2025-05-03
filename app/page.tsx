@@ -34,59 +34,46 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12">주요 기능</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-            <Card className="shadow-sm hover:shadow-md transition-shadow">
-              <CardHeader>
-                <CardTitle>문제 은행</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>다양한 기술 자격증 시험 문제를 체계적으로 관리하고 학습할 수 있습니다.</p>
-              </CardContent>
-              <CardFooter>
-                <Button variant="outline" asChild className="w-full">
-                  <Link href="/learn/exams">문제 은행 보기</Link>
-                </Button>
-              </CardFooter>
-            </Card>
-            
-            <Card className="shadow-sm hover:shadow-md transition-shadow">
-              <CardHeader>
-                <CardTitle>모의고사</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>실제 시험과 동일한 환경에서 모의고사를 진행하고 결과를 분석할 수 있습니다.</p>
-              </CardContent>
-              <CardFooter>
-                <Button variant="outline" asChild className="w-full">
-                  <Link href="/practice">모의고사 보기</Link>
-                </Button>
-              </CardFooter>
-            </Card>
-            
-            <Card className="shadow-sm hover:shadow-md transition-shadow">
-              <CardHeader>
-                <CardTitle>오답 노트</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>틀린 문제를 효과적으로 복습하고 취약점을 개선할 수 있는 오답 노트 기능을 제공합니다.</p>
-              </CardContent>
-              <CardFooter>
-                <Button variant="outline" asChild className="w-full">
-                  <Link href="/wrong-answers">오답 노트 보기</Link>
-                </Button>
-              </CardFooter>
-            </Card>
-
-            <Card className="shadow-sm hover:shadow-md transition-shadow">
-              <CardHeader>
-                <CardTitle>문제 관리</CardTitle>
-                <CardDescription>등록된 문제를 확인하고 관리하세요.</CardDescription>
-              </CardHeader>
-              <CardFooter>
-                <Button variant="outline" asChild className="w-full">
-                  <Link href="/manage/questions/list">문제 관리하기</Link>
-                </Button>
-              </CardFooter>
-            </Card>
+            <Link href="/learn/exams" className="block group h-full">
+              <Card className="shadow-sm hover:shadow-md transition-shadow h-full cursor-pointer flex flex-col p-6">
+                <CardHeader className="flex flex-col items-center text-center p-0 mb-2">
+                  <CardTitle className="text-xl font-bold text-gray-900 mb-2">문제 은행</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0 w-full flex-1 flex flex-col justify-start">
+                  <p className="text-base text-gray-500 text-left">다양한 기술 자격증 시험 문제를 체계적으로 관리하고 학습할 수 있습니다.</p>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/practice" className="block group h-full">
+              <Card className="shadow-sm hover:shadow-md transition-shadow h-full cursor-pointer flex flex-col p-6">
+                <CardHeader className="flex flex-col items-center text-center p-0 mb-2">
+                  <CardTitle className="text-xl font-bold text-gray-900 mb-2">모의고사</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0 w-full flex-1 flex flex-col justify-start">
+                  <p className="text-base text-gray-500 text-left">실제 시험과 동일한 환경에서 모의고사를 진행하고 결과를 분석할 수 있습니다.</p>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/wrong-answers" className="block group h-full">
+              <Card className="shadow-sm hover:shadow-md transition-shadow h-full cursor-pointer flex flex-col p-6">
+                <CardHeader className="flex flex-col items-center text-center p-0 mb-2">
+                  <CardTitle className="text-xl font-bold text-gray-900 mb-2">오답 노트</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0 w-full flex-1 flex flex-col justify-start">
+                  <p className="text-base text-gray-500 text-left">틀린 문제를 효과적으로 복습하고 취약점을 개선할 수 있는 오답 노트 기능을 제공합니다.</p>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/manage/questions/list" className="block group h-full">
+              <Card className="shadow-sm hover:shadow-md transition-shadow h-full cursor-pointer flex flex-col p-6">
+                <CardHeader className="flex flex-col items-center text-center p-0 mb-2">
+                  <CardTitle className="text-xl font-bold text-gray-900 mb-2">문제 관리</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0 w-full flex-1 flex flex-col justify-start">
+                  <p className="text-base text-gray-500 text-left">등록된 문제를 확인하고 관리하세요.</p>
+                </CardContent>
+              </Card>
+            </Link>
           </div>
         </div>
       </section>
@@ -153,4 +140,4 @@ export default function Home() {
       </section>
     </div>
   );
-} 
+}
