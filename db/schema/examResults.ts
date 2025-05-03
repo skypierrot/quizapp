@@ -16,7 +16,7 @@ import type { IAnswerDetail } from '@/types';
 export const examResults = pgTable(
   'exam_results',
   {
-    id: serial('id').primaryKey(),
+    id: integer('id').primaryKey(),
     userId: varchar('user_id', { length: 255 }).notNull(), // Clerk User ID can be up to 255 chars
     examName: varchar('exam_name', { length: 255 }).notNull(),
     examYear: integer('exam_year').notNull(),

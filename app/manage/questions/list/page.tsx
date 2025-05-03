@@ -276,6 +276,10 @@ export default function QuestionsListPage() {
   const [selectedQuestion, setSelectedQuestion] = useState<IQuestion | null>(null);
   const [detailView, setDetailView] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  // 중복 문제 상태
+  const [duplicateGroups, setDuplicateGroups] = useState<any[]>([]);
+  const [showDuplicates, setShowDuplicates] = useState(false);
+  const [dedupLoading, setDedupLoading] = useState(false);
 
   // 문제 목록 fetch
   const fetchQuestions = async () => {
@@ -331,6 +335,45 @@ export default function QuestionsListPage() {
     }
   };
 
+  // 중복문제 확인
+  const handleCheckDuplicates = async () => {
+    setDedupLoading(true);
+    setShowDuplicates(false);
+    try {
+      const res = await fetch('/api/questions/deduplicate');
+      if (!res.ok) throw new Error('중복 문제 조회 실패');
+      const data = await res.json();
+      setDuplicateGroups(data.duplicates || []);
+      setShowDuplicates(true);
+      if ((data.duplicates || []).length === 0) {
+        toast({ title: '중복 없음', description: '중복된 문제가 없습니다.', variant: 'success' });
+      }
+    } catch (e: any) {
+      toast({ title: '중복 확인 실패', description: e.message, variant: 'error' });
+    } finally {
+      setDedupLoading(false);
+    }
+  };
+
+  // 중복문제 정리(삭제)
+  const handleDeduplicate = async () => {
+    if (!confirm('중복 문제를 한 개만 남기고 모두 삭제하시겠습니까?')) return;
+    setDedupLoading(true);
+    try {
+      const res = await fetch('/api/questions/deduplicate', { method: 'POST' });
+      if (!res.ok) throw new Error('중복 문제 정리 실패');
+      const data = await res.json();
+      toast({ title: '중복 정리 완료', description: `${data.deleted}개의 중복 문제가 삭제되었습니다.`, variant: 'success' });
+      setShowDuplicates(false);
+      setDuplicateGroups([]);
+      fetchQuestions();
+    } catch (e: any) {
+      toast({ title: '중복 정리 실패', description: e.message, variant: 'error' });
+    } finally {
+      setDedupLoading(false);
+    }
+  };
+
   useEffect(() => { fetchQuestions(); }, [page]);
 
   // 이미지 확대
@@ -360,6 +403,14 @@ export default function QuestionsListPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl md:text-3xl font-bold">문제 목록</h1>
         <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={handleCheckDuplicates} disabled={dedupLoading} variant="outline" className="h-10">
+            {dedupLoading ? '중복 확인 중...' : '중복문제 확인하기'}
+          </Button>
+          {showDuplicates && duplicateGroups.length > 0 && (
+            <Button onClick={handleDeduplicate} disabled={dedupLoading} variant="destructive" className="h-10">
+              {dedupLoading ? '중복 정리 중...' : '중복문제 정리(삭제)'}
+            </Button>
+          )}
           <Button 
             variant={detailView ? "default" : "outline"} 
             size="default"
@@ -376,6 +427,34 @@ export default function QuestionsListPage() {
           </Link>
         </div>
       </div>
+      {/* 중복 문제 그룹 표시 */}
+      {showDuplicates && (
+        <div className="mb-8">
+          <h2 className="text-lg font-bold mb-2">중복 문제 그룹 ({duplicateGroups.length}건)</h2>
+          {duplicateGroups.length === 0 ? (
+            <div className="text-gray-500">중복된 문제가 없습니다.</div>
+          ) : (
+            <div className="space-y-6">
+              {duplicateGroups.map((group, idx) => (
+                <div key={idx} className="border rounded p-4 bg-gray-50">
+                  <div className="mb-2 font-semibold">중복 그룹 #{idx + 1} (총 {group.length}개)</div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {group.map((q: any, qidx: number) => (
+                      <div key={q.id} className="border rounded p-2 bg-white">
+                        <div className="text-xs text-gray-400 mb-1">ID: {q.id}</div>
+                        <div className="font-medium mb-1">{q.content}</div>
+                        <div className="text-xs text-gray-500 mb-1">정답: {typeof q.answer === 'number' ? q.answer + 1 : q.answer}</div>
+                        <div className="text-xs text-gray-500 mb-1">태그: {(q.tags || []).join(', ')}</div>
+                        <div className="text-xs text-gray-500 mb-1">등록일: {q.createdAt ? new Date(q.createdAt).toLocaleString() : ''}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {loading ? (
         <div className="text-center py-8">문제를 불러오는 중...</div>
       ) : questions.length === 0 ? (
@@ -435,4 +514,4 @@ export default function QuestionsListPage() {
       </Dialog>
     </div>
   );
-} 
+}

@@ -5,9 +5,9 @@ import { relations } from 'drizzle-orm';
 
 export const imageHistory = pgTable("image_history", {
   id: uuid("id").primaryKey().defaultRandom(),
-  imageId: integer("image_id").notNull().references(() => images.id),
+  imageId: uuid("image_id").notNull(),
   changeType: text("change_type").notNull(),
-  changedBy: uuid("changed_by").notNull().references(() => users.id),
+  changedBy: uuid("changed_by").notNull(),
   reason: text("reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -21,4 +21,7 @@ export const imageHistoryRelations = relations(imageHistory, ({ one }) => ({
     fields: [imageHistory.changedBy],
     references: [users.id],
   }),
-})); 
+}));
+
+export type ImageHistory = typeof imageHistory.$inferSelect;
+export type NewImageHistory = typeof imageHistory.$inferInsert; 

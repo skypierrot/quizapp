@@ -34,6 +34,7 @@ import { useImageZoom } from '@/hooks/useImageZoom';
 import { ImageZoomModal } from '@/components/common/ImageZoomModal';
 import { BasicTagSettings } from './common/BasicTagSettings';
 import { useCascadingTags } from '@/hooks/question/useCascadingTags';
+import { AdditionalTagInput } from './common/AdditionalTagInput';
 
 export interface ManualFormProps {
   initialData?: IManualQuestion;
@@ -121,7 +122,7 @@ export function ManualForm({
   // 상태 관리
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tagInput, setTagInput] = useState<string>("");
-
+  
   // --- 추가: 초기 태그 값 파싱 (훅 호출 전에 수행) ---
   const initialTags = useMemo(() => parseInitialTags(initialData?.tags), [initialData?.tags]);
 
@@ -148,7 +149,7 @@ export function ManualForm({
     handleSessionCreate,
     setSubject,
   } = useCascadingTags(initialTags); // 파싱된 초기값 전달
-
+  
   // useManualFormTag 훅 사용
   const tagManager = useManualFormTag({
     question,
@@ -236,7 +237,7 @@ export function ManualForm({
     const optionsPayload = question.options.map(opt => ({
       number: opt.number,
       text: opt.text,
-      images: mapAndFilterImageUrls(opt.images)
+      images: normalizeImages(opt.images)
     }));
     
     // apiData 구성 전에 finalTags를 사용하도록 수정
@@ -364,6 +365,14 @@ export function ManualForm({
       {!isYearValid && year && (
         <p className="text-xs text-red-500 mt-1 ml-1">년도는 4자리 숫자로 입력해주세요.</p>
       )}
+      {/* --- 추가: AdditionalTagInput 컴포넌트 렌더링 (추가 태그용) --- */}
+      <AdditionalTagInput
+        tags={question.tags || []} // 추가 태그 배열 전달
+        tagInput={tagInput} // 추가 태그 입력 상태
+        onTagInputChange={setTagInput} // 추가 태그 입력 핸들러
+        onAddTag={tagManager.addTag} // useManualFormTag 훅의 추가 함수
+        onRemoveTag={tagManager.removeTag} // useManualFormTag 훅의 제거 함수
+      />
       <QuestionContent
             value={question.content}
         onChange={e => setQuestion({ ...question, content: e.target.value })}

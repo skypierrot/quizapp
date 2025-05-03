@@ -5,6 +5,8 @@ import { eq } from "drizzle-orm";
 import { auth } from "@clerk/nextjs";
 import fs from 'fs';
 import path from 'path';
+import { questionImageUsage } from '@/db/schema/questionImageUsage';
+import { saveQuestions } from '@/db/saveQuestions';
 
 // 임시 사용자 ID (개발용)
 const DEV_USER_ID = "dev_user_123";
@@ -70,7 +72,7 @@ const ensureDBConnection = async () => {
 // 단일 문제 조회
 export async function GET(
   request: Request,
-  { params }: { params: { questionId: string } }
+  { params }: { params: Promise<{ questionId: string }> }
 ) {
   try {
     const isDBConnectedGET = await checkDBConnection();
@@ -92,7 +94,7 @@ export async function GET(
     //   );
     // }
     
-    const { questionId } = params;
+    const { questionId } = await params;
 
     // 비동기 DB 인스턴스 가져오기
     const dbInstance = await asyncDB.get();
@@ -120,145 +122,39 @@ export async function GET(
   }
 }
 
-// 단일 문제 업데이트
+// 단일 문제 업데이트: delegate to saveQuestions for both create and update
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { questionId: string } }
+  { params }: { params: Promise<{ questionId: string }> }
 ) {
+  const { questionId } = await params;
+  const formData = await request.formData();
+  // Build single question payload from FormData
+  let questionObj;
   try {
-    const isDBConnectedPUT = await checkDBConnection();
-    if (!isDBConnectedPUT) {
-      console.error("데이터베이스 연결 실패 (PUT)");
-      return NextResponse.json(
-        { error: "서버 연결 오류. 잠시 후 다시 시도해주세요." },
-        { status: 503 }
-      );
-    }
-
-    // 인증 확인 (임시로 비활성화)
-    // const { userId } = auth();
-    // if (!userId) {
-    //   return NextResponse.json(
-    //     { error: "인증되지 않은 사용자입니다." },
-    //     { status: 401 }
-    //   );
-    // }
-    
-    const { questionId } = params;
-    const formData = await request.formData();
-    const content = formData.get('content') as string;
-    const optionsRaw = formData.get('options') as string;
-    const answer = Number(formData.get('answer'));
-    const explanation = formData.get('explanation') as string;
-    const tagsRaw = formData.get('tags') as string;
-    // JSON 파싱
-    let options;
-    let tags;
-    try {
-      options = JSON.parse(optionsRaw);
-      tags = tagsRaw ? JSON.parse(tagsRaw) : [];
-    } catch (e) {
-      return NextResponse.json(
-        { error: "options/tags 파싱 오류" },
-        { status: 400 }
-      );
-    }
-    // options의 각 images에도 moveTmpToUploaded 적용 (POST와 동일)
-    options = options.map((opt: any) => ({
-      ...opt,
-      images: (opt.images || []).map((img: any) => {
-        if (typeof img === "string") {
-          return moveTmpToUploaded(img);
-        }
-        if (
-          img.url &&
-          (img.url.startsWith('/images/tmp/') || img.url.startsWith('/images/uploaded/'))
-        ) {
-          return { ...img, url: moveTmpToUploaded(img.url) };
-        }
-        return img;
-      })
-    }));
-    // 이미지 파싱
-    const imagesRaw = formData.get('images') as string;
-    const explanationImagesRaw = formData.get('explanationImages') as string;
-    let imageObjects: { url: string; hash: string }[] = [];
-    let explanationImageObjects: { url: string; hash: string }[] = [];
-    try {
-      const rawImages = imagesRaw ? JSON.parse(imagesRaw) : [];
-      const rawExplanationImages = explanationImagesRaw ? JSON.parse(explanationImagesRaw) : [];
-
-      // Robust URL processing similar to saveQuestions
-      imageObjects = rawImages.map((img: any) => {
-        let finalUrl = '';
-        if (typeof img === 'string') { // Handle case where client sends just a string URL
-           finalUrl = moveTmpToUploaded(img);
-        } else if (img.url) {
-           finalUrl = moveTmpToUploaded(img.url);
-        }
-        // Return the structure expected by DB, keeping the hash if present
-        return { url: finalUrl, hash: img.hash || '' };
-      }).filter((img: {url: string}) => img.url && !img.url.startsWith('blob:')); // Filter out blob URLs and invalid ones
-
-      explanationImageObjects = rawExplanationImages.map((img: any) => {
-         let finalUrl = '';
-         if (typeof img === 'string') {
-            finalUrl = moveTmpToUploaded(img);
-         } else if (img.url) {
-            finalUrl = moveTmpToUploaded(img.url);
-         }
-         return { url: finalUrl, hash: img.hash || '' };
-      }).filter((img: {url: string}) => img.url && !img.url.startsWith('blob:')); // Filter out blob URLs
-
-    } catch (e) {
-      return NextResponse.json(
-        { error: "images/explanationImages 파싱 오류" },
-        { status: 400 }
-      );
-    }
-    // 비동기 DB 인스턴스 가져오기
-    const dbInstance = await asyncDB.get();
-    // 문제 존재 여부 확인
-    const existingQuestion = await dbInstance.query.questions.findFirst({
-      where: eq(questions.id, questionId)
-    });
-    if (!existingQuestion) {
-      return NextResponse.json(
-        { error: "문제를 찾을 수 없습니다." },
-        { status: 404 }
-      );
-    }
-    // 문제 업데이트
-    await dbInstance.update(questions)
-      .set({
-        content,
-        options,
-        answer,
-        explanation,
-        tags,
-        images: imageObjects,
-        explanationImages: explanationImageObjects,
-        updatedAt: new Date()
-      })
-      .where(eq(questions.id, questionId));
-    // 업데이트된 문제 반환
-    const updatedQuestion = await dbInstance.query.questions.findFirst({
-      where: eq(questions.id, questionId)
-    });
-    return NextResponse.json({ question: updatedQuestion });
-  } catch (error) {
-    console.error("PUT /api/questions/[id] Error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "문제 업데이트 중 오류 발생" },
-      { status: 500 }
-    );
+    questionObj = {
+      id: questionId,
+      content: formData.get('content') as string,
+      options: JSON.parse(formData.get('options') as string || '[]'),
+      answer: Number(formData.get('answer') as string),
+      explanation: formData.get('explanation') as string || '',
+      tags: JSON.parse(formData.get('tags') as string || '[]'),
+      images: JSON.parse(formData.get('images') as string || '[]'),
+      explanationImages: JSON.parse(formData.get('explanationImages') as string || '[]'),
+      examId: (formData.get('examId') as string) || undefined,
+    };
+  } catch (e) {
+    return NextResponse.json({ error: '잘못된 JSON 형식입니다.' }, { status: 400 });
   }
+  // Call saveQuestions to upsert question and update image usage
+  const [saved] = await saveQuestions([questionObj]);
+  return NextResponse.json({ question: saved });
 }
 
 // 단일 문제 삭제
 export async function DELETE(
   request: Request,
-  { params }: { params: { questionId: string } }
+  { params }: { params: Promise<{ questionId: string }> }
 ) {
   try {
     const isDBConnectedDELETE = await checkDBConnection();
@@ -280,7 +176,7 @@ export async function DELETE(
     //   );
     // }
 
-    const { questionId } = params;
+    const { questionId } = await params;
     
     // 비동기 DB 인스턴스 가져오기
     const dbInstance = await asyncDB.get();

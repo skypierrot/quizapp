@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, ClipboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { BasicTagSettings } from "./common/BasicTagSettings";
@@ -20,6 +20,12 @@ import { useCascadingTags } from '@/hooks/question/useCascadingTags';
 const MAX_IMAGE_COUNT = 5;
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
+// 추가: 붙여넣기된 이미지 정보를 저장할 타입 정의
+interface IPastedImageInfo {
+  url: string;
+  hash: string;
+}
+
 export default function PasteForm() {
   const { toast } = useToast();
   const [pasteText, setPasteText] = useState("");
@@ -35,6 +41,9 @@ export default function PasteForm() {
   const questionImageInputRef = useRef<HTMLInputElement>(null);
   const explanationImageInputRef = useRef<HTMLInputElement>(null);
   const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const textareaRef = useRef<HTMLTextAreaElement>(null); // Textarea 참조 추가
+  const [pastedImageInfos, setPastedImageInfos] = useState<IPastedImageInfo[]>([]); // 붙여넣기된 이미지 정보 상태 추가
+  const [isPasting, setIsPasting] = useState(false); // 붙여넣기 진행 중 상태 추가
 
   const imageZoom = useImageZoom();
 
@@ -137,17 +146,16 @@ export default function PasteForm() {
   const uploadImage = async (file: File): Promise<{ url: string; hash: string }> => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await fetch('/api/upload', { method: 'POST', body: formData });
-    if (!response.ok) throw new Error('이미지 업로드 실패');
-    const result = await response.json();
-    if (!result.success || !result.url) {
-        throw new Error(result.error || '이미지 URL 받기 실패');
+    const response = await fetch('/api/images/upload', { method: 'POST', body: formData });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: '이미지 업로드 실패 (응답 파싱 불가)'}));
+      throw new Error(errorData.error || '이미지 업로드 실패');
     }
-    const buffer = await file.arrayBuffer();
-    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    return { url: result.url, hash: hashHex };
+    const result = await response.json();
+    if (!result.success || !result.url || !result.hash) {
+        throw new Error(result.error || 'API 응답 데이터 오류 (url 또는 hash 없음)');
+    }
+    return { url: result.url, hash: result.hash };
   };
 
   const handleImageFileSelected = async (file: File | null, isExplanation = false) => {
@@ -162,22 +170,25 @@ export default function PasteForm() {
       }
 
       try {
-         const hash = await getFileHash(file);
-         const qIdx = currentImageIdx;
+         // 1. uploadImage 호출하여 url과 backend hash 얻기
+         const { url, hash } = await uploadImage(file);
+         const qIdx = currentImageIdx; // currentImageIdx 사용 확인
+
+         // 2. 중복 체크 (백엔드 hash 사용)
          const targetQuestion = questions[qIdx];
          if (!targetQuestion) {
              toast({ title: "오류", description: "대상 문제를 찾을 수 없습니다.", variant: "error" });
              return;
          }
          const existingImages = isExplanation ? (targetQuestion.explanationImages || []) : (targetQuestion.images || []);
-         const isDuplicate = existingImages.some(img => img.hash === hash);
+         const isDuplicate = existingImages.some(img => img.hash === hash); // 백엔드 hash로 비교
 
          if (isDuplicate) {
              toast({ title: "이미지 중복", description: "이미 동일한 내용의 이미지가 추가되어 있습니다.", variant: "warning" });
-             return;
+             return; // 중복이면 여기서 중단
          }
 
-         const { url } = await uploadImage(file);
+         // 3. 상태 업데이트 (백엔드 url, hash 사용)
          setQuestions(prev => prev.map((q, i) => {
             if (i !== qIdx) return q;
             const targetImages = isExplanation ? q.explanationImages : q.images;
@@ -185,6 +196,7 @@ export default function PasteForm() {
                toast({ title: "이미지 제한", description: `최대 ${MAX_IMAGE_COUNT}장까지 업로드 가능합니다.`, variant: "error" });
                return q;
             }
+            // 백엔드에서 받은 url과 hash 사용
             return isExplanation
                ? { ...q, explanationImages: [...(targetImages || []), { url, hash }] }
                : { ...q, images: [...(targetImages || []), { url, hash }] };
@@ -206,7 +218,7 @@ export default function PasteForm() {
   };
 
   const handleOptionImageUpload = async (qIdx: number, optIdx: number, file: File) => {
-     if (!file || qIdx === null || optIdx === null) return;
+    if (!file) return;
      if (!file.type.startsWith('image/')) {
        toast({ title: "이미지 파일만 업로드 가능합니다.", variant: "error" });
        return;
@@ -217,40 +229,43 @@ export default function PasteForm() {
      }
 
      try {
-       const hash = await getFileHash(file);
+      // 1. uploadImage 호출하여 url과 backend hash 얻기
+      const { url, hash } = await uploadImage(file);
+
+      // 2. 중복 체크 (백엔드 hash 사용)
        const targetOption = questions[qIdx]?.options[optIdx];
        if (!targetOption) {
            toast({ title: "오류", description: "대상 선택지를 찾을 수 없습니다.", variant: "error" });
            return;
        }
        const existingImages = targetOption.images || [];
-       const isDuplicate = existingImages.some(img => img.hash === hash);
+      const isDuplicate = existingImages.some(img => img.hash === hash); // 백엔드 hash로 비교
 
        if (isDuplicate) {
            toast({ title: "이미지 중복", description: "선택지에 이미 동일한 내용의 이미지가 추가되어 있습니다.", variant: "warning" });
-           return;
+          return; // 중복이면 여기서 중단
        }
 
-       const { url } = await uploadImage(file);
-
+      // 3. 상태 업데이트 (백엔드 url, hash 사용)
        setQuestions(prev => prev.map((q, i) => {
           if (i !== qIdx) return q;
           return {
             ...q,
-            options: q.options.map((opt, j) => {
-              if (j !== optIdx) return opt;
+          options: q.options.map((opt, i2) => {
+            if (i2 !== optIdx) return opt;
               const targetImages = opt.images || [];
               if (targetImages.length >= MAX_IMAGE_COUNT) {
-                 toast({ title: `선택지 ${optIdx+1} 이미지 제한`, description: `최대 ${MAX_IMAGE_COUNT}장까지 업로드 가능합니다.`, variant: "error" });
+              toast({ title: "이미지 제한", description: `최대 ${MAX_IMAGE_COUNT}장까지 업로드 가능합니다.`, variant: "error" });
                  return opt;
               }
+            // 백엔드에서 받은 url과 hash 사용
               return { ...opt, images: [...targetImages, { url, hash }] };
             })
           };
        }));
      } catch (error) {
-       console.error("선택지 이미지 처리/업로드 오류:", error);
-       toast({ title: "오류", description: error instanceof Error ? error.message : "선택지 이미지 처리 중 오류", variant: "error" });
+      console.error("옵션 이미지 처리/업로드 오류:", error);
+      toast({ title: "오류", description: error instanceof Error ? error.message : "옵션 이미지 처리 중 오류", variant: "error" });
      }
    };
 
@@ -282,24 +297,75 @@ export default function PasteForm() {
       toast({ title: "문제 파싱 실패", description: errors.join("\n"), variant: "error" });
       return;
     }
-    setQuestions(parsed.map(q => ({
+
+    // 이미지 URL 추출 정규식
+    const imageUrlRegex = /\!\[[^\]]*\]\((\/images\/uploaded\/[^\)]+)\)/g;
+
+    // pastedImageInfos를 URL 기준으로 쉽게 찾기 위한 Map 생성
+    const pastedImageMap = new Map(pastedImageInfos.map(info => [info.url, info]));
+
+    const processedQuestions = parsed.map(q => {
+      const finalImages: { url: string; hash: string }[] = [];
+      const finalExplanationImages: { url: string; hash: string }[] = [];
+
+      // 1. content에서 이미지 정보 추출 및 연결
+      let match;
+      while ((match = imageUrlRegex.exec(q.content || '')) !== null) {
+        const url = match[1];
+        const imageInfo = pastedImageMap.get(url);
+        if (imageInfo) {
+          finalImages.push(imageInfo);
+        }
+      }
+
+      // 2. explanation에서 이미지 정보 추출 및 연결
+      imageUrlRegex.lastIndex = 0; // Reset regex index
+      while ((match = imageUrlRegex.exec(q.explanation || '')) !== null) {
+        const url = match[1];
+        const imageInfo = pastedImageMap.get(url);
+        if (imageInfo) {
+          finalExplanationImages.push(imageInfo);
+        }
+      }
+
+      // 3. options에서 이미지 정보 추출 및 연결
+      const finalOptions = (q.options || []).map((opt: { number: number; text: string }): IOption => {
+        const optionImages: { url: string; hash: string }[] = [];
+        imageUrlRegex.lastIndex = 0; // Reset regex index
+        while ((match = imageUrlRegex.exec(opt.text || '')) !== null) {
+          const url = match[1];
+          const imageInfo = pastedImageMap.get(url);
+          if (imageInfo) {
+            optionImages.push(imageInfo);
+          }
+        }
+        return {
+          number: opt.number,
+          text: opt.text,
+          images: optionImages, // 연결된 이미지 정보 사용
+        };
+      });
+
+      // 최종 질문 객체 구성
+      return {
       id: q.id || `parsed-${Date.now()}-${Math.random()}`,
       content: q.content,
-      options: (q.options || []).map((opt: { number: number; text: string }): IOption => ({
-        number: opt.number,
-        text: opt.text,
-        images: [],
-      })),
+        options: finalOptions,
       answer: typeof q.answer === 'number' ? q.answer - 1 : -1,
       explanation: q.explanation ?? "",
-      images: [], 
-      explanationImages: [], 
+        images: finalImages, // 연결된 이미지 정보 사용
+        explanationImages: finalExplanationImages, // 연결된 이미지 정보 사용
       tags: [], 
-    })));
-    setQuestionTags(parsed.map(() => []));
+        // examId는 BasicTagSettings에서 관리되므로 여기서는 설정 안 함
+      };
+    });
+
+    setQuestions(processedQuestions);
+    setQuestionTags(processedQuestions.map(() => []));
     setQuestionTagInputs({});
-    setPasteText("");
-    toast({ title: `${parsed.length}개 문제 파싱 완료`, variant: "success" });
+    setPasteText(""); // 파싱 후 텍스트 영역 비우기
+    setPastedImageInfos([]); // 사용된 붙여넣기 이미지 정보 초기화
+    toast({ title: `${processedQuestions.length}개 문제 파싱 완료`, variant: "success" });
   };
 
   function validateQuestions(questionsToValidate: IManualQuestion[]): { valid: boolean; message?: string; focusIdx?: number } {
@@ -358,37 +424,38 @@ export default function PasteForm() {
          ...(trimmedSubject ? [`과목:${trimmedSubject}`] : []),
        ];
 
-       const questionsPayload = questions.map((q, idx) => ({
-         content: q.content,
-         options: q.options.map(opt => ({
+       const questionsPayload = questions.map((q, idx) => {
+         const questionImages = q.images || []; 
+         const explanationImagesData = q.explanationImages || [];
+         const optionsData = q.options.map(opt => ({
            number: opt.number,
            text: opt.text,
-           images: q.images.map(img => img.url).filter(Boolean),
-         })),
+           images: opt.images || [],
+         }));
+
+         return {
+           content: q.content,
+           options: optionsData,
          answer: q.answer,
          explanation: q.explanation || "",
-         images: q.images.map(img => img.url).filter(Boolean),
-         explanationImages: q.explanationImages.map(img => img.url).filter(Boolean),
+           images: questionImages,
+           explanationImages: explanationImagesData,
          tags: [
-           ...basicTags,
+             ...basicTags,
            ...commonTags,
-           ...(questionTags[idx] || []).filter(tag =>
-             !(tag.startsWith('시험명:') || tag.startsWith('년도:') || 
-               tag.startsWith('회차:') || tag.startsWith('과목:')) 
-           )
+             ...(questionTags[idx] || []).filter(tag =>
+               !(tag.startsWith('시험명:') || tag.startsWith('년도:') || 
+                 tag.startsWith('회차:') || tag.startsWith('과목:')) 
+             )
          ],
-       }));
+           examId: q.examId,
+         };
+       });
 
        const formData = new FormData();
-       questionsPayload.forEach((q, idx) => {
-         Object.entries(q).forEach(([key, value]) => {
-           if (key === 'options' || key === 'tags' || key === 'images' || key === 'explanationImages') {
-             formData.append(key, JSON.stringify(value));
-           } else {
-             formData.append(key, String(value));
-           }
-         });
-       });
+       formData.append('questions', JSON.stringify(questionsPayload));
+
+       console.log('Sending FormData with questions field:', JSON.stringify(questionsPayload, null, 2));
 
        const response = await fetch("/api/questions/batch", {
          method: "POST",
@@ -406,22 +473,27 @@ export default function PasteForm() {
       let successCount = 0;
       let errorCount = 0;
 
-      for (const res of result) {
-        if (res.success) {
-          successCount++;
+      if (result && Array.isArray(result.result)) {
+        for (const res of result.result) {
+          if (res?.success) {
+            successCount++;
+          } else {
+            errorCount++;
+          }
+        }
+      } else {
+        console.error("Unexpected API response format for batch save:", result);
+        if (result?.ok) {
+            successCount = questions.length;
         } else {
-          errorCount++;
+            errorCount = questions.length;
         }
       }
 
       if (successCount > 0 && errorCount === 0) {
         toast({ title: "저장 완료", description: `${successCount}개의 문제가 성공적으로 저장되었습니다.`, variant: "success" });
-        setPasteText("");
-        setQuestions([]);
-        setCommonTags([]);
-        setCommonTagInput("");
-        setQuestionTags([]);
-        setQuestionTagInputs({});
+        window.location.reload(); // 저장 성공 시 전체 페이지 새로고침
+        return;
       } else if (successCount > 0 && errorCount > 0) {
         toast({ title: "부분 성공", description: `${successCount}개 성공, ${errorCount}개 실패했습니다.`, variant: "warning" });
       } else if (successCount === 0 && errorCount > 0) {
@@ -447,25 +519,109 @@ export default function PasteForm() {
     return []; // 그 외의 경우 빈 배열
   };
 
+  // 새로운 onPaste 핸들러 함수
+  const handlePaste = async (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    event.preventDefault(); // 기본 붙여넣기 동작 방지
+    setIsPasting(true);
+    const clipboardData = event.clipboardData;
+    if (!clipboardData) {
+      setIsPasting(false);
+      return;
+    }
+
+    let pastedTextContent = pasteText; // 현재 텍스트 내용 가져오기
+    const items = Array.from(clipboardData.items);
+    const imageUploadPromises: Promise<IPastedImageInfo | null>[] = [];
+
+    // 1. 텍스트 데이터 처리 (우선 찾아서 적용)
+    const textItem = items.find(item => item.kind === 'string' && item.type.match(/^text\/plain/i));
+    if (textItem) {
+      pastedTextContent = await new Promise<string>((resolve) => {
+        textItem.getAsString(text => resolve(text || ''));
+      });
+      // 텍스트가 붙여넣기되면 기존 질문 목록은 초기화할지 여부 결정 필요
+      // 여기서는 Textarea 내용만 업데이트하고 파싱은 별도 버튼으로 진행
+      setPasteText(pastedTextContent);
+    }
+
+    // 2. 이미지 데이터 처리
+    for (const item of items) {
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          if (file.size > MAX_IMAGE_SIZE) {
+            toast({ title: "용량 초과", description: `5MB 이하 이미지만 붙여넣기 가능합니다. (${(file.size / 1024 / 1024).toFixed(1)}MB)`, variant: "warning" });
+            continue; // 다음 항목 처리
+          }
+          // 이미지 업로드 프로미스 생성
+          imageUploadPromises.push(
+            uploadImage(file)
+              .then(imageInfo => {
+                // 성공 시 정보 저장
+                setPastedImageInfos(prev => [...prev, imageInfo]); 
+                return imageInfo;
+              })
+              .catch(error => {
+                console.error("붙여넣기 이미지 업로드 오류:", error);
+                toast({ title: "업로드 실패", description: error instanceof Error ? error.message : "이미지 업로드 중 오류", variant: "error" });
+                return null; // 실패 시 null 반환
+              })
+          );
+        }
+      }
+    }
+
+    // 3. 모든 이미지 업로드 완료 기다리기
+    const uploadedImages = (await Promise.all(imageUploadPromises)).filter((info): info is IPastedImageInfo => info !== null);
+
+    // 4. Textarea에 이미지 마크다운 삽입 (커서 위치에)
+    if (uploadedImages.length > 0 && textareaRef.current) {
+      const textarea = textareaRef.current;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const currentText = textarea.value;
+      let textToInsert = '';
+      uploadedImages.forEach(imgInfo => {
+        textToInsert += `\n![pasted_image](${imgInfo.url})\n`; // 마크다운 형식으로 삽입
+      });
+
+      const newText = currentText.substring(0, start) + textToInsert + currentText.substring(end);
+      setPasteText(newText);
+
+      // 커서 위치를 삽입된 텍스트 뒤로 이동 (선택사항)
+      // requestAnimationFrame 사용으로 상태 업데이트 후 커서 위치 조절
+      requestAnimationFrame(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + textToInsert.length;
+      });
+    }
+
+    setIsPasting(false);
+  };
+
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-semibold mb-4">문제 붙여넣기</h2>
       <Textarea
-        placeholder="여기에 문제 텍스트를 붙여넣으세요..."
+        ref={textareaRef} // ref 연결
+        placeholder="여기에 문제 텍스트나 이미지를 붙여넣으세요..."
         value={pasteText}
         onChange={(e) => setPasteText(e.target.value)}
+        onPaste={handlePaste} // onPaste 핸들러 연결
         rows={10}
         className="mb-4"
+        disabled={isPasting} // 붙여넣기 중 비활성화
       />
-      <Button onClick={handleParse} disabled={!pasteText}>문제 파싱</Button>
+      <Button onClick={handleParse} disabled={!pasteText || isPasting}>
+        {isPasting ? "붙여넣기 처리 중..." : "문제 파싱"}
+      </Button>
 
       {questions.length > 0 && (
         <form onSubmit={handleSave} className="space-y-8 mt-6">
-          <BasicTagSettings
-             examName={examName}
-             year={year}
-             session={session}
-             subject={subject}
+        <BasicTagSettings
+          examName={examName}
+          year={year}
+          session={session}
+          subject={subject}
              examNameOptions={examNameOptions}
              yearOptions={yearOptions}
              sessionOptions={sessionOptions}
@@ -475,75 +631,75 @@ export default function PasteForm() {
              isYearDisabled={isYearDisabled}
              isSessionDisabled={isSessionDisabled}
              onExamNameChange={handleExamNameChange}
-             onYearChange={handleYearChange}
+          onYearChange={handleYearChange}
              onSessionChange={handleSessionChange}
              onExamNameCreate={handleExamNameCreate}
              onYearCreate={handleYearCreate}
              onSessionCreate={handleSessionCreate}
-             onSubjectChange={setSubject}
-          />
+          onSubjectChange={setSubject}
+        />
            {!isYearValid && year && (
               <p className="text-xs text-red-500 -mt-4 mb-4 ml-1">년도는 4자리 숫자로 입력해주세요.</p>
            )}
-           <AdditionalTagInput
+        <AdditionalTagInput
              tags={commonTags}
-             tagInput={commonTagInput}
-             onTagInputChange={setCommonTagInput}
-             onAddTag={handleAddCommonTag}
-             onRemoveTag={handleRemoveCommonTag}
-           />
+          tagInput={commonTagInput}
+          onTagInputChange={setCommonTagInput}
+          onAddTag={handleAddCommonTag}
+          onRemoveTag={handleRemoveCommonTag}
+        />
           
           {questions.map((q, index) => (
             <div key={q.id || index} ref={(el) => { questionRefs.current[index] = el; }} className="p-4 border rounded-md shadow-sm bg-white">
               <h3 className="text-lg font-medium mb-3">문제 {q.number || index + 1}</h3>
               <QuestionContent
-                 value={q.content}
+                value={q.content}
                  onChange={e => handleQuestionChange(index, 'content', e.target.value)}
               />
               <ImageGroup
                   questionImages={normalizeImages(q.images)}
-                  explanationImages={[]}
+                explanationImages={[]}
                   onRemoveImage={(imgIdx) => handleRemoveImageWrapper(index, imgIdx)}
-                  onZoomImage={imageZoom.showZoom}
+                onZoomImage={imageZoom.showZoom}
                   onImageAreaClick={() => handleImageAreaClick(index, 'question')}
                   onImageAreaMouseEnter={() => setIsImageAreaActive(true)}
-                  onImageAreaMouseLeave={() => setIsImageAreaActive(false)}
-                  questionImageInputRef={questionImageInputRef}
-                  explanationImageInputRef={explanationImageInputRef}
+                onImageAreaMouseLeave={() => setIsImageAreaActive(false)}
+                questionImageInputRef={questionImageInputRef}
+                explanationImageInputRef={explanationImageInputRef}
                   activeImageType={activeImageType}
                   isImageAreaActive={isImageAreaActive && currentImageIdx === index}
                   handleImageUpload={(file) => handleImageFileSelected(file, false)}
-                  type="question"
+                type="question"
               />
               <Options
                   options={q.options.map(opt => ({ ...opt, images: normalizeImages(opt.images) }))}
-                  answer={q.answer}
+                answer={q.answer}
                   onAddOption={() => handleAddOption(index)}
                   onRemoveOption={(optIdx) => handleRemoveOption(index, optIdx)}
                   onUpdateOption={(optIdx, value) => handleUpdateOption(index, optIdx, value)}
                   onSetAnswer={(ansIdx) => handleSetAnswer(index, ansIdx)}
                   onOptionImageUpload={(file, optIdx) => handleOptionImageUpload(index, optIdx, file)}
                   onOptionImageRemove={(optIdx, imgIdx) => handleOptionImageRemove(index, optIdx, imgIdx)}
-                  onOptionImageZoom={imageZoom.showZoom}
+                onOptionImageZoom={imageZoom.showZoom}
               />
               <Explanation
                  value={q.explanation || ''}
                  onChange={e => handleQuestionChange(index, 'explanation', e.target.value)}
               />
-               <ImageGroup
-                  questionImages={[]}
+              <ImageGroup
+                questionImages={[]}
                   explanationImages={normalizeImages(q.explanationImages)}
                   onRemoveImage={(imgIdx) => handleRemoveImageWrapper(index, imgIdx, true)}
-                  onZoomImage={imageZoom.showZoom}
+                onZoomImage={imageZoom.showZoom}
                   onImageAreaClick={() => handleImageAreaClick(index, 'explanation')}
                   onImageAreaMouseEnter={() => setIsImageAreaActive(true)}
-                  onImageAreaMouseLeave={() => setIsImageAreaActive(false)}
-                  questionImageInputRef={questionImageInputRef}
-                  explanationImageInputRef={explanationImageInputRef}
+                onImageAreaMouseLeave={() => setIsImageAreaActive(false)}
+                questionImageInputRef={questionImageInputRef}
+                explanationImageInputRef={explanationImageInputRef}
                   activeImageType={activeImageType}
                   isImageAreaActive={isImageAreaActive && currentImageIdx === index}
                   handleImageUpload={(file) => handleImageFileSelected(file, true)}
-                  type="explanation"
+                type="explanation"
               />
               <AdditionalTagInput
                  tags={questionTags[index] || []}
@@ -557,7 +713,7 @@ export default function PasteForm() {
           <SubmitSection isSubmitting={isSubmitting} buttonText="모든 문제 저장" />
         </form>
       )}
-       <ImageZoomModal src={imageZoom.zoomedImage} onClose={imageZoom.closeZoom} />
+      <ImageZoomModal src={imageZoom.zoomedImage} onClose={imageZoom.closeZoom} />
     </div>
   );
-} 
+}

@@ -1,106 +1,105 @@
 import { db } from '@/db';
-import { questions } from '@/db/schema';
-import { sql } from 'drizzle-orm';
-import fs from 'fs';
-import path from 'path';
+import { questions, images, questionImageUsage } from '@/db/schema/index';
+import { sql, eq, inArray } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 
 const DEV_USER_ID = 'dev_user_123';
-const TMP_DIR = path.join(process.cwd(), 'public', 'images', 'tmp');
-const UPLOAD_DIR = path.join(process.cwd(), 'public', 'images', 'uploaded');
-
-function ensureUploadDirExists(dirPath: string) {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
-}
-
-async function ensureDBConnection() {
-  try {
-    await db.select({ count: sql`COUNT(*)` }).from(questions).limit(1);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function moveTmpToUploaded(tmpUrl: string): string {
-  const normalizedUrl = tmpUrl.replace(/\\/g, '/').replace(/\/{2,}/g, '/');
-  if (normalizedUrl.startsWith('/images/uploaded/')) {
-    const filename = path.basename(normalizedUrl);
-    return `/images/uploaded/${filename}`;
-  }
-  if (!normalizedUrl.startsWith('/images/tmp/')) return normalizedUrl;
-  const filename = path.basename(normalizedUrl);
-  const tmpPath = path.join(TMP_DIR, filename);
-  const uploadedPath = path.join(UPLOAD_DIR, filename);
-  if (!fs.existsSync(tmpPath)) return normalizedUrl;
-  try {
-    fs.renameSync(tmpPath, uploadedPath);
-  } catch {
-    return normalizedUrl;
-  }
-  if (!fs.existsSync(uploadedPath)) return normalizedUrl;
-  return `/images/uploaded/${filename}`;
-}
 
 export async function saveQuestions(questionsArr: any[]) {
-  const isDBConnected = await ensureDBConnection();
-  if (!isDBConnected) throw new Error('DB 연결 실패');
-  const results = [];
+  const results = await db.transaction(async (tx) => {
+    const savedQuestionResults = [];
+
   for (const q of questionsArr) {
-    // 옵션 이미지 이동 및 최종 형태({url}) 변환
-    const options = (q.options || []).map((opt: any) => ({
-      ...opt,
-      images: (opt.images || []).map((img: string | { url: string; hash?: string }): { url: string } | null => {
-        let urlToSave: string | null = null;
-        if (typeof img === 'string') {
-          urlToSave = moveTmpToUploaded(img);
-        } else if (img && img.url) {
-          urlToSave = moveTmpToUploaded(img.url);
+      const questionId = q.id || uuidv4();
+      const options = (q.options || []).map((opt: any, index: number) => ({
+        number: opt.number ?? index + 1,
+        text: opt.text || '',
+        images: Array.isArray(opt.images) ? opt.images.filter((img: any) => img && img.url) : [],
+      }));
+      const imagesField = Array.isArray(q.images) ? q.images.filter((img: any) => img && img.url && img.hash) : [];
+      const explanationImagesField = Array.isArray(q.explanationImages) ? q.explanationImages.filter((img: any) => img && img.url && img.hash) : [];
+
+      const insertedQuestions = await tx.insert(questions).values({
+        id: questionId,
+        content: q.content,
+        options: options,
+        answer: q.answer,
+        explanation: q.explanation || '',
+        tags: q.tags || [],
+        images: imagesField,
+        explanationImages: explanationImagesField,
+        userId: DEV_USER_ID,
+        examId: q.examId,
+      }).onConflictDoUpdate({
+        target: questions.id,
+        set: {
+          content: q.content,
+          options: options,
+          answer: q.answer,
+          explanation: q.explanation || '',
+          tags: q.tags || [],
+          images: imagesField,
+          explanationImages: explanationImagesField,
+          updatedAt: new Date(),
+        },
+      }).returning({ id: questions.id });
+
+      const savedQuestionId = insertedQuestions[0].id;
+      savedQuestionResults.push(insertedQuestions[0]);
+
+      if (q.id) {
+        await tx.delete(questionImageUsage).where(eq(questionImageUsage.questionId, savedQuestionId));
+      }
+
+      const uniqueImageHashes = new Set<string>();
+      imagesField.forEach((img: any) => uniqueImageHashes.add(img.hash));
+      explanationImagesField.forEach((img: any) => uniqueImageHashes.add(img.hash));
+      options.forEach((opt: any) => {
+        if (Array.isArray(opt.images)) {
+          opt.images.forEach((img: any) => {
+            if (img && img.hash) uniqueImageHashes.add(img.hash);
+          });
         }
-        return urlToSave ? { url: urlToSave } : null;
-      }).filter((img: { url: string } | null): img is { url: string } => img !== null)
-    }));
-    // 문제 이미지 이동 및 최종 형태({url}) 변환
-    let imageObjects = (q.images || []).map((img: string | { url: string; hash?: string }): { url: string } | null => {
-      let urlToSave: string | null = null;
-      if (typeof img === 'string') {
-        urlToSave = moveTmpToUploaded(img);
-      } else if (img && img.url) {
-        urlToSave = moveTmpToUploaded(img.url);
-      }
-      return urlToSave ? { url: urlToSave } : null;
-    }).filter((img: { url: string } | null): img is { url: string } => img !== null);
-    // 해설 이미지 이동 및 최종 형태({url}) 변환
-    let explanationImageObjects = (q.explanationImages || []).map((img: string | { url: string; hash?: string }): { url: string } | null => {
-      let urlToSave: string | null = null;
-      if (typeof img === 'string') {
-        urlToSave = moveTmpToUploaded(img);
-      } else if (img && img.url) {
-        urlToSave = moveTmpToUploaded(img.url);
-      }
-      return urlToSave ? { url: urlToSave } : null;
-    }).filter((img: { url: string } | null): img is { url: string } => img !== null);
-    // 문제 ID
-    const questionId = q.id || uuidv4();
-    const questionImageDir = path.join(UPLOAD_DIR, questionId);
-    ensureUploadDirExists(questionImageDir);
-    // DB 저장
-    const result = await db.insert(questions).values({
-      id: questionId,
-      content: q.content,
-      options,
-      answer: q.answer,
-      explanation: q.explanation || '',
-      tags: q.tags || [],
-      images: imageObjects,
-      explanationImages: explanationImageObjects,
-      userId: DEV_USER_ID,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }).returning({ id: questions.id, tags: questions.tags });
-    results.push(result[0]);
+      });
+
+      const hashesToQuery = Array.from(uniqueImageHashes);
+      console.log(`[saveQuestions] Question ID: ${savedQuestionId}, Hashes to Query:`, hashesToQuery);
+
+      if (hashesToQuery.length > 0) {
+        const imageRecords = await tx.select({ id: images.id, hash: images.hash })
+                                       .from(images)
+                                       .where(inArray(images.hash, hashesToQuery));
+        console.log(`[saveQuestions] Found Image Records for hashes:`, imageRecords);
+
+        const hashToIdMap = new Map(imageRecords.map(record => [record.hash, record.id]));
+        console.log(`[saveQuestions] Hash to ID Map:`, hashToIdMap);
+
+        const usageRecords: { questionId: string; imageId: string }[] = [];
+        hashesToQuery.forEach(hash => {
+          const imageId = hashToIdMap.get(hash);
+          console.log(`[saveQuestions] Checking hash: ${hash}, Found imageId: ${imageId}`);
+          if (imageId) {
+            usageRecords.push({
+              questionId: savedQuestionId,
+              imageId: imageId,
+            });
+          }
+        });
+
+        console.log(`[saveQuestions] Records to insert into question_image_usage:`, usageRecords);
+        if (usageRecords.length > 0) {
+          try {
+            await tx.insert(questionImageUsage).values(usageRecords).onConflictDoNothing();
+            console.log(`[saveQuestions] Successfully inserted/ignored ${usageRecords.length} records into question_image_usage.`);
+          } catch (insertError) {
+            console.error(`[saveQuestions] Error inserting into question_image_usage:`, insertError);
   }
+        }
+      }
+    }
+
+    return savedQuestionResults;
+  });
+
   return results;
 } 

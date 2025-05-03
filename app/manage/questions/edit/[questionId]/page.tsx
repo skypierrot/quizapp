@@ -62,7 +62,7 @@ export default function EditQuestionPage() {
       title: "문제 수정 완료",
       description: "문제가 성공적으로 수정되었습니다.",
     });
-    router.push("/questions/list");
+    router.push("/manage/questions/list");
   };
 
   if (loading) {
@@ -84,7 +84,7 @@ export default function EditQuestionPage() {
         <div className="mt-4 text-center">
           <button
             className="text-blue-600 hover:underline"
-            onClick={() => router.push("/questions/list")}
+            onClick={() => router.push("/manage/questions/list")}
           >
             문제 목록으로 돌아가기
           </button>

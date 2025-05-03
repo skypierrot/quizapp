@@ -49,6 +49,7 @@ export interface IManualQuestion {
   explanation?: string;
   explanationImages: { url: string; hash: string }[];
   tags: string[];
+  examId?: string;
 }
 
 export interface IQuestionImage {

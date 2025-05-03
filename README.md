@@ -60,3 +60,93 @@ npm run dev
 ## 라이센스
 
 이 프로젝트는 MIT 라이센스를 따릅니다. 
+
+## 10. Docker Compose 설정
+
+### 10.1 Production (`docker-compose.yml`)
+```yaml
+version: '3.8'
+services:
+  web:
+    build: .
+    container_name: quizapp
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
+    ports:
+      - "3772:3000"
+    volumes:
+      - ./public/images:/app/public/images
+      - ./public/uploads:/app/public/uploads
+    networks:
+      - ngnet
+    depends_on:
+      - db
+      
+  db:
+    image: postgres:16-alpine
+    container_name: quizapp-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - ngnet
+
+networks:
+  ngnet:
+    external: true
+
+volumes:
+  db_data:
+```
+
+### 10.2 Development (`docker-compose.dev.yml`)
+```yaml
+services:
+  web:
+    build: 
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: quizapp-dev
+    ports:
+      - "3772:3000"
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=${DATABASE_URL}
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+      - HOSTNAME=0.0.0.0
+      - NEXT_WEBPACK_USEPOLLING=1
+      - WATCHPACK_POLLING=true
+    command: npm run dev
+    networks:
+      - ngnet
+
+  db:
+    image: postgres:16-alpine
+    container_name: quizapp-db-dev
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - ngnet
+
+networks:
+  ngnet:
+    external: true
+
+volumes:
+  db_data:
+``` 
