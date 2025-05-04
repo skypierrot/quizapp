@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 interface CommonImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
   alt: string;
+  hash?: string; // hash prop 추가 (optional)
   placeholderSrc?: string; // Optional placeholder for error
   fallbackText?: string; // Optional text fallback
   containerClassName?: string;
@@ -13,6 +14,7 @@ interface CommonImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
 export function CommonImage({
   src,
   alt,
+  hash, // hash prop 받기
   placeholderSrc = '/placeholder.png', // Provide a default placeholder path
   fallbackText = '이미지 로딩 실패',
   className,

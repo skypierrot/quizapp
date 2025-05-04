@@ -1,6 +1,6 @@
 {
-  "id": "8e196f1d-91f8-4452-9ed2-211116e01a50",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "b3e9d017-d29e-42a0-be16-01cf278aea7c",
+  "prevId": "8e196f1d-91f8-4452-9ed2-211116e01a50",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -345,9 +345,10 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "default": "gen_random_uuid()"
         },
         "user_id": {
           "name": "user_id",

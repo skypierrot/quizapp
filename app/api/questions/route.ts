@@ -158,71 +158,127 @@ export async function GET(req: NextRequest) {
     // DB 연결 확인
     const isDBConnected = await ensureDBConnection();
     if (!isDBConnected) {
-      console.error("데이터베이스 연결 실패");
+      console.error("GET /api/questions: Database connection failed");
       return NextResponse.json(
         { error: "서버 연결 오류. 잠시 후 다시 시도해주세요." },
         { status: 503 }
       );
     }
 
-    // 인증 확인 (임시로 비활성화)
+    // 인증 확인 (임시로 개발용 ID 사용)
     // const { userId } = auth();
-    
-    // if (!userId) {
-    //   return NextResponse.json(
-    //     { error: "인증되지 않은 사용자입니다." },
-    //     { status: 401 }
-    //   );
-    // }
+    const userId = DEV_USER_ID; // 임시
+    // if (!userId) { ... }
 
     const url = new URL(req.url);
     const page = parseInt(url.searchParams.get("page") || "1");
     const limit = parseInt(url.searchParams.get("limit") || "10");
     const skip = (page - 1) * limit;
     const tagsParam = url.searchParams.get("tags");
-    
-    let conditions: SQL<unknown> | undefined = undefined;
+    const idsParam = url.searchParams.get("ids");
 
-    if (tagsParam) {
-      const tagsArray = tagsParam.split(',').map(t => t.trim()).filter(t => t);
-      
-      if (tagsArray.length > 0) {
-        const tagsJsonbArray = JSON.stringify(tagsArray);
-        const tagsCondition = sql`questions.tags @> ${tagsJsonbArray}::jsonb`;
-        
-        conditions = conditions ? and(conditions, tagsCondition) : tagsCondition;
+    let fetchedQuestions: any[];
+    let totalQuestions = 0;
+
+    // 1. ID 목록으로 조회
+    if (idsParam) {
+      console.log(`GET /api/questions: Fetching by IDs: ${idsParam}`);
+      // ID를 문자열로 유지하고 앞뒤 공백 제거, 빈 문자열 필터링
+      const idArray = idsParam
+        .split(',')
+        .map(id => id.trim())
+        .filter(id => id.length > 0); // UUID는 비어있지 않음
+
+      if (idArray.length === 0) {
+        console.warn("GET /api/questions: Invalid or empty IDs provided");
+        return NextResponse.json({ error: "유효한 문제 ID가 제공되지 않았습니다." }, { status: 400 });
       }
+
+      // UUID는 문자열이므로 idArray는 string[] 타입
+      fetchedQuestions = await db
+        .select()
+        .from(questions)
+        // userId 조건과 ID 목록 조건을 AND로 결합
+        .where(and(eq(questions.userId, userId), inArray(questions.id, idArray)));
+
+      totalQuestions = fetchedQuestions.length;
+      console.log(`GET /api/questions: Found ${totalQuestions} questions by IDs`);
+
+    }
+    // 2. 태그로 조회 (기존 로직)
+    else if (tagsParam) {
+      console.log(`GET /api/questions: Fetching by tags: ${tagsParam}`);
+      let conditions: SQL<unknown> | undefined = undefined;
+      const tagsArray = tagsParam.split(',').map(t => t.trim()).filter(t => t);
+
+      if (tagsArray.length > 0) {
+        // jsonb 배열 형태로 정확히 일치하는 태그 검색 ('["태그1", "태그2"]') -> ['태그1', '태그2']
+        // Drizzle은 배열 직접 비교를 지원하지 않으므로, @> 연산자 사용 또는 개별 태그 검사 필요
+        // 여기서는 @> 연산자 (배열 포함) 사용
+        const tagsJsonbArray = JSON.stringify(tagsArray);
+        const tagsCondition = sql`tags @> ${tagsJsonbArray}::jsonb`;
+        conditions = tagsCondition;
+      }
+
+      // 기본 사용자 ID 조건과 태그 조건을 AND로 결합
+      const baseCondition = eq(questions.userId, userId);
+      conditions = conditions ? and(baseCondition, conditions) : baseCondition;
+
+      // 태그 검색 결과와 총 개수 조회
+      const results = await db
+        .select()
+        .from(questions)
+        .where(conditions)
+        .orderBy(desc(questions.createdAt)) // 정렬 추가 (최신순)
+        .limit(limit)
+        .offset(skip);
+
+      const countResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(questions)
+        .where(conditions);
+
+      fetchedQuestions = results;
+      totalQuestions = countResult[0]?.count || 0;
+      console.log(`GET /api/questions: Found ${fetchedQuestions.length} questions (total ${totalQuestions}) by tags`);
+
+    }
+    // 3. 파라미터 없는 경우 (또는 다른 잘못된 경우)
+    else {
+      console.warn("GET /api/questions: Missing 'ids' or 'tags' parameter");
+      // 페이지네이션으로 전체 목록 조회 (기존 GET의 기본 동작이었던 것으로 추정)
+       const results = await db
+        .select()
+        .from(questions)
+        .where(eq(questions.userId, userId)) // 사용자 조건만 적용
+        .orderBy(desc(questions.createdAt)) // 정렬 추가 (최신순)
+        .limit(limit)
+        .offset(skip);
+
+      const countResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(questions)
+        .where(eq(questions.userId, userId));
+
+      fetchedQuestions = results;
+      totalQuestions = countResult[0]?.count || 0;
+      console.log(`GET /api/questions: No specific params, returning paginated list (total ${totalQuestions})`);
+       // 또는 400 오류 반환
+       // return NextResponse.json({ error: "조회를 위한 'ids' 또는 'tags' 파라미터가 필요합니다." }, { status: 400 });
     }
 
-    const baseCondition = eq(questions.userId, DEV_USER_ID);
-    conditions = conditions ? and(baseCondition, conditions) : baseCondition;
-
-    const fetchedQuestions = await db.select().from(questions)
-      .where(conditions)
-      .orderBy(asc(questions.createdAt))
-      .limit(limit)
-      .offset(skip);
-
-    const countResult = await db.select({ count: sql`count(*)` }).from(questions).where(conditions);
-    const total = Number(countResult[0].count);
-    const totalPages = Math.ceil(total / limit);
-
-    console.log(`문제 조회 성공 (조건 적용됨): ${fetchedQuestions.length}개 조회됨, 총 ${total}개`);
-
+    // 최종 결과 반환
     return NextResponse.json({
       questions: fetchedQuestions,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages
-      }
+      total: totalQuestions,
+      page: idsParam ? 1 : page,
+      limit: idsParam ? totalQuestions : limit,
     });
 
-  } catch (error) {
-    console.error("문제 조회 중 오류 발생:", error);
+  } catch (error: any) {
+    console.error("GET /api/questions Error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "문제 조회 중 오류가 발생했습니다." },
+      { error: error.message || "문제 조회 중 오류가 발생했습니다." },
       { status: 500 }
     );
   }

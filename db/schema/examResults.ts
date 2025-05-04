@@ -1,11 +1,11 @@
 import {
   pgTable,
-  serial,
   varchar,
   integer,
   jsonb,
   timestamp,
   index,
+  uuid,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { users } from './users';
@@ -16,7 +16,7 @@ import type { IAnswerDetail } from '@/types';
 export const examResults = pgTable(
   'exam_results',
   {
-    id: integer('id').primaryKey(),
+    id: uuid('id').primaryKey().defaultRandom(),
     userId: varchar('user_id', { length: 255 }).notNull(), // Clerk User ID can be up to 255 chars
     examName: varchar('exam_name', { length: 255 }).notNull(),
     examYear: integer('exam_year').notNull(),
@@ -64,6 +64,6 @@ export const examResultsRelations = relations(examResults, ({ one }) => ({
 }));
 
 // Define a type for inserting new exam results (optional but good practice)
-// export type INewExamResult = typeof examResults.$inferInsert;
+export type InsertExamResult = typeof examResults.$inferInsert;
 // Define a type for selecting exam results (optional but good practice)
 // export type IExamResult = typeof examResults.$inferSelect; 

@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { forwardRef, useState } from 'react';
 import { Menu, X, MenuSquare, XSquare } from 'lucide-react';
 import { Sheet, SheetContent } from '../ui/sheet';
+import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -32,7 +33,7 @@ const Navbar = () => {
         </button>
         
         {/* 데스크탑 메뉴 */}
-        <div className="hidden md:block">
+        <div className="hidden md:flex items-center gap-6">
           <NavigationMenu>
             <NavigationMenuList>
               <NavigationMenuItem>
@@ -95,15 +96,21 @@ const Navbar = () => {
               </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
-        </div>
-        
-        <div className="hidden md:flex gap-4">
-          <Button variant="outline" asChild>
-            <Link href="/sign-in">로그인</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/sign-up">회원가입</Link>
-          </Button>
+          
+          {/* 로그인 상태에 따른 버튼 표시 (데스크탑) */}
+          <div className="flex gap-4">
+            <SignedOut>
+              <Button variant="outline" asChild>
+                <Link href="/(auth)/routes/sign-in">로그인</Link>
+              </Button>
+              <Button asChild>
+                <Link href="/(auth)/routes/sign-up">회원가입</Link>
+              </Button>
+            </SignedOut>
+            <SignedIn>
+              <UserButton afterSignOutUrl="/" />
+            </SignedIn>
+          </div>
         </div>
       </div>
       
@@ -140,14 +147,26 @@ const Navbar = () => {
             <div>
               <Link href="/guide" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>이용 가이드</Link>
             </div>
-            
-            <div className="flex flex-col gap-2 pt-2">
-              <Button variant="outline" asChild className="w-full">
-                <Link href="/sign-in" onClick={toggleMenu}>로그인</Link>
-              </Button>
-              <Button asChild className="w-full">
-                <Link href="/sign-up" onClick={toggleMenu}>회원가입</Link>
-              </Button>
+
+            {/* 로그인 상태에 따른 버튼 표시 (모바일) */}
+            <div className="pt-2">
+              <SignedOut>
+                <div className="flex flex-col gap-2">
+                  <Button variant="outline" asChild className="w-full">
+                    <Link href="/(auth)/routes/sign-in" onClick={toggleMenu}>로그인</Link>
+                  </Button>
+                  <Button asChild className="w-full">
+                    <Link href="/(auth)/routes/sign-up" onClick={toggleMenu}>회원가입</Link>
+                  </Button>
+                </div>
+              </SignedOut>
+              <SignedIn>
+                {/* 모바일에서는 UserButton 대신 프로필 링크나 로그아웃 버튼을 직접 보여줄 수도 있음 */}
+                {/* 여기서는 일단 UserButton을 사용 */}
+                <div className="flex justify-center">
+                  <UserButton afterSignOutUrl="/" />
+                </div>
+              </SignedIn>
             </div>
           </div>
         </div>
