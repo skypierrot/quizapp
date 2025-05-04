@@ -60,68 +60,9 @@ Docker 이미지 빌드시 명확한 버전 태그 사용
 `IQuestion`: 문제 정보(문제 본문, 선택지, 정답, 태그)
 `IExamResult`: 사용자별 시험 결과 및 오답 내역
 
-## 9. 프로젝트 폴더 구조
-```
-exam-platform/
-├── app/
-│   ├── api/
-│   ├── exams/
-│   │   └── page.tsx
-├── components/
-│   ├── ui/
-│   └── layout/
-├── db/
-│   └── schema.ts
-├── store/
-├── hooks/
-├── utils/
-├── public/
-├── types/
-├── styles/
-├── middleware.ts
-├── docker-compose.yml
-├── Dockerfile
-├── .dockerignore
-├── .env
-└── next.config.mjs
+
 ```
 
-## 10. Docker Compose 설정 예시
-```yaml
-version: '3.8'
-services:
-web:
-build: .
-container_name: exam-platform
-environment:
-DATABASE_URL=${DATABASE_URL}
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-ports:
-"3772:3000"
-volumes:
-./public/images:/app/public/images
-networks:
-ngnet
-
-db:
-image: postgres:15-alpine
-container_name: exam-db
-environment:
-POSTGRES_USER: ${POSTGRES_USER}
-POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-POSTGRES_DB: ${POSTGRES_DB}
-volumes:
-db_data:/var/lib/postgresql/data
-networks:
-ngnet
-
-networks:
-ngnet:
-external: true
-
-volumes:
-db_data:
-```
 
 ## 11. 시험 화면 및 문제 입력
 시험 화면은 모바일 접근성을 고려하여 한 화면당 한 문제씩 제공

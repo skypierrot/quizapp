@@ -1,3 +1,6 @@
+export const runtime = "nodejs";
+import { requireAuth } from "@/utils/require-auth";
+
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -15,7 +18,8 @@ import { ImageZoomModal } from '@/components/common/ImageZoomModal';
 import { formatTime } from '@/utils/time';
 import { Label } from '@/components/ui/label';
 
-export default function ResultPage() {
+export default async function Page() {
+    const session = await requireAuth();
     const params = useParams();
     const router = useRouter();
     const { userId, isLoaded } = useAuth();

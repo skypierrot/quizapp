@@ -1,3 +1,6 @@
+export const runtime = "nodejs";
+import { requireAuth } from "@/utils/require-auth";
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -17,7 +20,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { IExam } from '@/types'; // IExam 타입 import (경로 확인 필요)
 
-export default function AdminExamsPage() {
+export default async function AdminExamsPage() {
+  const session = await requireAuth();
   const { isLoaded, isSignedIn, user } = useUser();
   const { toast } = useToast();
   const [exams, setExams] = useState<IExam[]>([]);

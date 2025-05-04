@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 import { forwardRef, useState } from 'react';
 import { Menu, X, MenuSquare, XSquare } from 'lucide-react';
 import { Sheet, SheetContent } from '../ui/sheet';
-import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -97,20 +96,7 @@ const Navbar = () => {
             </NavigationMenuList>
           </NavigationMenu>
           
-          {/* 로그인 상태에 따른 버튼 표시 (데스크탑) */}
-          <div className="flex gap-4">
-            <SignedOut>
-              <Button variant="outline" asChild>
-                <Link href="/(auth)/routes/sign-in">로그인</Link>
-              </Button>
-              <Button asChild>
-                <Link href="/(auth)/routes/sign-up">회원가입</Link>
-              </Button>
-            </SignedOut>
-            <SignedIn>
-              <UserButton afterSignOutUrl="/" />
-            </SignedIn>
-          </div>
+          {/* 인증 UI는 Authentik 적용 후 구현 예정 */}
         </div>
       </div>
       
@@ -148,26 +134,7 @@ const Navbar = () => {
               <Link href="/guide" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>이용 가이드</Link>
             </div>
 
-            {/* 로그인 상태에 따른 버튼 표시 (모바일) */}
-            <div className="pt-2">
-              <SignedOut>
-                <div className="flex flex-col gap-2">
-                  <Button variant="outline" asChild className="w-full">
-                    <Link href="/(auth)/routes/sign-in" onClick={toggleMenu}>로그인</Link>
-                  </Button>
-                  <Button asChild className="w-full">
-                    <Link href="/(auth)/routes/sign-up" onClick={toggleMenu}>회원가입</Link>
-                  </Button>
-                </div>
-              </SignedOut>
-              <SignedIn>
-                {/* 모바일에서는 UserButton 대신 프로필 링크나 로그아웃 버튼을 직접 보여줄 수도 있음 */}
-                {/* 여기서는 일단 UserButton을 사용 */}
-                <div className="flex justify-center">
-                  <UserButton afterSignOutUrl="/" />
-                </div>
-              </SignedIn>
-            </div>
+            {/* 인증 UI는 Authentik 적용 후 구현 예정 */}
           </div>
         </div>
       )}

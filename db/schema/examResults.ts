@@ -17,7 +17,7 @@ export const examResults = pgTable(
   'exam_results',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: varchar('user_id', { length: 255 }).notNull(), // Clerk User ID can be up to 255 chars
+    userId: uuid('user_id').notNull(), // uuid로 변경
     examName: varchar('exam_name', { length: 255 }).notNull(),
     examYear: integer('exam_year').notNull(),
     examSession: varchar('exam_session', { length: 50 }).notNull(), // e.g., '1회', '2회차', '상시'
@@ -57,7 +57,7 @@ export const examResults = pgTable(
 export const examResultsRelations = relations(examResults, ({ one }) => ({
   user: one(users, {
     fields: [examResults.userId],
-    references: [users.clerkId], // users 테이블의 clerkId와 연결 (스키마 확인 필요)
+    references: [users.id], // users.id로 연결
   }),
   // 필요시 exams 테이블과의 관계도 정의 (현재는 FK 없음)
   // exam: one(exams, { ... })
