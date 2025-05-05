@@ -1,6 +1,6 @@
 import { pgTable, uuid, integer, text, timestamp } from "drizzle-orm/pg-core";
 import { images } from "./images";
-import { users } from "./users";
+import { users } from './auth';
 import { relations } from 'drizzle-orm';
 
 export const imageHistory = pgTable("image_history", {

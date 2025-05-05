@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { forwardRef, useState } from 'react';
 import { Menu, X, MenuSquare, XSquare } from 'lucide-react';
 import { Sheet, SheetContent } from '../ui/sheet';
+import { useSession, signIn, signOut } from "next-auth/react";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -172,8 +173,20 @@ ListItem.displayName = "ListItem";
 
 // 인증 네비게이션 버튼 컴포넌트 정의
 function AuthNavButton() {
-  // 인증 관련 코드를 삭제합니다.
-  return null;
+  const { data: session, status } = useSession();
+
+  if (status === "loading") return <span>로딩중...</span>;
+  if (!session) {
+    return (
+      <button onClick={() => signIn()} className="px-3 py-1 rounded bg-blue-500 text-white">로그인</button>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm">{session.user?.email}</span>
+      <button onClick={() => signOut()} className="px-3 py-1 rounded bg-gray-200">로그아웃</button>
+    </div>
+  );
 }
 
 export default Navbar; 

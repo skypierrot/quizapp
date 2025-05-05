@@ -8,7 +8,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
-import { users } from './users';
+import { users } from './auth';
 import type { IAnswerDetail } from '@/types';
 // Assuming you have a users table schema defined elsewhere, e.g., in ./users.ts
 // import { users } from './users'; // If you need to define relations

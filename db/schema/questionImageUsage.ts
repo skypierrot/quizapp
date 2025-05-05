@@ -1,6 +1,7 @@
 import { pgTable, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { questions } from './questions' // questions 스키마 import
 import { images } from './images' // images 스키마 import
+import { users } from './auth'
 
 // Define the join table for many-to-many relationship between questions and images
 export const questionImageUsage = pgTable('question_image_usage', {
