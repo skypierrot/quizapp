@@ -8,7 +8,6 @@ services:
       dockerfile: Dockerfile.dev
     env_file:
       - .env
-      - .env.local
     ports:
       - "3772:3000"
     volumes:
@@ -21,18 +20,21 @@ services:
       - HOSTNAME=0.0.0.0
       - NEXT_WEBPACK_USEPOLLING=1
       - WATCHPACK_POLLING=true
-    command: npm run dev
+      - DEBUG=openid-client:*
+    command: sh -c "DEBUG=openid-client npm run dev"
     networks:
       - ngnet
     depends_on:
       - db
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
 
   db:
     image: postgres:16-alpine
     container_name: quizapp-db-dev
     env_file:
       - .env
-      - .env.local
     volumes:
       - db_data_dev:/var/lib/postgresql/data
     ports:

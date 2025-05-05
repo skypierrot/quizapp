@@ -96,7 +96,8 @@ const Navbar = () => {
             </NavigationMenuList>
           </NavigationMenu>
           
-          {/* 인증 UI는 Authentik 적용 후 구현 예정 */}
+          {/* 인증 UI 버튼 추가 */}
+          <AuthNavButton />
         </div>
       </div>
       
@@ -168,5 +169,11 @@ const ListItem = forwardRef<
 });
 
 ListItem.displayName = "ListItem";
+
+// 인증 네비게이션 버튼 컴포넌트 정의
+function AuthNavButton() {
+  // 인증 관련 코드를 삭제합니다.
+  return null;
+}
 
 export default Navbar; 

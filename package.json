@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --hostname 0.0.0.0 --port 3000",
+    "dev": "DEBUG=openid-client:* NEXTAUTH_DEBUG=true next dev --hostname 0.0.0.0 --port 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -15,6 +15,7 @@
     "cleanup-tmp-images": "ts-node scripts/cleanup-tmp-images.ts"
   },
   "dependencies": {
+    "@auth/drizzle-adapter": "^1.9.0",
     "@clerk/nextjs": "^6.18.5",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-dialog": "^1.1.11",
@@ -38,6 +39,7 @@
     "drizzle-orm": "^0.42.0",
     "lucide-react": "^0.296.0",
     "next": "^15.3.0",
+    "next-auth": "^4.24.11",
     "pg": "^8.14.1",
     "postgres": "^3.4.5",
     "react": "^18",

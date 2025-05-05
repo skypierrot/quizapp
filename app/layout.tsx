@@ -4,6 +4,7 @@ import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { inter } from '@/lib/fonts';
 import { Toaster } from "@/components/ui/toaster"
+import ClientLayout from '@/components/layout/ClientLayout';
 
 // 개발 모드 스크립트 추가 (WebSocket 문제 해결)
 import './dev-mode';
@@ -30,12 +31,14 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={inter.className}>
-        <div className="flex flex-col min-h-screen">
-          <Navbar />
-          <main className="flex-grow">{children}</main>
-          <Footer />
-        </div>
-        <Toaster />
+        <ClientLayout>
+          <div className="flex flex-col min-h-screen">
+            <Navbar />
+            <main className="flex-grow">{children}</main>
+            <Footer />
+          </div>
+          <Toaster />
+        </ClientLayout>
       </body>
     </html>
   );

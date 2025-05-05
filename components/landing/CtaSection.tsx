@@ -10,10 +10,10 @@ export function CtaSection() {
       </p>
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
         <Button size="lg" asChild>
-          <Link href="/sign-up">무료 회원가입</Link>
+          <Link href="/auth/sign-up">무료 회원가입</Link>
         </Button>
         <Button size="lg" variant="outline" asChild>
-          <Link href="/sign-in">로그인</Link>
+          <Link href="/auth/sign-in">로그인</Link>
         </Button>
       </div>
     </section>
