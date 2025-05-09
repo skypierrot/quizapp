@@ -1,23 +1,24 @@
 import { NextResponse } from 'next/server';
-import { auth, clerkClient } from '@clerk/nextjs/server';
 import { db } from '@/db';
 import { exams, questions } from '@/db/schema';
 import { eq, count } from 'drizzle-orm';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
 export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    // 1. 인증 확인
-    const { userId } = auth();
+    // 1. 인증 확인 (NextAuth 기반)
+    const session = await getServerSession(authOptions);
+    const userId = (session?.user as any)?.id;
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 2. 관리자 역할 확인
-    const user = await clerkClient.users.getUser(userId);
-    const isAdmin = user.publicMetadata?.role === 'admin';
+    // 2. 관리자 역할 확인 (role이 없으면 false)
+    const isAdmin = (session?.user as any)?.role === 'admin';
     if (!isAdmin) {
       return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }

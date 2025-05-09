@@ -184,7 +184,7 @@ function AuthNavButton() {
   return (
     <div className="flex items-center gap-2">
       <span className="text-sm">{session.user?.email}</span>
-      <button onClick={() => signOut()} className="px-3 py-1 rounded bg-gray-200">로그아웃</button>
+      <button onClick={() => signOut({ callbackUrl: "/" })} className="px-3 py-1 rounded bg-gray-200">로그아웃</button>
     </div>
   );
 }

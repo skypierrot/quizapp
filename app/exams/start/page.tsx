@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { IQuestion, IOption, INewExamResult, IAnswerDetail } from '@/types'; // 타입 import 추가
-// import { useAuth } from '@clerk/nextjs'; // Clerk useAuth 훅 주석 처리
+import { useSession } from "next-auth/react";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'; // CardDescription 제거
 import { Label } from "@/components/ui/label"
@@ -21,8 +21,8 @@ type ExamState = 'loading' | 'inProgress' | 'submitted' | 'error';
 export default function ExamStartPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  // const { userId } = useAuth(); // 주석 처리
-  const userId = "temp_dev_user"; // 임시 사용자 ID 사용 (인증 구현 시 제거)
+  const { data: session, status } = useSession();
+  const userId = session?.user?.id; // 로그인된 사용자의 uuid
 
   // 시험 정보 상태
   const [examInfo, setExamInfo] = useState<{ name: string; year: string; session: string } | null>(null);
@@ -142,10 +142,13 @@ export default function ExamStartPage() {
   const handleSubmitExam = useCallback(async () => { // async 추가
     console.log("시험 제출 시작");
     
-    // if (!userId || !examInfo) { // userId 검사 제거 (임시 ID 사용)
-    if (!examInfo) { // examInfo만 검사
+    if (!userId) {
+      console.error("로그인된 사용자만 시험을 제출할 수 있습니다.");
+      setError("로그인 후 이용해 주세요.");
+      return;
+    }
+    if (!examInfo) {
       console.error("시험 정보가 없어 제출할 수 없습니다.");
-      // TODO: 사용자에게 오류 알림 (Toast 등)
       return;
     }
 
@@ -176,9 +179,8 @@ export default function ExamStartPage() {
 
     // 결과 저장 API 호출 데이터 구성
     const resultData: INewExamResult = {
-      userId: userId, // 임시 ID 사용
       examName: examInfo.name,
-      examYear: parseInt(examInfo.year), // year는 string이므로 number로 변환
+      examYear: parseInt(examInfo.year),
       examSession: examInfo.session,
       answers: answerDetails,
       score: score,
@@ -196,6 +198,7 @@ export default function ExamStartPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(resultData),
+        credentials: 'include', // 세션 쿠키 항상 포함
       });
 
       if (!response.ok) {

@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { questions } from "@/db/schema/questions";
 import { eq, sql, and, inArray, SQL, Placeholder, desc, asc } from "drizzle-orm";
-import { auth } from "@clerk/nextjs";
-// import { auth } from "@clerk/nextjs"; // 인증은 프로젝트 후반부에 구현 예정
+// import { auth } from "@clerk/nextjs"; // Clerk 인증 주석 완전 삭제
 import { IQuestion, IManualQuestion } from '@/types'
 // Node.js 모듈 import
 import fs from 'fs';

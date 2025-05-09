@@ -6,7 +6,7 @@ import {
   integer,
   uuid,
 } from "drizzle-orm/pg-core"
-import type { AdapterAccountType } from "@auth/core/adapters"
+// import type { AdapterAccountType } from "@auth/core/adapters"
 
 export const users = pgTable("user", {
   id: text("id")
@@ -18,13 +18,15 @@ export const users = pgTable("user", {
   image: text("image"),
 })
 
+// NextAuth(또는 인증 시스템) 연동 시, 소셜/외부 인증 계정 정보를 저장하는 테이블입니다.
+// 직접 import해서 사용하지 않아도, Adapter가 내부적으로 반드시 사용하므로 삭제하면 안 됩니다.
 export const accounts = pgTable(
   "account",
   {
     userId: text("userId")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    type: text("type").$type<AdapterAccountType>().notNull(),
+    type: text("type") /* .$type<AdapterAccountType>() */.notNull(),
     provider: text("provider").notNull(),
     providerAccountId: text("providerAccountId").notNull(),
     refresh_token: text("refresh_token"),
@@ -42,7 +44,7 @@ export const accounts = pgTable(
   })
 )
 
-export const sessions = pgTable("session", {
+export const sessions = pgTable("sessions", {
   sessionToken: text("sessionToken").primaryKey(),
   userId: text("userId")
     .notNull()

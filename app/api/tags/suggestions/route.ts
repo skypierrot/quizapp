@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 인증 확인 (임시로 비활성화 - 실제 구현 시 Clerk 등 사용)
+    // Clerk 인증 관련 주석 완전 삭제
     // const { userId } = auth();
     // if (!userId) {
     //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

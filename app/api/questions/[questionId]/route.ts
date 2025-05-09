@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, asyncDB, checkDBConnection } from "@/db";
 import { questions } from "@/db/schema/questions";
 import { eq } from "drizzle-orm";
-import { auth } from "@clerk/nextjs";
 import fs from 'fs';
 import path from 'path';
 import { questionImageUsage } from '@/db/schema/questionImageUsage';
@@ -84,16 +83,6 @@ export async function GET(
       );
     }
 
-    // 인증 확인 (임시로 비활성화)
-    // const { userId } = auth();
-    
-    // if (!userId) {
-    //   return NextResponse.json(
-    //     { error: "인증되지 않은 사용자입니다." },
-    //     { status: 401 }
-    //   );
-    // }
-    
     const { questionId } = await params;
 
     // 비동기 DB 인스턴스 가져오기
@@ -165,16 +154,6 @@ export async function DELETE(
         { status: 503 }
       );
     }
-
-    // 인증 확인 (임시로 비활성화)
-    // const { userId } = auth();
-    
-    // if (!userId) {
-    //   return NextResponse.json(
-    //     { error: "인증되지 않은 사용자입니다." },
-    //     { status: 401 }
-    //   );
-    // }
 
     const { questionId } = await params;
     

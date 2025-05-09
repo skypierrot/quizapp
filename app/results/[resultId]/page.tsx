@@ -1,11 +1,7 @@
-export const runtime = "nodejs";
-import { requireAuth } from "@/utils/require-auth";
-
 "use client";
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@clerk/nextjs';
 import { IExamResult, IQuestion, IAnswerDetail } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -18,11 +14,9 @@ import { ImageZoomModal } from '@/components/common/ImageZoomModal';
 import { formatTime } from '@/utils/time';
 import { Label } from '@/components/ui/label';
 
-export default async function Page() {
-    const session = await requireAuth();
+export default function Page() {
     const params = useParams();
     const router = useRouter();
-    const { userId, isLoaded } = useAuth();
     const imageZoom = useImageZoom();
 
     const [examResult, setExamResult] = useState<IExamResult | null>(null);
@@ -33,12 +27,6 @@ export default async function Page() {
     const resultId = params.resultId as string;
 
     useEffect(() => {
-        if (!isLoaded) return;
-        if (!userId) {
-            setError('결과를 보려면 로그인이 필요합니다.');
-            setLoading(false);
-            return;
-        }
         if (!resultId) {
             setError('결과 ID가 유효하지 않습니다.');
             setLoading(false);
@@ -49,7 +37,9 @@ export default async function Page() {
             setLoading(true);
             setError(null);
             try {
-                const resResult = await fetch(`/api/exam-results/${resultId}`);
+                const resResult = await fetch(`/api/exam-results/${resultId}`, {
+                    credentials: 'include',
+                  });
                 if (!resResult.ok) {
                     const errorData = await resResult.json().catch(() => ({}));
                     throw new Error(errorData.message || `시험 결과 로딩 실패 (${resResult.status})`);
@@ -59,7 +49,9 @@ export default async function Page() {
 
                 const questionIds = resultData.answers?.map(a => a.questionId).filter(id => id) ?? [];
                 if (questionIds.length > 0) {
-                    const resQuestions = await fetch(`/api/questions?ids=${questionIds.join(',')}`);
+                    const resQuestions = await fetch(`/api/questions?ids=${questionIds.join(',')}`, {
+                        credentials: 'include',
+                      });
                     if (!resQuestions.ok) {
                         const errorData = await resQuestions.json().catch(() => ({}));
                         throw new Error(errorData.message || `문제 정보 로딩 실패 (${resQuestions.status})`);
@@ -80,7 +72,7 @@ export default async function Page() {
             }
         };
         fetchResultData();
-    }, [resultId, userId, isLoaded, router]);
+    }, [resultId, router]);
 
     if (loading) {
         return <div className="container mx-auto py-8 text-center">결과를 불러오는 중...</div>;
