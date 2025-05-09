@@ -30,4 +30,4 @@ public/images/uploaded/
 # drizzle/
 
 # Other
-*.tsbuildinfo
+*.tsbuildinfolegacy-backup-*.tar.gz
