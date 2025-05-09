@@ -8,14 +8,7 @@ export function CtaSection() {
       <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
         회원가입 후 모든 기능을 무료로 이용할 수 있습니다.
       </p>
-      <div className="flex flex-col sm:flex-row gap-4 justify-center">
-        <Button size="lg" asChild>
-          <Link href="/auth/sign-up">무료 회원가입</Link>
-        </Button>
-        <Button size="lg" variant="outline" asChild>
-          <Link href="/auth/sign-in">로그인</Link>
-        </Button>
-      </div>
+      {/* 하단 회원가입/로그인 버튼 완전 제거 */}
     </section>
   );
 } 

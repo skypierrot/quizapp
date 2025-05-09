@@ -11,6 +11,7 @@ import { useSession, signIn, signOut } from "next-auth/react";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { data: session, status } = useSession();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
@@ -98,7 +99,7 @@ const Navbar = () => {
           </NavigationMenu>
           
           {/* 인증 UI 버튼 추가 */}
-          <AuthNavButton />
+          <AuthNavButton session={session} status={status} />
         </div>
       </div>
       
@@ -136,7 +137,10 @@ const Navbar = () => {
               <Link href="/guide" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>이용 가이드</Link>
             </div>
 
-            {/* 인증 UI는 Authentik 적용 후 구현 예정 */}
+            {/* 인증 UI: 모바일에서도 로그인/로그아웃 버튼 노출 */}
+            <div className="pt-4 border-t">
+              <AuthNavButton session={session} status={status} mobile />
+            </div>
           </div>
         </div>
       )}
@@ -172,19 +176,55 @@ const ListItem = forwardRef<
 ListItem.displayName = "ListItem";
 
 // 인증 네비게이션 버튼 컴포넌트 정의
-function AuthNavButton() {
-  const { data: session, status } = useSession();
+function AuthNavButton({ session, status, mobile = false }: { session: any, status: string, mobile?: boolean }) {
+  // authentik 로그인 URL 생성
+  const getAuthUrl = () => {
+    // 실제 배포 환경에서는 process.env.NEXT_PUBLIC_SITE_URL 등으로 origin을 지정할 수도 있음
+    const callbackUrl = encodeURIComponent(window.location.origin);
+    return `/api/auth/signin/authentik?callbackUrl=${callbackUrl}`;
+  };
+
+  const handleLogin = () => {
+    const authUrl = getAuthUrl();
+    if (typeof window !== 'undefined') {
+      if (window.innerWidth >= 768) {
+        // PC: 팝업
+        window.open(authUrl, 'authentik-login', 'width=500,height=700');
+      } else {
+        // 모바일: 전체 페이지 이동
+        window.location.href = authUrl;
+      }
+    }
+  };
 
   if (status === "loading") return <span>로딩중...</span>;
   if (!session) {
     return (
-      <button onClick={() => signIn()} className="px-3 py-1 rounded bg-blue-500 text-white">로그인</button>
+      <button
+        onClick={handleLogin}
+        className={
+          mobile
+            ? "w-full px-4 py-2 rounded border border-gray-300 bg-white text-gray-900 hover:bg-gray-100 transition"
+            : "px-4 py-2 rounded border border-gray-300 bg-white text-gray-900 hover:bg-gray-100 transition"
+        }
+      >
+        로그인
+      </button>
     );
   }
   return (
-    <div className="flex items-center gap-2">
+    <div className={mobile ? "w-full flex flex-col items-center gap-2" : "flex items-center gap-2"}>
       <span className="text-sm">{session.user?.email}</span>
-      <button onClick={() => signOut({ callbackUrl: "/" })} className="px-3 py-1 rounded bg-gray-200">로그아웃</button>
+      <button
+        onClick={() => signOut({ callbackUrl: "/" })}
+        className={
+          mobile
+            ? "w-full px-4 py-2 rounded border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 transition"
+            : "px-3 py-1 rounded border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 transition"
+        }
+      >
+        로그아웃
+      </button>
     </div>
   );
 }
