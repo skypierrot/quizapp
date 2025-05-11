@@ -6,3 +6,8 @@ export * from './imageHistory';
 export * from './examResults';
 export * from './questionImageUsage';
 export * from './auth';
+export * from './notices';
+export * from './threads';
+export * from './userQuestionMemos';
+export * from './userStats';
+export * from './userDailyStats';

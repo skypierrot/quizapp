@@ -5,145 +5,129 @@ import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMe
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
 import { forwardRef, useState } from 'react';
-import { Menu, X, MenuSquare, XSquare } from 'lucide-react';
-import { Sheet, SheetContent } from '../ui/sheet';
+import { Menu, X } from 'lucide-react';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '../ui/sheet';
 import { useSession, signIn, signOut } from "next-auth/react";
+import { UserNav } from './UserNav';
 
 const Navbar = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const { data: session, status } = useSession();
 
-  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
-
   return (
-    <header className="relative z-40 w-full border-b bg-white">
-      <div className="container flex h-16 items-center justify-between">
-        <div className="flex items-center">
-          <Link href="/" className="text-xl font-bold text-gray-900">
-            기술자격시험 학습 플랫폼
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-14 items-center">
+        <div className="mr-4 flex">
+          <Link href="/" className="mr-6 flex items-center space-x-2">
+            <span className="font-bold">Quiz App</span>
           </Link>
+          {/* PC 메뉴 */}
+          <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
+            {/* 시험준비 */}
+            <div
+              className="relative"
+              onMouseEnter={() => setOpenMenu('exam')}
+              onMouseLeave={() => setOpenMenu(null)}
+            >
+              <button className="px-3 py-2 font-semibold hover:text-blue-600">시험준비</button>
+              {openMenu === 'exam' && (
+                <div className="absolute left-0 top-full min-w-[160px] rounded bg-white shadow-lg flex flex-col transition-all duration-200 ease-in-out z-10">
+                  <Link href="/learn/exams" className="block px-4 py-2 hover:bg-gray-100 active:bg-gray-200 focus:bg-gray-200 transition-colors">문제은행</Link>
+                  <Link href="/exams" className="block px-4 py-2 hover:bg-gray-100 active:bg-gray-200 focus:bg-gray-200 transition-colors">모의고사</Link>
+                  <Link href="/learn/review-quiz" className="block px-4 py-2 hover:bg-gray-100 active:bg-gray-200 focus:bg-gray-200 transition-colors">오답노트</Link>
+                  <Link href="/statistics" className="block px-4 py-2 hover:bg-gray-100 active:bg-gray-200 focus:bg-gray-200 transition-colors">통계</Link>
+                </div>
+              )}
+            </div>
+            {/* 문제관리 */}
+            <div
+              className="relative"
+              onMouseEnter={() => setOpenMenu('manage')}
+              onMouseLeave={() => setOpenMenu(null)}
+            >
+              <button className="px-3 py-2 font-semibold hover:text-blue-600">문제관리</button>
+              {openMenu === 'manage' && (
+                <div className="absolute left-0 top-full min-w-[160px] rounded bg-white shadow-lg flex flex-col transition-all duration-200 ease-in-out z-10">
+                  <Link href="/manage/questions/new" className="block px-4 py-2 hover:bg-gray-100 active:bg-gray-200 focus:bg-gray-200 transition-colors">문제등록</Link>
+                  <Link href="/manage/questions/list" className="block px-4 py-2 hover:bg-gray-100 active:bg-gray-200 focus:bg-gray-200 transition-colors">문제목록</Link>
+                </div>
+              )}
+            </div>
+            {/* 커뮤니티 */}
+            <div
+              className="relative"
+              onMouseEnter={() => setOpenMenu('community')}
+              onMouseLeave={() => setOpenMenu(null)}
+            >
+              <button className="px-3 py-2 font-semibold hover:text-blue-600">커뮤니티</button>
+              {openMenu === 'community' && (
+                <div className="absolute left-0 top-full min-w-[160px] rounded bg-white shadow-lg flex flex-col transition-all duration-200 ease-in-out z-10">
+                  <Link href="/community/notice" className="block px-4 py-2 hover:bg-gray-100 active:bg-gray-200 focus:bg-gray-200 transition-colors">공지사항</Link>
+                  <Link href="/community/forum" className="block px-4 py-2 hover:bg-gray-100 active:bg-gray-200 focus:bg-gray-200 transition-colors">자유게시판</Link>
+                </div>
+              )}
+            </div>
+            {session && (
+              <Link href="/profile" className="transition-colors hover:text-foreground/80">
+                프로필
+              </Link>
+            )}
+          </nav>
         </div>
-        
-        {/* 모바일 햄버거 메뉴 버튼 */}
-        <button 
-          className="md:hidden p-3" 
-          onClick={toggleMenu}
-          aria-label={isMenuOpen ? "메뉴 닫기" : "메뉴 열기"}
-        >
-          {isMenuOpen ? <XSquare size={24} className="pointer-events-none" /> : <MenuSquare size={24} className="pointer-events-none" />}
-        </button>
-        
-        {/* 데스크탑 메뉴 */}
-        <div className="hidden md:flex items-center gap-6">
-          <NavigationMenu>
-            <NavigationMenuList>
-              <NavigationMenuItem>
-                <NavigationMenuTrigger>시험 준비</NavigationMenuTrigger>
-                <NavigationMenuContent>
-                  <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
-                    <ListItem href="/learn/exams" title="문제 은행">
-                      시험별 문제를 체계적으로 학습하세요
-                    </ListItem>
-                    <ListItem href="/exams" title="모의고사">
-                      실전과 동일한 환경에서 시험을 연습하세요
-                    </ListItem>
-                    <ListItem href="/wrong-answers" title="오답 노트">
-                      틀린 문제를 효과적으로 복습하세요
-                    </ListItem>
-                    <ListItem href="/statistics" title="학습 통계">
-                      나의 학습 현황을 분석하세요
-                    </ListItem>
-                  </ul>
-                </NavigationMenuContent>
-              </NavigationMenuItem>
-              
-              <NavigationMenuItem>
-                <NavigationMenuTrigger>문제 관리</NavigationMenuTrigger>
-                <NavigationMenuContent>
-                  <ul className="grid w-[400px] gap-3 p-4">
-                    <ListItem href="/manage/questions/new" title="문제 등록">
-                      새로운 문제를 등록하세요
-                    </ListItem>
-                    <ListItem href="/manage/questions/list" title="문제 목록">
-                      등록된 문제를 관리하세요
-                    </ListItem>
-                  </ul>
-                </NavigationMenuContent>
-              </NavigationMenuItem>
-              
-              <NavigationMenuItem>
-                <NavigationMenuTrigger>커뮤니티</NavigationMenuTrigger>
-                <NavigationMenuContent>
-                  <ul className="grid w-[400px] gap-3 p-4">
-                    <ListItem href="/community/notice" title="공지사항">
-                      중요 소식과 업데이트를 확인하세요
-                    </ListItem>
-                    <ListItem href="/community/forum" title="학습 정보 공유">
-                      다른 수험생들과 정보를 공유하세요
-                    </ListItem>
-                  </ul>
-                </NavigationMenuContent>
-              </NavigationMenuItem>
-              
-              <NavigationMenuItem>
-                <NavigationMenuLink asChild>
-                  <Link 
-                    href="/guide" 
-                    className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900 focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-gray-100/50 data-[state=open]:bg-gray-100/50"
-                  >
-                    이용 가이드
+        <div className="flex flex-1 items-center justify-end space-x-2">
+          {/* 모바일 햄버거 메뉴 */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="md:hidden">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+              <SheetTitle>메뉴</SheetTitle>
+              <SheetDescription>
+                주요 메뉴를 선택하세요. 시험준비, 문제관리, 커뮤니티 등 다양한 기능을 제공합니다.
+              </SheetDescription>
+              <nav className="flex flex-col space-y-4 mt-8">
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg">시험준비</h3>
+                  <div className="flex flex-col space-y-2 pl-4">
+                    <Link href="/learn/exams" className="hover:text-blue-600">문제은행</Link>
+                    <Link href="/exams" className="hover:text-blue-600">모의고사</Link>
+                    <Link href="/learn/review-quiz" className="hover:text-blue-600">오답노트</Link>
+                    <Link href="/statistics" className="hover:text-blue-600">통계</Link>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg">문제관리</h3>
+                  <div className="flex flex-col space-y-2 pl-4">
+                    <Link href="/manage/questions/new" className="hover:text-blue-600">문제등록</Link>
+                    <Link href="/manage/questions/list" className="hover:text-blue-600">문제목록</Link>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg">커뮤니티</h3>
+                  <div className="flex flex-col space-y-2 pl-4">
+                    <Link href="/community/notice" className="hover:text-blue-600">공지사항</Link>
+                    <Link href="/community/forum" className="hover:text-blue-600">자유게시판</Link>
+                  </div>
+                </div>
+                {session && (
+                  <Link href="/profile" className="hover:text-blue-600">
+                    프로필
                   </Link>
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-            </NavigationMenuList>
-          </NavigationMenu>
-          
-          {/* 인증 UI 버튼 추가 */}
-          <AuthNavButton session={session} status={status} />
+                )}
+              </nav>
+            </SheetContent>
+          </Sheet>
+          {session ? (
+            <UserNav />
+          ) : (
+            <Button asChild variant="outline">
+              <Link href="/api/auth/signin">로그인</Link>
+            </Button>
+          )}
         </div>
       </div>
-      
-      {/* 모바일 메뉴 */}
-      {isMenuOpen && (
-        <div className="md:hidden py-4 px-4 bg-white border-t">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <h3 className="font-medium text-sm">시험 준비</h3>
-              <ul className="pl-4 space-y-2">
-                <li><Link href="/learn/exams" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>문제 은행</Link></li>
-                <li><Link href="/exams" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>모의고사</Link></li>
-                <li><Link href="/wrong-answers" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>오답 노트</Link></li>
-                <li><Link href="/statistics" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>학습 통계</Link></li>
-              </ul>
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="font-medium text-sm">문제 관리</h3>
-              <ul className="pl-4 space-y-2">
-                <li><Link href="/manage/questions/new" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>문제 등록</Link></li>
-                <li><Link href="/manage/questions/list" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>문제 목록</Link></li>
-              </ul>
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="font-medium text-sm">커뮤니티</h3>
-              <ul className="pl-4 space-y-2">
-                <li><Link href="/community/notice" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>공지사항</Link></li>
-                <li><Link href="/community/forum" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>학습 정보 공유</Link></li>
-              </ul>
-            </div>
-            
-            <div>
-              <Link href="/guide" className="text-gray-600 hover:text-gray-900" onClick={toggleMenu}>이용 가이드</Link>
-            </div>
-
-            {/* 인증 UI: 모바일에서도 로그인/로그아웃 버튼 노출 */}
-            <div className="pt-4 border-t">
-              <AuthNavButton session={session} status={status} mobile />
-            </div>
-          </div>
-        </div>
-      )}
     </header>
   );
 };
@@ -214,7 +198,7 @@ function AuthNavButton({ session, status, mobile = false }: { session: any, stat
   }
   return (
     <div className={mobile ? "w-full flex flex-col items-center gap-2" : "flex items-center gap-2"}>
-      <span className="text-sm">{session.user?.email}</span>
+      <span className="text-sm">{session.user?.nickname || session.user?.email}</span>
       <button
         onClick={() => signOut({ callbackUrl: "/" })}
         className={

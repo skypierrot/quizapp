@@ -1,40 +1,113 @@
+'use client';
+
 import React from "react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { useDailyStats } from '@/hooks/useDailyStats';
+import { useSummaryStats } from '@/hooks/useSummaryStats';
+import { useSession } from 'next-auth/react';
+
+function formatStudyTime(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds}초`;
+  } else if (seconds < 3600) {
+    return `${Math.round(seconds / 60)}분`;
+  } else if (seconds < 86400) {
+    return `${(seconds / 3600).toFixed(1)}시간`;
+  } else if (seconds < 2592000) {
+    return `${(seconds / 86400).toFixed(1)}일`;
+  } else {
+    return `${(seconds / 2592000).toFixed(1)}개월`;
+  }
+}
 
 export default function StatisticsPage() {
+  // next-auth로 로그인 세션 확인
+  const { data: session } = useSession();
+  const userId = session?.user?.id; // 로그인 시만 userId, 비로그인 시 undefined
+
+  // SWR로 데이터 패칭
+  const { data: summary, isLoading: summaryLoading } = useSummaryStats(userId);
+  const { data: daily, isLoading: dailyLoading } = useDailyStats(userId);
+
   return (
     <div className="container mx-auto py-8 px-4">
       <h1 className="text-3xl font-bold mb-6">학습 통계</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* 요약 카드 1 */}
+      {/* 상단 요약 카드 */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow-md">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-lg font-semibold">총 학습 시간</h3>
             <span className="text-gray-500 text-sm">최근 30일</span>
           </div>
-          <p className="text-3xl font-bold text-blue-600">12시간 45분</p>
-          <p className="text-sm text-gray-600 mt-2">지난 달 대비 +2시간 30분</p>
+          <p className="text-3xl font-bold text-blue-600">
+            {summaryLoading || !summary ? '...' : formatStudyTime(summary.totalStudyTime)}
+          </p>
+          <p className="text-sm text-gray-600 mt-2">
+            {summaryLoading || !summary ? '' : (userId ? `연속 ${summary.streak}일 학습` : '전체 통계')}
+          </p>
         </div>
-        
-        {/* 요약 카드 2 */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-lg font-semibold">푼 문제</h3>
             <span className="text-gray-500 text-sm">총계</span>
           </div>
-          <p className="text-3xl font-bold text-green-600">352 문항</p>
-          <p className="text-sm text-gray-600 mt-2">지난 주 42문항 학습</p>
+          <p className="text-3xl font-bold text-green-600">
+            {summaryLoading || !summary ? '...' : `${summary.totalSolved} 문항`}
+          </p>
+          <p className="text-sm text-gray-600 mt-2">
+            {summaryLoading || !summary ? '' : `정답률 ${Math.round(summary.correctRate*100)}%`}
+          </p>
         </div>
-        
-        {/* 요약 카드 3 */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-lg font-semibold">평균 정답률</h3>
             <span className="text-gray-500 text-sm">전체</span>
           </div>
-          <p className="text-3xl font-bold text-purple-600">78.5%</p>
-          <p className="text-sm text-gray-600 mt-2">지난 달 대비 +3.2%</p>
+          <p className="text-3xl font-bold text-purple-600">
+            {summaryLoading || !summary ? '...' : `${Math.round(summary.correctRate*100)}%`}
+          </p>
+          <p className="text-sm text-gray-600 mt-2">
+            {summaryLoading || !summary ? '' : (userId ? `연속 ${summary.streak}일` : '전체 통계')}
+          </p>
         </div>
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-lg font-semibold">연속 학습일</h3>
+            <span className="text-gray-500 text-sm">스트릭</span>
+          </div>
+          <p className="text-3xl font-bold text-orange-600">
+            {summaryLoading || !summary
+              ? '...'
+              : userId
+                ? `${summary.streak}일`
+                : summary.streak > 0
+                  ? `${summary.streak}일`
+                  : '-'}
+          </p>
+          <p className="text-sm text-gray-600 mt-2">
+            {userId ? '최근 30일 기준' : '전체 통계'}
+          </p>
+        </div>
+      </div>
+      {/* 일별 풀이수 BarChart */}
+      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+        <h2 className="text-xl font-semibold mb-4">일별 풀이수</h2>
+        {dailyLoading || !daily ? (
+          <div>로딩 중...</div>
+        ) : (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={daily.map(d => ({
+              date: d.date,
+              solved: d.solvedCount,
+              studyTime: d.totalStudyTime,
+            }))}>
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="solved" fill="#3182ce" />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
       
       {/* 과목별 통계 */}

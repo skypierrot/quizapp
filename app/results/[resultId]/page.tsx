@@ -108,13 +108,15 @@ export default function Page() {
         <div className="container mx-auto py-8">
             {imageZoom.zoomedImage && (
                 <ImageZoomModal
-                    open={!!imageZoom.zoomedImage}
-                    onClose={imageZoom.closeZoom}
                     src={imageZoom.zoomedImage}
+                    onClose={imageZoom.closeZoom}
                 />
             )}
             <Button variant="outline" size="sm" className="mb-4" onClick={() => router.back()}>
                 <ArrowLeft className="mr-2 h-4 w-4" /> 뒤로가기
+            </Button>
+            <Button variant="default" size="sm" className="mb-4 ml-2" onClick={() => router.push(`/results/${resultId}/wrong-note`)}>
+                오답노트 보기
             </Button>
             <h1 className="text-2xl font-bold mb-2">
                 {examResult.examName} ({examResult.examYear}년 {examResult.examSession})
@@ -313,6 +315,9 @@ export default function Page() {
 
             <div className="mt-8 text-center">
                 <Button onClick={() => router.push('/exams')}>모의고사 목록으로</Button>
+                <Button variant="outline" className="ml-2" onClick={() => router.push(`/results/${resultId}/wrong-note`)}>
+                    오답노트로 가기
+                </Button>
             </div>
         </div>
     );

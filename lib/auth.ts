@@ -29,6 +29,14 @@ export const authOptions: NextAuthOptions = {
         console.log('[NextAuth][session callback] session:', session, 'user:', user, 'token:', token);
         if ((session.user as any)) {
           (session.user as any).id = user?.id || token?.sub || token?.id || null;
+          (session.user as any).role = user?.role || null;
+          const userId = user?.id || token?.sub || token?.id || null;
+          if (userId) {
+            const dbUser = await db.query.users.findFirst({ where: (u, { eq }) => eq(u.id, userId) });
+            (session.user as any).nickname = dbUser?.nickname || '';
+          } else {
+            (session.user as any).nickname = '';
+          }
           console.log('[NextAuth][session callback] session.user.id set to:', (session.user as any).id);
         }
         return session;

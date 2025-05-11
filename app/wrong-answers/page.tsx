@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 
 export default function WrongAnswersPage() {
   return (
@@ -118,9 +119,11 @@ export default function WrongAnswersPage() {
       </div>
       
       <div className="mt-8 flex justify-center">
-        <button className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700">
-          오답 문제 다시 풀기
-        </button>
+        <Link href="/learn/review-quiz">
+          <button className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700">
+            오답 문제 다시 풀기
+          </button>
+        </Link>
       </div>
     </div>
   );

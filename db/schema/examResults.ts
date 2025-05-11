@@ -29,6 +29,9 @@ export const examResults = pgTable(
     correctCount: integer('correct_count').notNull(),
     totalQuestions: integer('total_questions').notNull(),
 
+    // 추가: 과목별 정답 수
+    subjectStats: jsonb('subject_stats').$type<Record<string, { correct: number; total: number }>>().notNull().default({}),
+
     elapsedTime: integer('elapsed_time').notNull(), // Time taken in seconds
     limitTime: integer('limit_time'), // Optional time limit in seconds
 

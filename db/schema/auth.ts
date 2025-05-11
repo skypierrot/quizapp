@@ -16,6 +16,7 @@ export const users = pgTable("user", {
   email: text("email").notNull(),
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
+  nickname: text('nickname'),
 })
 
 // NextAuth(또는 인증 시스템) 연동 시, 소셜/외부 인증 계정 정보를 저장하는 테이블입니다.

@@ -175,10 +175,8 @@ function QuestionDetailDialog({ open, question, onClose }: { open: boolean; ques
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>문제 해설</DialogTitle>
-          <DialogDescription>문제에 대한 상세 정보와 해설을 확인하세요.</DialogDescription>
-        </DialogHeader>
+        <DialogTitle>문제 상세</DialogTitle>
+        <DialogDescription>문제 상세 설명</DialogDescription>
         <div className="space-y-6 mt-4">
           {/* 태그 */}
           {question.tags && question.tags.length > 0 && (
@@ -503,10 +501,8 @@ export default function QuestionsListPage() {
       {/* 이미지 확대 다이얼로그 */}
       <Dialog open={!!zoomedImage} onOpenChange={() => setZoomedImage(null)}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto p-2">
-          <VisuallyHidden>
-            <DialogTitle>확대 이미지</DialogTitle>
-            <DialogDescription>선택한 이미지의 확대된 모습입니다.</DialogDescription>
-          </VisuallyHidden>
+          <DialogTitle>이미지 상세</DialogTitle>
+          <DialogDescription>이미지 상세 설명</DialogDescription>
           {zoomedImage && (
             <img src={zoomedImage} alt="Zoomed view" className="w-full h-auto object-contain" />
           )}

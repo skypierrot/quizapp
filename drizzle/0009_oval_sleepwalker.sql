@@ -1,0 +1,1 @@
+ALTER TABLE "user_question_memos" ALTER COLUMN "user_id" SET DATA TYPE text;

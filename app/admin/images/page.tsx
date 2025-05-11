@@ -340,17 +340,8 @@ export default function ImageManagementPage() {
       <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>이미지 미리보기</DialogTitle>
-            <DialogDescription>
-              {selectedImage && (
-                <div className="mt-4">
-                  <p><strong>파일명:</strong> {selectedImage.originalName}</p>
-                  <p><strong>유형:</strong> {selectedImage.type}</p>
-                  <p><strong>크기:</strong> {formatFileSize(selectedImage.size)}</p>
-                  <p><strong>상태:</strong> {getStatusBadge(selectedImage.status)}</p>
-                </div>
-              )}
-            </DialogDescription>
+            <DialogTitle>이미지 관리</DialogTitle>
+            <DialogDescription>이미지 관리 설명</DialogDescription>
           </DialogHeader>
           
           {selectedImage && (

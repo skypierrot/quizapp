@@ -33,6 +33,7 @@ export default function ExamStartPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const userId = session?.user?.id; // 로그인된 사용자의 uuid
+  const userDisplayName = session?.user?.nickname || session?.user?.email;
 
   // 시험 정보 상태
   const [examInfo, setExamInfo] = useState<{ name: string; year: string; session: string } | null>(null);
