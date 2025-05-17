@@ -5,11 +5,7 @@ import Link from 'next/link';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Input } from "@/components/ui/input";
 import { Search } from 'lucide-react';
-import { IExamInstance } from '@/types';
-
-interface GroupedExams {
-  [examName: string]: IExamInstance[];
-}
+import { GroupedExams, GroupedExamData } from '@/types';
 
 interface ExamListDisplayProps {
   groupedExams: GroupedExams;
@@ -50,10 +46,10 @@ export function ExamListDisplay({ groupedExams, basePath, title }: ExamListDispl
         <p className="text-gray-500">{searchTerm ? '검색 결과가 없습니다.' : '등록된 시험 종류가 없습니다.'}</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {filteredEntries.map(([examName, instances]) => {
+          {filteredEntries.map(([examName, examData]) => {
             const encodedExamName = encodeURIComponent(examName);
-            const detailUrl = `${basePath}/${encodedExamName}`; // basePath 사용
-            const instanceCount = instances.length;
+            const detailUrl = `${basePath}/${encodedExamName}`;
+            const displayCount = examData.uniqueDateCount;
 
             return (
               <Link href={detailUrl} key={examName}>
@@ -64,7 +60,7 @@ export function ExamListDisplay({ groupedExams, basePath, title }: ExamListDispl
                         {examName}
                       </div>
                       <div className="text-sm text-gray-600 max-sm:flex-shrink-0">
-                        총 {instanceCount}개의 시험 등록됨
+                        총 {displayCount}개의 시험 등록됨
                       </div>
                     </div>
                   </CardHeader>

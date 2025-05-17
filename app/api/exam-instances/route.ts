@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { exams, questions } from '@/db/schema'; // questions 임포트 추가 및 경로 수정
-import { sql, and, eq, count, SQL } from 'drizzle-orm'; // eq, count 임포트 추가
+import { sql, and, eq, count, SQL, asc, desc } from 'drizzle-orm'; // eq, count, substr 제거, asc, desc 임포트 추가
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   try {
     const filterConditions: SQL[] = [];
     let examNameFilter: string | null = null;
-    let yearFilter: number | null = null;
+    let dateFilter: string | null = null; // 'yearFilter'에서 'dateFilter'로 변경, YYYY-MM-DD 형식
     let subjectFilter: string | null = null;
 
     if (tagsParam) {
@@ -18,9 +18,8 @@ export async function GET(request: NextRequest) {
       tags.forEach(tag => {
         if (tag.startsWith('시험명:')) {
           examNameFilter = tag.replace('시험명:', '');
-        } else if (tag.startsWith('년도:')) {
-          const yearVal = parseInt(tag.replace('년도:', ''), 10);
-          if (!isNaN(yearVal)) yearFilter = yearVal;
+        } else if (tag.startsWith('날짜:')) { // '연도:'에서 '날짜:'로 변경
+          dateFilter = tag.replace('날짜:', ''); // YYYY-MM-DD 형식으로 저장
         } else if (tag.startsWith('과목:')) {
           subjectFilter = tag.replace('과목:', '');
         }
@@ -31,8 +30,8 @@ export async function GET(request: NextRequest) {
     if (examNameFilter) {
       filterConditions.push(eq(exams.name, examNameFilter));
     }
-    if (yearFilter) {
-      filterConditions.push(eq(exams.year, yearFilter));
+    if (dateFilter) {
+      filterConditions.push(eq(exams.date, dateFilter));
     }
     if (subjectFilter) {
       filterConditions.push(eq(exams.subject, subjectFilter));
@@ -43,28 +42,50 @@ export async function GET(request: NextRequest) {
     const examInstancesData = await db
       .select({
         examName: exams.name,
-        year: exams.year,
+        year: sql<string>`to_char(${exams.date}::date, 'YYYY')`.as('exam_year'), // 연도 정보는 계속 추출
+        date: exams.date,
         subject: exams.subject,
-        questionCount: count(questions.id) // questions.id를 count
+        questionCount: count(questions.id)
       })
       .from(exams)
-      .leftJoin(questions, eq(exams.id, questions.examId)) // exams와 questions를 leftJoin
+      .leftJoin(questions, eq(exams.id, questions.examId))
       .where(finalFilter)
-      .groupBy(exams.id, exams.name, exams.year, exams.subject) // exams.id도 그룹핑에 추가
-      .orderBy(exams.year, exams.name, exams.subject)
+      // exams.id (PK)를 포함하여 exams 테이블의 각 레코드를 고유하게 식별하고,
+      // 해당 레코드(시험명, 날짜, 과목 조합)에 연결된 문제 수를 계산합니다.
+      .groupBy(exams.id, exams.name, exams.date, exams.subject)
+      .orderBy(
+        // exams.date를 date 타입으로 캐스팅 후 to_char 적용
+        desc(sql<string>`to_char(${exams.date}::date, 'YYYY')`), 
+        asc(exams.name), 
+        asc(exams.subject)
+      )
       .execute();
 
-    // Drizzle이 year를 number로 반환하므로, IExamInstance에 맞게 string으로 변환
     const examInstances = examInstancesData.map(item => ({
-      ...item,
-      year: String(item.year), // year를 string으로 변환
+      examName: item.examName,
+      year: item.year, 
+      date: item.date,
+      subject: item.subject,
+      questionCount: item.questionCount,
     }));
 
     console.log(`[API] /api/exam-instances called with tags: ${tagsParam}, Found: ${examInstances.length}`);
     return NextResponse.json({ examInstances });
 
-  } catch (error) {
-    console.error("[API Error] /api/exam-instances:", error);
-    return NextResponse.json({ error: "시험 인스턴스 목록을 가져오는 중 오류 발생" }, { status: 500 });
+  } catch (error: any) { // error 타입을 any로 명시하여 상세 정보 접근
+    console.error("[API Error] /api/exam-instances:", {
+      message: error.message,
+      stack: error.stack,
+      details: error.cause, // Drizzle 등에서 cause에 추가 정보를 담는 경우가 있음
+      tagsParam,
+    });
+    return NextResponse.json(
+      { 
+        error: "시험 인스턴스 목록을 가져오는 중 오류 발생",
+        // 개발 환경에서는 상세 오류 메시지를 포함할 수 있으나, 프로덕션에서는 일반 메시지만 전달
+        // errorMessage: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      }, 
+      { status: 500 }
+    );
   }
 } 

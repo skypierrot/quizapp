@@ -1,5 +1,5 @@
 {
-  "id": "2fd7ac1a-0e83-474e-999d-76ded53b95a4",
+  "id": "1a3d96a4-4aa3-4187-9b12-52ed2edfe72a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -21,9 +21,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "year": {
-          "name": "year",
-          "type": "integer",
+        "date": {
+          "name": "date",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },

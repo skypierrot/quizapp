@@ -43,7 +43,7 @@ export default function EditQuestionPage() {
     }
   }, [questionId]);
 
-  const convertToFormData = (data: any) => {
+  const convertToFormData = (data: IQuestion) => {
     return {
       id: data.id,
       number: data.number || 1,
@@ -54,6 +54,9 @@ export default function EditQuestionPage() {
       images: data.images || [],
       explanationImages: data.explanationImages || [],
       tags: data.tags || [],
+      examName: data.examName || undefined,
+      examDate: data.examDate || undefined,
+      examSubject: data.examSubject || undefined,
     };
   };
 

@@ -49,25 +49,21 @@ export default function PasteForm() {
 
   const {
     examName,
-    year,
-    session,
     subject,
     examNameOptions,
-    yearOptions,
-    sessionOptions,
+    subjectOptions,
     isLoadingExamNames,
-    isLoadingYears,
-    isLoadingSessions,
-    isYearValid,
-    isYearDisabled,
-    isSessionDisabled,
+    isLoadingSubjects,
+    isDateValid,
+    isDateDisabled,
+    isSubjectDisabled,
     handleExamNameChange,
-    handleYearChange,
-    handleSessionChange,
+    handleDateChange,
+    handleSubjectChange,
     handleExamNameCreate,
-    handleYearCreate,
-    handleSessionCreate,
-    setSubject,
+    handleSubjectCreate,
+    date,
+    setDate,
   } = useCascadingTags();
 
   const handleAddCommonTag = (tag: string) => {
@@ -370,9 +366,8 @@ export default function PasteForm() {
 
   function validateQuestions(questionsToValidate: IManualQuestion[]): { valid: boolean; message?: string; focusIdx?: number } {
     if (!examName.trim()) return { valid: false, message: '기본 태그: 시험명을 입력하세요.' };
-    if (!year.trim()) return { valid: false, message: '기본 태그: 년도를 입력하세요.' };
-    if (!isYearValid) return { valid: false, message: '기본 태그: 년도를 올바른 형식(4자리 숫자)으로 입력하세요.' };
-    if (!session.trim()) return { valid: false, message: '기본 태그: 회차를 입력하세요.' };
+    if (!subject.trim()) return { valid: false, message: '기본 태그: 과목을 입력하세요.' };
+    if (!isDateValid) return { valid: false, message: '기본 태그: 날짜를 올바른 형식(YYYY-MM-DD)으로 입력하세요.' };
 
     for (let i = 0; i < questionsToValidate.length; i++) {
       const q = questionsToValidate[i];
@@ -408,22 +403,15 @@ export default function PasteForm() {
     setIsSubmitting(true);
     try {
        const trimmedExamName = examName.trim();
-       const trimmedYear = year.trim();
-       const trimmedSession = session.trim();
+       const trimmedDate = date.trim();
+       const trimmedSubject = subject.trim();
 
-       if (!trimmedExamName || !trimmedYear || !trimmedSession || !isYearValid) { 
-         toast({ title: "필수 태그 오류", description: "시험명, 년도(YYYY 형식), 회차는 필수 입력 항목입니다.", variant: "error" });
+       if (!trimmedExamName || !trimmedDate || !trimmedSubject || !isDateValid) { 
+         toast({ title: "필수 태그 오류", description: "시험명, 날짜(YYYY-MM-DD 형식), 과목은 필수 입력 항목입니다.", variant: "error" });
+         setIsSubmitting(false);
          return;
        }
        
-       const trimmedSubject = subject.trim();
-       const basicTags: string[] = [
-         `시험명:${trimmedExamName}`,
-         `년도:${trimmedYear}`,
-         `회차:${trimmedSession}`,
-         ...(trimmedSubject ? [`과목:${trimmedSubject}`] : []),
-       ];
-
        const questionsPayload = questions.map((q, idx) => {
          const questionImages = q.images || []; 
          const explanationImagesData = q.explanationImages || [];
@@ -433,22 +421,25 @@ export default function PasteForm() {
            images: opt.images || [],
          }));
 
+         const pureAdditionalTags = (
+           commonTags.concat(questionTags[idx] || [])
+         ).filter(tag => 
+           !tag.startsWith('시험명:') && 
+           !tag.startsWith('날짜:') && 
+           !tag.startsWith('과목:')
+         );
+
          return {
            content: q.content,
            options: optionsData,
-         answer: q.answer,
-         explanation: q.explanation || "",
+           answer: q.answer,
+           explanation: q.explanation || "",
            images: questionImages,
            explanationImages: explanationImagesData,
-         tags: [
-             ...basicTags,
-           ...commonTags,
-             ...(questionTags[idx] || []).filter(tag =>
-               !(tag.startsWith('시험명:') || tag.startsWith('년도:') || 
-                 tag.startsWith('회차:') || tag.startsWith('과목:')) 
-             )
-         ],
-           examId: q.examId,
+           examName: trimmedExamName,
+           examDate: trimmedDate,
+           examSubject: trimmedSubject,
+           tags: pureAdditionalTags,
          };
        });
 
@@ -492,7 +483,7 @@ export default function PasteForm() {
 
       if (successCount > 0 && errorCount === 0) {
         toast({ title: "저장 완료", description: `${successCount}개의 문제가 성공적으로 저장되었습니다.`, variant: "success" });
-        window.location.reload(); // 저장 성공 시 전체 페이지 새로고침
+        window.location.reload();
         return;
       } else if (successCount > 0 && errorCount > 0) {
         toast({ title: "부분 성공", description: `${successCount}개 성공, ${errorCount}개 실패했습니다.`, variant: "warning" });
@@ -619,28 +610,26 @@ export default function PasteForm() {
         <form onSubmit={handleSave} className="space-y-8 mt-6">
         <BasicTagSettings
           examName={examName}
-          year={year}
-          session={session}
+          examNameOptions={examNameOptions}
+          onExamNameChange={handleExamNameChange}
+          onExamNameCreate={handleExamNameCreate}
+          isLoadingExamNames={isLoadingExamNames}
+
+          date={date}
+          onDateChange={handleDateChange}
+          isDateDisabled={isDateDisabled}
+          isDateValid={isDateValid}
+
           subject={subject}
-             examNameOptions={examNameOptions}
-             yearOptions={yearOptions}
-             sessionOptions={sessionOptions}
-             isLoadingExamNames={isLoadingExamNames}
-             isLoadingYears={isLoadingYears}
-             isLoadingSessions={isLoadingSessions}
-             isYearDisabled={isYearDisabled}
-             isSessionDisabled={isSessionDisabled}
-             onExamNameChange={handleExamNameChange}
-          onYearChange={handleYearChange}
-             onSessionChange={handleSessionChange}
-             onExamNameCreate={handleExamNameCreate}
-             onYearCreate={handleYearCreate}
-             onSessionCreate={handleSessionCreate}
-          onSubjectChange={setSubject}
+          subjectOptions={subjectOptions}
+          onSubjectChange={handleSubjectChange}
+          onSubjectCreate={handleSubjectCreate}
+          isLoadingSubjects={isLoadingSubjects}
+          isSubjectDisabled={isSubjectDisabled}
         />
-           {!isYearValid && year && (
-              <p className="text-xs text-red-500 -mt-4 mb-4 ml-1">년도는 4자리 숫자로 입력해주세요.</p>
-           )}
+          {!isDateValid && date && (
+            <p className="text-xs text-red-500 -mt-4 mb-4 ml-1">날짜는 YYYY-MM-DD 형식으로 입력해주세요.</p>
+          )}
         <AdditionalTagInput
              tags={commonTags}
           tagInput={commonTagInput}

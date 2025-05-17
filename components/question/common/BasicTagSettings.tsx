@@ -14,23 +14,21 @@ interface BasicTagSettingsProps {
   onExamNameChange: (value: string) => void
   onExamNameCreate: (value: string) => void
   isLoadingExamNames: boolean
-  year: string
-  yearOptions: Option[]
-  onYearChange: (value: string) => void
-  onYearCreate: (value: string) => void
-  isLoadingYears: boolean
-  isYearDisabled: boolean
+  date: string
+  onDateChange: (value: string) => void
+  isDateDisabled?: boolean
+  isDateValid?: boolean
   subject: string
   subjectOptions: Option[]
   onSubjectChange: (value: string) => void
   onSubjectCreate: (value: string) => void
   isLoadingSubjects: boolean
-  isSubjectDisabled: boolean
+  isSubjectDisabled?: boolean
 }
 
 export function BasicTagSettings({
   examName, examNameOptions, onExamNameChange, onExamNameCreate, isLoadingExamNames,
-  year, yearOptions, onYearChange, onYearCreate, isLoadingYears, isYearDisabled,
+  date, onDateChange, isDateDisabled, isDateValid,
   subject, subjectOptions, onSubjectChange, onSubjectCreate, isLoadingSubjects, isSubjectDisabled
 }: BasicTagSettingsProps) {
   return (
@@ -41,13 +39,13 @@ export function BasicTagSettings({
           <span className="text-red-500 font-bold">*</span> 표시는 필수 입력 항목입니다
         </p>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full items-end">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full items-end">
         <div className="space-y-1">
           <Label className="text-xs text-gray-500 block">
             시험명: <span className="text-red-500 font-bold">*</span>
           </Label>
           <CascadingCombobox
-            options={examNameOptions}
+            options={examNameOptions || []}
             value={examName}
             onSelect={onExamNameChange}
             onCreate={onExamNameCreate}
@@ -59,28 +57,28 @@ export function BasicTagSettings({
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-gray-500 block">
-            년도: <span className="text-red-500 font-bold">*</span>
+          <Label htmlFor="date-input" className="text-xs text-gray-500 block">
+            날짜 (YYYY-MM-DD): <span className="text-red-500 font-bold">*</span>
           </Label>
-          <CascadingCombobox
-            options={yearOptions}
-            value={year}
-            onSelect={onYearChange}
-            onCreate={onYearCreate}
-            placeholder="년도 선택 또는 생성"
-            searchPlaceholder="년도 검색..."
-            emptyStateMessage="년도를 찾을 수 없습니다."
-            createLabel="새 년도 생성"
-            disabled={isYearDisabled}
-            isLoading={isLoadingYears}
+          <Input
+            id="date-input"
+            type="text"
+            placeholder="YYYY-MM-DD"
+            value={date}
+            onChange={(e) => onDateChange(e.target.value)}
+            disabled={isDateDisabled}
+            className={isDateValid === false ? 'border-red-500' : ''}
           />
+          {isDateValid === false && (
+            <p className="text-xs text-red-500 mt-1">올바른 날짜 형식(YYYY-MM-DD)을 입력해주세요.</p>
+          )}
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-gray-500 block">
             과목: <span className="text-red-500 font-bold">*</span>
           </Label>
           <CascadingCombobox
-            options={subjectOptions}
+            options={subjectOptions || []}
             value={subject}
             onSelect={onSubjectChange}
             onCreate={onSubjectCreate}

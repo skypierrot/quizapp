@@ -22,7 +22,7 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
   const [decodedParams, setDecodedParams] = useState<{
     examName: string
     year: string
-    subject: string
+    session: string
   } | null>(null)
   const [questions, setQuestions] = useState<IQuestion[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,44 +42,43 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
   // Restore useEffect for decoding parameters
   useEffect(() => {
     try {
-      const examNameRaw = params?.examName;
-      const yearRaw = params?.year;
-      // 파일명이 [subject].page.tsx 이므로 params.subject를 읽어야 합니다.
-      const subjectRaw = params?.subject; 
-
-      console.log('Raw params from useParams (examName, year, subject):', examNameRaw, yearRaw, subjectRaw);
+      const examNameRaw = params.examName
+      const yearRaw = params.year
+      const sessionRaw = params.session
 
       if (
         typeof examNameRaw !== 'string' ||
         typeof yearRaw !== 'string' ||
-        typeof subjectRaw !== 'string' // subjectRaw가 문자열인지 확인
+        typeof sessionRaw !== 'string'
       ) {
-        throw new Error('Invalid route parameters received. Ensure examName, year, and subject are provided correctly in the URL.');
+        throw new Error('Invalid route parameters received.')
       }
 
-      const decodedExamName = decodeURIComponent(examNameRaw);
-      const decodedYear = decodeURIComponent(yearRaw);
-      const decodedSubject = decodeURIComponent(subjectRaw); // subjectRaw를 디코딩
+      console.log('Raw params from useParams:', examNameRaw, yearRaw, sessionRaw)
+
+      const decodedExamName = decodeURIComponent(examNameRaw)
+      const decodedYear = decodeURIComponent(yearRaw)
+      const decodedSession = decodeURIComponent(sessionRaw)
 
       console.log(
-        'Decoded params (examName, year, subject):',
+        'Decoded params:',
         decodedExamName,
         decodedYear,
-        decodedSubject
-      );
+        decodedSession
+      )
 
       setDecodedParams({
         examName: decodedExamName,
         year: decodedYear,
-        subject: decodedSubject,
-      });
-      setError(null);
+        session: decodedSession
+      })
+      setError(null)
     } catch (e: any) {
-      console.error('Error decoding params in StudyPage:', e);
-      setError(e.message || 'An error occurred while decoding parameters.');
-      setDecodedParams(null);
+      console.error('Error decoding params in StudyPage:', e)
+      setError(e.message || 'An error occurred while decoding parameters.')
+      setDecodedParams(null)
     }
-  }, [params]);
+  }, [params])
 
   // Restore useEffect for fetching questions
   useEffect(() => {
@@ -94,7 +93,7 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
         const tagsToQuery = [
           `시험명:${decodedParams.examName}`,
           `년도:${decodedParams.year}`,
-          `과목:${decodedParams.subject}`
+          `회차:${decodedParams.session}`
         ];
         const encodedTags = encodeURIComponent(tagsToQuery.join(','));
 
@@ -221,11 +220,12 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
   }, [isSingleViewMode, currentQuestionIndex, questions.length, handlePrevQuestion, handleNextQuestion]);
 
   // Define breadcrumb items dynamically
-  const breadcrumbItems = decodedParams && params ? [
+  const breadcrumbItems = decodedParams ? [
     { label: '홈', href: '/' },
-    { label: '문제 은행', href: '/learn/exams' },
-    { label: decodedParams.examName, href: typeof params.examName === 'string' ? `/learn/exams/${params.examName}` : '/learn/exams' }, 
-    { label: `${decodedParams.year}년 ${decodedParams.subject}`, href: '', isCurrent: true },
+    { label: '문제 은행', href: '/bank' },
+    // Ensure params.examName exists and is a string for the href
+    { label: decodedParams.examName, href: typeof params.examName === 'string' ? `/bank/${params.examName}` : '/bank' }, 
+    { label: `${decodedParams.year}년 ${decodedParams.session}`, href: '', isCurrent: true },
   ] : [];
 
   // 선택지 섞기 토글 핸들러 추가
@@ -285,9 +285,9 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
 
       {/* Pass new state and handlers to the header */}
       <StudyPageHeader
-        encodedExamName={params?.examName as string} // Pass raw encoded params, optional chaining
-        encodedYear={params?.year as string}
-        encodedSubject={params?.subject as string} // encodedSession -> encodedSubject, params.session -> params.subject
+        encodedExamName={params.examName as string} // Pass raw encoded params
+        encodedYear={params.year as string}
+        encodedSession={params.session as string}
         isShowingAllAnswers={showAllAnswers}
         isShowingAllExplanations={showAllExplanations}
         isSingleViewMode={isSingleViewMode} // Pass single view state
@@ -492,4 +492,4 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
 
     </div>
   )
-}
+} 

@@ -7,24 +7,23 @@ import { sql, eq, and } from 'drizzle-orm';
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const examName = url.searchParams.get('name');
-    const year = url.searchParams.get('year');
+    const examName = url.searchParams.get('examName');
 
-    if (!examName || !year) {
-      return NextResponse.json({ error: '시험명과 년도는 필수 파라미터입니다.' }, { status: 400 });
+    if (!examName) {
+      return NextResponse.json({ error: '시험명은 필수 파라미터입니다.' }, { status: 400 });
     }
 
     // Drizzle ORM을 사용하여 쿼리
     const subjectList = await db
       .selectDistinct({ subject: exams.subject })
       .from(exams)
-      .where(and(eq(exams.name, examName), eq(exams.year, parseInt(year))))
+      .where(eq(exams.name, examName))
       .orderBy(exams.subject)
       .execute();
 
     const uniqueSubjects = subjectList.map(item => item.subject);
     
-    console.log(`Returning subjects for ${examName} - ${year}:`, uniqueSubjects);
+    console.log(`Returning subjects for ${examName}:`, uniqueSubjects);
     return NextResponse.json({ subjects: uniqueSubjects });
 
   } catch (error: any) {

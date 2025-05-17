@@ -12,7 +12,7 @@ export interface IUser {
 export interface IExam {
   id: string;
   name: string;
-  year: number;
+  date: string;
   round: number;
   createdAt?: Date | string;
   updatedAt?: Date | string;
@@ -33,7 +33,7 @@ export interface IQuestion {
   updatedAt?: Date;
   examId?: string | null;
   examName?: string | null;
-  examYear?: number | null;
+  examDate?: string | null;
   examSubject?: string | null;
 }
 
@@ -55,6 +55,9 @@ export interface IManualQuestion {
   tags: string[];
   examId?: string;
   userId?: string;
+  examName?: string;
+  examDate?: string;
+  examSubject?: string;
 }
 
 export interface IQuestionImage {
@@ -67,6 +70,7 @@ export interface IQuestionImage {
 export interface IExamInstance {
   examName: string;
   year: string;
+  date: string;
   subject: string;
   questionCount: number;
 }
@@ -86,7 +90,7 @@ export interface IAnswerDetail {
 export type INewExamResult = {
   userId: string;
   examName: string;
-  examYear: number;
+  examDate: string;
   examSubject: string;
   answers: IAnswerDetail[];
   score: number;
@@ -102,7 +106,13 @@ export type IExamResult = INewExamResult & {
   updatedAt: string;
 };
 
-// GroupedExams 인터페이스 추가 및 export
+// 새로운 GroupedExamData 인터페이스 추가
+export interface GroupedExamData {
+  instances: IExamInstance[];
+  uniqueDateCount: number;
+}
+
+// GroupedExams 인터페이스 수정
 export interface GroupedExams {
-  [examName: string]: IExamInstance[];
+  [examName: string]: GroupedExamData; // IExamInstance[] 대신 GroupedExamData 사용
 }

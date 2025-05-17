@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import React from 'react';
 
-interface BreadcrumbItem {
+export interface BreadcrumbItem {
   label: string;
   href: string;
   isCurrent?: boolean; // 현재 페이지 여부

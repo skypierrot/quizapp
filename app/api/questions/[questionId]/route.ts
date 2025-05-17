@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, asyncDB, checkDBConnection } from "@/db";
 import { questions } from "@/db/schema/questions";
-import { eq } from "drizzle-orm";
+import { exams } from "@/db/schema/exams";
+import { eq, and } from "drizzle-orm";
 import fs from 'fs';
 import path from 'path';
 import { questionImageUsage } from '@/db/schema/questionImageUsage';
@@ -68,6 +69,38 @@ const ensureDBConnection = async () => {
   return false;
 };
 
+// Helper function to find or create an exam and return its ID
+async function findOrCreateExamId(examName: string, examDate: string, examSubject: string): Promise<string> {
+  const existingExam = await db
+    .select({ id: exams.id })
+    .from(exams)
+    .where(
+      and(
+        eq(exams.name, examName),
+        eq(exams.date, examDate),
+        eq(exams.subject, examSubject)
+      )
+    )
+    .limit(1);
+
+  if (existingExam && existingExam.length > 0 && existingExam[0].id) {
+    return existingExam[0].id;
+  } else {
+    const newExam = await db
+      .insert(exams)
+      .values({
+        name: examName,
+        date: examDate,
+        subject: examSubject,
+      })
+      .returning({ id: exams.id });
+    if (!newExam || newExam.length === 0 || !newExam[0].id) {
+      throw new Error("Failed to create or retrieve exam ID");
+    }
+    return newExam[0].id;
+  }
+}
+
 // 단일 문제 조회
 export async function GET(
   request: Request,
@@ -90,7 +123,16 @@ export async function GET(
     
     // 문제 조회
     const question = await dbInstance.query.questions.findFirst({
-      where: eq(questions.id, questionId)
+      where: eq(questions.id, questionId),
+      with: {
+        exam: {
+          columns: {
+            name: true,
+            date: true,
+            subject: true,
+          },
+        },
+      },
     });
 
     // 문제가 없을 경우
@@ -100,8 +142,19 @@ export async function GET(
         { status: 404 }
       );
     }
+    
+    // API 응답 형식에 맞게 데이터 가공
+    // question.exam이 null이 아닐 경우에만 해당 필드들을 추가
+    const responseQuestion = {
+      ...question,
+      examName: question.exam?.name,
+      examDate: question.exam?.date,
+      examSubject: question.exam?.subject,
+    };
+    // exam 객체는 응답에서 제외할 수 있습니다.
+    // delete (responseQuestion as any).exam;
 
-    return NextResponse.json({ question });
+    return NextResponse.json({ question: responseQuestion });
   } catch (error) {
     console.error("GET /api/questions/[id] Error:", error);
     return NextResponse.json(
@@ -111,14 +164,28 @@ export async function GET(
   }
 }
 
-// 단일 문제 업데이트: delegate to saveQuestions for both create and update
+// 단일 문제 업데이트
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ questionId: string }> }
 ) {
   const { questionId } = await params;
   const formData = await request.formData();
-  // Build single question payload from FormData
+  
+  const examName = formData.get('examName') as string;
+  const examDate = formData.get('examDate') as string;
+  const examSubject = formData.get('examSubject') as string;
+
+  // 필수 시험 정보 유효성 검사 (빈 문자열 또는 null 체크)
+  if (!examName || !examDate || !examSubject) {
+    return NextResponse.json({ error: '시험명, 날짜, 과목은 필수 항목입니다.' }, { status: 400 });
+  }
+
+  // 날짜 형식 검증
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(examDate)) {
+    return NextResponse.json({ error: '날짜 형식이 잘못되었습니다. YYYY-MM-DD 형식으로 입력해주세요.' }, { status: 400 });
+  }
+
   let questionObj;
   try {
     questionObj = {
@@ -130,14 +197,33 @@ export async function PUT(
       tags: JSON.parse(formData.get('tags') as string || '[]'),
       images: JSON.parse(formData.get('images') as string || '[]'),
       explanationImages: JSON.parse(formData.get('explanationImages') as string || '[]'),
-      examId: (formData.get('examId') as string) || undefined,
+      // 유효성 검사를 통과했으므로, null이 아님을 보장
+      examName: examName,
+      examDate: examDate,
+      examSubject: examSubject,
     };
   } catch (e) {
-    return NextResponse.json({ error: '잘못된 JSON 형식입니다.' }, { status: 400 });
+    console.error("Error parsing formData in PUT:", e);
+    return NextResponse.json({ error: '요청 데이터 파싱 중 오류가 발생했습니다.' }, { status: 400 });
   }
-  // Call saveQuestions to upsert question and update image usage
-  const [saved] = await saveQuestions([questionObj]);
-  return NextResponse.json({ question: saved });
+  
+  try {
+    const [savedQuestion] = await saveQuestions([questionObj]);
+    
+    const responseData = {
+      ...savedQuestion,
+      examName: examName,
+      examDate: examDate,
+      examSubject: examSubject,
+    };
+
+    return NextResponse.json({ question: responseData });
+  } catch (error) {
+    console.error("Error during saveQuestions in PUT handler:", error);
+    // saveQuestions 내부에서 발생하는 `is missing examName...` 오류는 이제 여기서 먼저 잡힘.
+    // 따라서 아래의 복잡한 오류 메시지 분기보다는 일반적인 오류 메시지로 통일 가능.
+    return NextResponse.json({ error: '문제 업데이트 중 내부 서버 오류가 발생했습니다.' }, { status: 500 });
+  }
 }
 
 // 단일 문제 삭제

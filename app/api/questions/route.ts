@@ -17,14 +17,14 @@ const TMP_DIR = path.join(process.cwd(), 'public', 'images', 'tmp');
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'images', 'uploaded');
 
 // Helper function to find or create an exam and return its ID
-async function findOrCreateExamId(examName: string, examYear: number, examSubject: string): Promise<string> {
+async function findOrCreateExamId(examName: string, examDate: string, examSubject: string): Promise<string> {
   const existingExam = await db
     .select({ id: exams.id })
     .from(exams)
     .where(
       and(
         eq(exams.name, examName),
-        eq(exams.year, examYear),
+        eq(exams.date, examDate),
         eq(exams.subject, examSubject)
       )
     )
@@ -37,7 +37,7 @@ async function findOrCreateExamId(examName: string, examYear: number, examSubjec
       .insert(exams)
       .values({
         name: examName,
-        year: examYear,
+        date: examDate,
         subject: examSubject,
       })
       .returning({ id: exams.id });
@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
     }
 
     let examNameFromTags: string | undefined;
-    let examYearFromTags: number | undefined;
+    let examDateFromTags: string | undefined;
     let examSubjectFromTags: string | undefined;
     const otherTags: string[] = [];
 
@@ -163,11 +163,11 @@ export async function POST(req: NextRequest) {
           console.log("[API /questions POST] Processing tag:", tag);
           if (tag.startsWith("시험명:")) {
             examNameFromTags = tag.substring("시험명:".length).trim();
-          } else if (tag.startsWith("년도:")) {
-            const yearStr = tag.substring("년도:".length).trim();
-            const yearNum = parseInt(yearStr, 10);
-            if (!isNaN(yearNum)) {
-              examYearFromTags = yearNum;
+          } else if (tag.startsWith("날짜:")) {
+            examDateFromTags = tag.substring("날짜:".length).trim();
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(examDateFromTags)) {
+                console.warn("[API /questions POST] Invalid date format in tag:", examDateFromTags);
+                examDateFromTags = undefined;
             }
           } else if (tag.startsWith("과목:")) {
             examSubjectFromTags = tag.substring("과목:".length).trim();
@@ -180,16 +180,16 @@ export async function POST(req: NextRequest) {
       });
     }
     console.log("[API /questions POST] Extracted examName:", examNameFromTags);
-    console.log("[API /questions POST] Extracted examYear:", examYearFromTags);
+    console.log("[API /questions POST] Extracted examDate:", examDateFromTags);
     console.log("[API /questions POST] Extracted examSubject:", examSubjectFromTags);
     console.log("[API /questions POST] Other tags:", JSON.stringify(otherTags));
 
-    if (!examNameFromTags || examYearFromTags === undefined || !examSubjectFromTags) {
-      console.error("[API /questions POST] Validation failed: Missing required exam tags.");
-      return NextResponse.json({ error: "필수 태그(시험, 년도, 과목)가 누락되었거나 형식이 잘못되었습니다." }, { status: 400 });
+    if (!examNameFromTags || !examDateFromTags || !examSubjectFromTags) {
+      console.error("[API /questions POST] Validation failed: Missing required exam tags or invalid date format.");
+      return NextResponse.json({ error: "필수 태그(시험명, 날짜(YYYY-MM-DD), 과목)가 누락되었거나 형식이 잘못되었습니다." }, { status: 400 });
     }
     
-    const determinedExamId = await findOrCreateExamId(examNameFromTags, examYearFromTags, examSubjectFromTags);
+    const determinedExamId = await findOrCreateExamId(examNameFromTags, examDateFromTags, examSubjectFromTags);
 
     // saveQuestions에 전달할 단일 질문 객체 구성
     const singleQuestion: IManualQuestion = { // 타입 명시
@@ -235,170 +235,226 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const userId = DEV_USER_ID;
+    const userId = DEV_USER_ID; // 개발용 ID, 필요시 실제 인증 사용자로 교체
     const url = new URL(req.url);
-    const page = parseInt(url.searchParams.get("page") || "1");
-    const limit = parseInt(url.searchParams.get("limit") || "10");
-    const skip = (page - 1) * limit;
+    const currentPage = parseInt(url.searchParams.get("page") || "1");
+    const limitParam = url.searchParams.get("limit");
+    const effectiveLimit = limitParam === "0" ? undefined : parseInt(limitParam || "10");
+    const skip = effectiveLimit !== undefined ? (currentPage - 1) * effectiveLimit : 0;
     const tagsParam = url.searchParams.get("tags");
     const idsParam = url.searchParams.get("ids");
 
     let fetchedQuestions: IQuestion[] = [];
     let totalQuestions = 0;
-    let conditions: SQL<unknown>[] = [eq(questions.userId, userId)];
+    let conditions: SQL<unknown>[] = [];
 
     const selectFields = {
       ...getTableColumns(questions),
       examName: exams.name,
-      examYear: exams.year,
+      examDate: exams.date,
       examSubject: exams.subject
     };
 
     // 1. ID 목록으로 조회
     if (idsParam) {
-      console.log(`GET /api/questions: Fetching by IDs: ${idsParam}`);
+      console.log(`[API /questions GET] Fetching by IDs: ${idsParam}`);
       const idArray = idsParam.split(',').map(id => id.trim()).filter(id => id.length > 0);
 
       if (idArray.length === 0) {
-        console.warn("GET /api/questions: Invalid or empty IDs provided");
+        console.warn("[API /questions GET] Invalid or empty IDs provided");
         return NextResponse.json({ error: "유효한 문제 ID가 제공되지 않았습니다." }, { status: 400 });
       }
       conditions.push(inArray(questions.id, idArray));
       
-      const results = await db
+      // ID 조회 시에는 바로 쿼리 실행 (아래 태그 기반 로직과 분리)
+      const resultsById = await db
         .select(selectFields)
         .from(questions)
         .leftJoin(exams, eq(questions.examId, exams.id))
-        .where(and(...conditions));
+        .where(and(...conditions)); // conditions에는 idArray 조건만 있음
 
-      fetchedQuestions = results.map(q => ({
+      fetchedQuestions = resultsById.map(q => ({
         ...q,
         images: q.images ?? [], 
         explanationImages: q.explanationImages ?? [],
         tags: q.tags ?? [], 
       }));
       totalQuestions = fetchedQuestions.length;
-      console.log(`GET /api/questions: Found ${totalQuestions} questions by IDs`);
+      console.log(`[API /questions GET] Found ${totalQuestions} questions by IDs.`);
 
     }
     // 2. 태그로 조회
     else if (tagsParam) {
-      console.log(`GET /api/questions: Fetching by tags: ${tagsParam}`);
-      
-      let examNameFromTagsQuery: string | undefined;
-      let examYearFromTagsQuery: number | undefined;
-      let examSubjectFromTagsQuery: string | undefined;
-      const additionalTags: string[] = [];
-      const rawTagsArray = tagsParam.split(',').map(t => t.trim()).filter(t => t);
+      console.log(`[API /questions GET] Fetching by tags: ${tagsParam}`);
+      const tagsToFilter = tagsParam.split(',').map(tag => tag.trim()).filter(t => t);
+      console.log(`[API /questions GET] Parsed tagsToFilter: ${JSON.stringify(tagsToFilter)}`);
 
-      rawTagsArray.forEach(tag => {
-        if (tag.startsWith("시험명:")) {
-          examNameFromTagsQuery = tag.substring("시험명:".length).trim();
-        } else if (tag.startsWith("년도:")) {
-          const yearStr = tag.substring("년도:".length).trim();
-          const yearNum = parseInt(yearStr, 10);
-          if (!isNaN(yearNum)) {
-            examYearFromTagsQuery = yearNum;
-          }
-        } else if (tag.startsWith("과목:")) {
-          examSubjectFromTagsQuery = tag.substring("과목:".length).trim();
+      const examNameTags = tagsToFilter.filter(tag => tag.startsWith("시험명:")).map(tag => tag.substring("시험명:".length).trim());
+      const dateTags = tagsToFilter.filter(tag => tag.startsWith("날짜:")).map(tag => tag.substring("날짜:".length).trim());
+      const subjectTags = tagsToFilter.filter(tag => tag.startsWith("과목:")).map(tag => tag.substring("과목:".length).trim());
+      const otherTags = tagsToFilter.filter(tag => !tag.startsWith("시험명:") && !tag.startsWith("날짜:") && !tag.startsWith("과목:"));
+
+      console.log(`[API /questions GET] Parsed examNameTags: ${JSON.stringify(examNameTags)}`);
+      console.log(`[API /questions GET] Parsed dateTags: ${JSON.stringify(dateTags)}`);
+      console.log(`[API /questions GET] Parsed subjectTags: ${JSON.stringify(subjectTags)}`);
+      console.log(`[API /questions GET] Parsed otherTags: ${JSON.stringify(otherTags)}`);
+
+      // examId를 찾기 위한 조건 (시험명, 날짜, 과목 기준)
+      if (examNameTags.length > 0 || dateTags.length > 0 || subjectTags.length > 0) {
+        let examSubQueryConditions: SQL<unknown>[] = [];
+        if (examNameTags.length > 0) {
+          examSubQueryConditions.push(inArray(exams.name, examNameTags));
+        }
+        if (dateTags.length > 0) {
+          examSubQueryConditions.push(inArray(exams.date, dateTags));
+        }
+        if (subjectTags.length > 0) { // 과목 태그가 있는 경우에만 조건 추가
+          examSubQueryConditions.push(inArray(exams.subject, subjectTags));
+        }
+        
+        console.log(`[API /questions GET] Number of examSubQueryConditions for examId lookup: ${examSubQueryConditions.length}`);
+
+        if (examSubQueryConditions.length > 0) {
+            const subQuery = db
+                .select({ id: exams.id })
+                .from(exams)
+                .where(and(...examSubQueryConditions));
+            
+            console.log(`[API /questions GET] Executing Subquery for examIds (params will be bound by Drizzle)`);
+
+            try {
+                const examIdsFromSubQueryResult = await subQuery;
+                console.log(`[API /questions GET] Subquery Result (examIdsFromSubQueryResult): ${JSON.stringify(examIdsFromSubQueryResult)}`);
+                
+                if (examIdsFromSubQueryResult && examIdsFromSubQueryResult.length > 0) {
+                    conditions.push(inArray(questions.examId, examIdsFromSubQueryResult.map(e => e.id)));
+                    console.log(`[API /questions GET] Added examId condition to main query. Current conditions count: ${conditions.length}`);
+                } else {
+                    console.log(`[API /questions GET] Subquery returned no examIds. No questions will be fetched based on these exam criteria.`);
+                    // 중요: examId를 못찾으면 해당 태그로는 결과가 없어야 함.
+                    // 이를 보장하기 위해 절대 참이 될 수 없는 조건을 추가 (예: 1=0)
+                    // 또는, 여기서 바로 빈 결과를 반환할 수도 있습니다.
+                    conditions.push(sql`1=0`); // 해당 시험 조건으로 결과 없음을 명시
+                }
+            } catch (e: any) {
+                console.error(`[API /questions GET] Error executing subquery for examIds: ${e.message}`, e.stack);
+                conditions.push(sql`1=0`); // 에러 발생 시에도 결과 없도록 처리
+            }
         } else {
-          additionalTags.push(tag);
-        }
-      });
-
-      if (examNameFromTagsQuery || examYearFromTagsQuery !== undefined || examSubjectFromTagsQuery) {
-        if (!examNameFromTagsQuery || examYearFromTagsQuery === undefined || !examSubjectFromTagsQuery) {
-          console.warn("GET /api/questions: Incomplete exam info tags provided. Returning empty.");
-          return NextResponse.json({ questions: [], totalQuestions: 0, page, limit });
-        }
-        const exam = await db.select({ id: exams.id })
-          .from(exams)
-          .where(and(
-            eq(exams.name, examNameFromTagsQuery),
-            eq(exams.year, examYearFromTagsQuery),
-            eq(exams.subject, examSubjectFromTagsQuery)
-          ))
-          .limit(1);
-        if (exam && exam.length > 0 && exam[0].id) {
-          conditions.push(eq(questions.examId, exam[0].id));
-        } else {
-          console.log(`GET /api/questions: No exam found for ${examNameFromTagsQuery}, ${examYearFromTagsQuery}, ${examSubjectFromTagsQuery}. Returning empty.`);
-          return NextResponse.json({ questions: [], totalQuestions: 0, page, limit });
+          console.log("[API /questions GET] examSubQueryConditions array was empty. No subquery for examIds executed based on examName/date/subject.");
         }
       }
 
-      if (additionalTags.length > 0) {
-        const tagsJsonbArray = JSON.stringify(additionalTags);
-        conditions.push(sql`tags @> ${tagsJsonbArray}::jsonb`);
+      // 기타 태그 조건 추가 (otherTags)
+      if (otherTags.length > 0) {
+        // PostgreSQL의 경우 배열 포함 연산자 사용 가능
+        // otherTags.forEach(tag => conditions.push(sql`${questions.tags} @> ${JSON.stringify([tag])}`));
+        // 일반적인 JSON 문자열 포함 검색 (LIKE) - 성능에 주의
+        otherTags.forEach(tag => {
+            const escapedTag = tag.replace(/[\\%_]/g, char => `\\\\${char}`); // Escape special characters for LIKE
+            conditions.push(sql`${questions.tags}::text LIKE ${`%\"${escapedTag}\"%`}`);
+        });
+        console.log(`[API /questions GET] Added otherTags conditions. Current conditions count: ${conditions.length}`);
       }
       
-      if (conditions.length === 1 && rawTagsArray.length > 0) {
-        // 이 분기는 사실상 도달하기 어려울 수 있음.
+      console.log(`[API /questions GET] Total number of conditions for main query (tagsParam branch): ${conditions.length}`);
+
+      if (conditions.length === 0 && tagsToFilter.length > 0) {
+        // 태그가 있었지만 유효한 조건이 하나도 만들어지지 않은 경우
+        console.warn("[API /questions GET] Tags were provided, but no effective query conditions were built. Returning empty results.");
+        return NextResponse.json({ questions: [], totalQuestions: 0, page: currentPage, limit: effectiveLimit === undefined ? 0 : effectiveLimit });
+      }
+       if (conditions.length === 0 && tagsToFilter.length === 0) {
+        // tagsParam은 있었지만 분리 후 tagsToFilter가 빈 경우 (예: tags=", , ")
+        // 이 경우는 아래 전체 조회 로직으로 빠지게 될 것임.
+        console.log("[API /questions GET] tagsParam was present but resulted in empty tagsToFilter. Will proceed to fetch all if no other branches hit.");
       }
 
-      const combinedCondition = and(...conditions);
-      
-      const results = await db
+
+      // 조건에 따라 쿼리 실행 (태그 기반)
+      const combinedConditionForTags = conditions.length > 0 ? and(...conditions) : sql`1=1`; // 조건이 없으면 모든 문제 (하지만 아래 전체조회와 중복 가능성 체크)
+
+      const baseQueryForTags = db
         .select(selectFields)
         .from(questions)
         .leftJoin(exams, eq(questions.examId, exams.id))
-        .where(combinedCondition)
-        .orderBy(desc(questions.createdAt)) 
-        .limit(limit)
-        .offset(skip);
+        .where(combinedConditionForTags)
+        .orderBy(desc(questions.createdAt));
+      
+      let finalQueryForTags;
+      if (effectiveLimit !== undefined) {
+        finalQueryForTags = baseQueryForTags.limit(effectiveLimit).offset(skip);
+      } else {
+        finalQueryForTags = baseQueryForTags;
+      }
+      
+      console.log(`[API /questions GET] Executing main query for tags - SQL: ${finalQueryForTags.toSQL().sql} with params: ${JSON.stringify(finalQueryForTags.toSQL().params)}`);
+      const resultsByTags = await finalQueryForTags;
 
-      const countResult = await db
-        .select({ count: sql<number>`count(*)` })
+      const countResultForTags = await db
+        .select({ count: sql`count(*)::int` }) // PostgreSQL specific cast
         .from(questions)
-        .where(combinedCondition);
+        .leftJoin(exams, eq(questions.examId, exams.id))
+        .where(combinedConditionForTags);
 
-      fetchedQuestions = results.map(q => ({
+      fetchedQuestions = resultsByTags.map(q => ({
         ...q,
         images: q.images ?? [], 
         explanationImages: q.explanationImages ?? [], 
         tags: q.tags ?? [], 
       }));
-      totalQuestions = countResult[0]?.count || 0;
-      console.log(`GET /api/questions: Found ${fetchedQuestions.length} questions (total ${totalQuestions}) by tags and/or exam info`);
+      totalQuestions = Number(countResultForTags[0]?.count) || 0;
+      console.log(`[API /questions GET] Found ${fetchedQuestions.length} questions (total ${totalQuestions}) by tags.`);
 
     }
     // 3. 파라미터 없는 경우 (전체 목록 조회 - 페이지네이션)
     else {
-      console.log(`GET /api/questions: Fetching all questions (paginated)`);
-      const results = await db
+      // 이 부분은 idsParam도 없고 tagsParam도 없을 때 실행됩니다.
+      console.log(`[API /questions GET] Fetching all questions (paginated) as no ids or tags were provided.`);
+      
+      const baseQueryForAll = db
         .select(selectFields)
         .from(questions)
         .leftJoin(exams, eq(questions.examId, exams.id))
-        .where(and(...conditions)) // userId 조건만 포함됨
-        .orderBy(desc(questions.createdAt))
-        .limit(limit)
-        .offset(skip);
+        // .where(and(...conditions)) // conditions가 비어있으므로 모든 데이터 대상. 필요 시 사용자별 필터 등 추가.
+        .orderBy(desc(questions.createdAt));
+      
+      let finalQueryForAll;
+      if (effectiveLimit !== undefined) {
+        finalQueryForAll = baseQueryForAll.limit(effectiveLimit).offset(skip);
+      } else {
+        finalQueryForAll = baseQueryForAll;
+      }
 
-      const countResult = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(questions)
-        .where(and(...conditions)); // userId 조건만 포함됨
-
-      fetchedQuestions = results.map(q => ({
+      console.log(`[API /questions GET] Executing query for all questions - SQL: ${finalQueryForAll.toSQL().sql} with params: ${JSON.stringify(finalQueryForAll.toSQL().params)}`);
+      fetchedQuestions = (await finalQueryForAll).map(q => ({
         ...q,
         images: q.images ?? [],
         explanationImages: q.explanationImages ?? [],
         tags: q.tags ?? [],
       }));
-      totalQuestions = countResult[0]?.count || 0;
-      console.log(`GET /api/questions: Found ${fetchedQuestions.length} questions (total ${totalQuestions}) - all for user`);
+
+      const countResultForAll = await db
+        .select({ count: sql`count(*)::int` }) // PostgreSQL specific cast
+        .from(questions)
+        .leftJoin(exams, eq(questions.examId, exams.id)); // Count 쿼리에도 join 적용
+        // .where(and(...conditions)); // 위와 동일
+
+      totalQuestions = Number(countResultForAll[0]?.count) || 0;
+      console.log(`[API /questions GET] Found ${fetchedQuestions.length} questions (total ${totalQuestions}) - all questions (paginated).`);
     }
 
-    return NextResponse.json({ questions: fetchedQuestions, totalQuestions, page, limit });
+    return NextResponse.json({ questions: fetchedQuestions, totalQuestions, page: currentPage, limit: effectiveLimit === undefined ? 0 : effectiveLimit });
 
   } catch (error: any) {
-    console.error("[/api/questions GET Error]:", error);
-    if (error.message === "Failed to create or retrieve exam ID") {
-      return NextResponse.json({ error: "요청 처리 중 문제 ID 관련 오류 발생" }, { status: 500 });
+    console.error("[/api/questions GET Error]:", error.message, error.stack);
+    // findOrCreateExamId 에서 발생하는 에러 메시지인지 확인 (POST 핸들러 관련이지만, GET에서도 유사한 로직이 있다면...)
+    // 현재 GET 핸들러에서는 findOrCreateExamId를 직접 호출하지 않으므로, 이 조건은 크게 의미 없을 수 있음.
+    if (error.message === "Failed to create or retrieve exam ID") { 
+      return NextResponse.json({ error: "요청 처리 중 시험 정보 관련 오류 발생" }, { status: 500 });
     }
     return NextResponse.json(
-      { error: "문제를 가져오는 중 오류가 발생했습니다." },
+      { error: "문제를 가져오는 중 서버 오류가 발생했습니다." },
       { status: 500 }
     );
   }

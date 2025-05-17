@@ -11,18 +11,13 @@ import {
 } from '@/components/ui/card';
 import { Input } from "@/components/ui/input"; // Import Input for search
 import { Search } from 'lucide-react'; // Import Search icon
-import { IExamInstance } from '@/types'; // Import from common types
+import { IExamInstance, GroupedExams, GroupedExamData } from '@/types'; // Import from common types
 import Breadcrumb from '@/components/common/Breadcrumb'; // Import Breadcrumb
 import { ExamListDisplay } from '@/components/exam-selection/ExamListDisplay'; // 공통 컴포넌트 import
 
 // Remove local duplicate interface definitions if they exist
 // interface IExamInstance { ... }
 // interface IExamInstancesResponse { ... }
-
-// Keep GroupedExams if only used here, or move to types/index.ts
-interface GroupedExams {
-  [examName: string]: IExamInstance[];
-}
 
 /**
  * 문제 은행 페이지 (시험 선택 페이지)
@@ -52,16 +47,28 @@ export default function LearnExamsPage() {
         }
 
         const data = await response.json(); 
-        const examInstances: IExamInstance[] = data.examInstances || [];
+        let examInstances: IExamInstance[] = data.examInstances || [];
+        console.log('[/learn/exams/page.tsx] Raw Exam Instances Received:', JSON.stringify(examInstances, null, 2));
+
+        // !!! 중요: questionCount > 0 인스턴스만 사용하도록 필터링 !!!
+        examInstances = examInstances.filter(instance => instance.questionCount > 0);
+        console.log('[/learn/exams/page.tsx] Filtered Exam Instances (questionCount > 0):', JSON.stringify(examInstances, null, 2));
 
         // Group instances by examName (same logic as before)
         const grouped: GroupedExams = examInstances.reduce((acc, instance) => {
           if (!acc[instance.examName]) {
-            acc[instance.examName] = [];
+            acc[instance.examName] = { instances: [], uniqueDateCount: 0 }; // 새 구조로 초기화
           }
-          acc[instance.examName].push(instance);
+          acc[instance.examName].instances.push(instance);
           return acc;
         }, {} as GroupedExams);
+
+        // Calculate unique date count for each examName
+        for (const examName in grouped) {
+          const uniqueDates = new Set(grouped[examName].instances.map(inst => inst.date));
+          grouped[examName].uniqueDateCount = uniqueDates.size;
+        }
+        console.log('[/learn/exams/page.tsx] Grouped exams with unique date counts:', JSON.stringify(grouped, null, 2));
 
         setGroupedExams(grouped);
       } catch (err) {
