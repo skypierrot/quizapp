@@ -6,6 +6,7 @@ import {
   timestamp,
   index,
   uuid,
+  text,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { users } from './auth';
@@ -20,7 +21,7 @@ export const examResults = pgTable(
     userId: uuid('user_id').notNull(), // uuid로 변경
     examName: varchar('exam_name', { length: 255 }).notNull(),
     examYear: integer('exam_year').notNull(),
-    examSession: varchar('exam_session', { length: 50 }).notNull(), // e.g., '1회', '2회차', '상시'
+    examSubject: text('exam_subject').notNull(), // examSession -> examSubject, varchar -> text
 
     // Store detailed answer info including correctness
     answers: jsonb('answers').$type<IAnswerDetail[]>().notNull(),
@@ -50,7 +51,7 @@ export const examResults = pgTable(
       examDetailsIdx: index('exam_details_idx').on(
         table.examName,
         table.examYear,
-        table.examSession
+        table.examSubject
       ),
     };
   }

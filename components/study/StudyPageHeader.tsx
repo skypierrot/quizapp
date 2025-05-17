@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 interface StudyPageHeaderProps {
   encodedExamName: string;
   encodedYear: string;
-  encodedSession: string;
+  encodedSubject: string;
   isShowingAllAnswers: boolean;
   isShowingAllExplanations: boolean;
   isSingleViewMode: boolean;
@@ -20,7 +20,7 @@ interface StudyPageHeaderProps {
 const StudyPageHeader: React.FC<StudyPageHeaderProps> = ({
   encodedExamName,
   encodedYear,
-  encodedSession,
+  encodedSubject,
   isShowingAllAnswers,
   isShowingAllExplanations,
   isSingleViewMode,
@@ -32,25 +32,25 @@ const StudyPageHeader: React.FC<StudyPageHeaderProps> = ({
 }) => {
   let examName = '';
   let year = '';
-  let session = '';
+  let subject = '';
 
   // 클라이언트 측에서 디코딩 시도 (오류 방지 포함)
   try {
     examName = decodeURIComponent(encodedExamName);
     year = decodeURIComponent(encodedYear);
-    session = decodeURIComponent(encodedSession);
+    subject = decodeURIComponent(encodedSubject);
   } catch (e) {
     console.error("Error decoding params in StudyPageHeader:", e);
     // 디코딩 실패 시 원본 또는 기본값 표시 (선택 사항)
     examName = encodedExamName; 
     year = encodedYear;
-    session = encodedSession;
+    subject = encodedSubject;
   }
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-gray-100 rounded-lg shadow">
       <h1 className="text-lg md:text-xl font-bold text-gray-800 mb-2 sm:mb-0 flex-shrink min-w-0">
-        {`${examName} · ${year}년 · ${session}`}
+        {`${examName} · ${year}년 · ${subject}`}
       </h1>
       <div className="flex flex-wrap items-center justify-start sm:justify-end gap-x-3 gap-y-2 mt-2 sm:mt-0 w-full sm:w-auto">
         <Button

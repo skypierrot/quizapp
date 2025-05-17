@@ -20,7 +20,7 @@ export default function LearnExamDetailPage() { // 페이지 컴포넌트 이름
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const examNameParam = params.examName;
+    const examNameParam = params?.examName ?? null;
     if (typeof examNameParam === 'string') {
       try {
         const decodedName = decodeURIComponent(examNameParam);
@@ -40,7 +40,7 @@ export default function LearnExamDetailPage() { // 페이지 컴포넌트 이름
             const data: IExamInstancesResponse = await response.json();
             const sortedInstances = (data.examInstances || []).sort((a, b) => {
               if (a.year !== b.year) return b.year.localeCompare(a.year);
-              return b.session.localeCompare(a.session);
+              return b.subject.localeCompare(a.subject);
             });
             setExamInstances(sortedInstances);
           } catch (err) {
@@ -61,12 +61,12 @@ export default function LearnExamDetailPage() { // 페이지 컴포넌트 이름
       setError("시험명을 URL에서 찾을 수 없습니다.");
       setLoading(false);
     }
-  }, [params.examName]);
+  }, [params]);
 
-  const breadcrumbItems = decodedExamName ? [
+  const breadcrumbItems = decodedExamName && params ? [
     { label: '홈', href: '/' },
     { label: '문제 은행', href: '/learn/exams' },
-    { label: decodedExamName, href: `/learn/exams/${params.examName}`, isCurrent: true }, // 수정: isCurrent=true
+    { label: decodedExamName, href: `/learn/exams/${params.examName}`, isCurrent: true },
   ] : [];
 
   if (loading) {
@@ -83,7 +83,7 @@ export default function LearnExamDetailPage() { // 페이지 컴포넌트 이름
       <ExamSessionListDisplay
         examInstances={examInstances}
         basePath="/learn/exams" // 학습 경로 전달
-        title={decodedExamName || "시험 회차 목록"} // 제목 전달
+        title={decodedExamName ? `${decodedExamName} - 과목 목록` : "과목 목록"} // "시험 회차 목록" -> "과목 목록" 등 수정
       />
     </div>
   );

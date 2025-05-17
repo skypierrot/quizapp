@@ -36,7 +36,7 @@ export default function ExamStartPage() {
   const userDisplayName = session?.user?.nickname || session?.user?.email;
 
   // 시험 정보 상태
-  const [examInfo, setExamInfo] = useState<{ name: string; year: string; session: string } | null>(null);
+  const [examInfo, setExamInfo] = useState<{ name: string; year: string; subject: string } | null>(null);
   const [questions, setQuestions] = useState<IQuestion[]>([]);
 
   // 시험 진행 상태
@@ -52,12 +52,13 @@ export default function ExamStartPage() {
 
   // 1. URL 파라미터 읽기 및 시험 정보 설정
   useEffect(() => {
+    if (!searchParams) return; // searchParams가 null이면 아무것도 하지 않음
     const name = searchParams.get('name');
     const year = searchParams.get('year');
-    const session = searchParams.get('session');
+    const subject = searchParams.get('subject');
 
-    if (name && year && session) {
-      setExamInfo({ name, year, session });
+    if (name && year && subject) {
+      setExamInfo({ name, year, subject });
     } else {
       setError('시험 정보를 URL에서 가져올 수 없습니다.');
       setExamState('error');
@@ -76,7 +77,7 @@ export default function ExamStartPage() {
         const tagsToQuery = [
           `시험명:${examInfo.name}`,
           `년도:${examInfo.year}`,
-          `회차:${examInfo.session}`
+          `과목:${examInfo.subject}`
         ];
         const encodedTags = encodeURIComponent(tagsToQuery.join(','));
         const response = await fetch(`/api/questions?tags=${encodedTags}`);
@@ -192,9 +193,10 @@ export default function ExamStartPage() {
 
     // 결과 저장 API 호출 데이터 구성
     const resultData: INewExamResult = {
+      userId: userId!, // userId는 handleSubmitExam 시작 시 null 체크를 하므로 non-null 단언 사용 가능
       examName: examInfo.name,
       examYear: parseInt(examInfo.year),
-      examSession: examInfo.session,
+      examSubject: examInfo.subject,
       answers: answerDetails,
       score: score,
       correctCount: correctCount,
@@ -307,7 +309,7 @@ export default function ExamStartPage() {
 
       {examInfo && (
         <h1 className="text-2xl font-bold mb-4">
-          {examInfo.name} ({examInfo.year}년 {examInfo.session})
+          {examInfo.name} ({examInfo.year}년 {examInfo.subject})
         </h1>
       )}
 

@@ -10,7 +10,7 @@ import { AlertCircle } from 'lucide-react';
 interface DecodedParams {
   examName: string;
   year: string;
-  session: string;
+  subject: string;
 }
 
 export default function ExamStartConfirmationPage() {
@@ -21,26 +21,26 @@ export default function ExamStartConfirmationPage() {
 
   useEffect(() => {
     try {
-      const examNameRaw = params.examName;
-      const yearRaw = params.year;
-      const sessionRaw = params.session;
+      const examNameRaw = params?.examName ?? null;
+      const yearRaw = params?.year ?? null;
+      const subjectRaw = params?.subject ?? null;
 
       if (
         typeof examNameRaw !== 'string' ||
         typeof yearRaw !== 'string' ||
-        typeof sessionRaw !== 'string'
+        typeof subjectRaw !== 'string'
       ) {
         throw new Error('URL 파라미터가 유효하지 않습니다.');
       }
 
       const decodedExamName = decodeURIComponent(examNameRaw);
       const decodedYear = decodeURIComponent(yearRaw);
-      const decodedSession = decodeURIComponent(sessionRaw);
+      const decodedSubject = decodeURIComponent(subjectRaw);
 
       setDecodedParams({
         examName: decodedExamName,
         year: decodedYear,
-        session: decodedSession,
+        subject: decodedSubject,
       });
       setError(null);
     } catch (e: any) {
@@ -57,10 +57,10 @@ export default function ExamStartConfirmationPage() {
       const queryParams = new URLSearchParams({
         name: decodedParams.examName,
         year: decodedParams.year,
-        session: decodedParams.session,
+        subject: decodedParams.subject,
       }).toString();
       router.push(`/exams/start?${queryParams}`);
-      console.log(`시험 시작: ${decodedParams.examName} ${decodedParams.year} ${decodedParams.session}`);
+      console.log(`시험 시작: ${decodedParams.examName} ${decodedParams.year} ${decodedParams.subject}`);
     } else {
       console.error("시험 정보를 찾을 수 없어 시작할 수 없습니다.");
       // 사용자에게 오류 알림 (예: Toast 메시지)
@@ -68,11 +68,11 @@ export default function ExamStartConfirmationPage() {
   };
 
   // Breadcrumb 아이템 정의
-  const breadcrumbItems = decodedParams ? [
+  const breadcrumbItems = decodedParams && params ? [
     { label: '홈', href: '/' },
     { label: '모의고사', href: '/exams' },
     { label: decodedParams.examName, href: `/exams/${params.examName}` },
-    { label: `${decodedParams.year} / ${decodedParams.session}`, href: `/exams/${params.examName}/${params.year}/${params.session}`, isCurrent: true },
+    { label: `${decodedParams.year} / ${decodedParams.subject}`, href: `/exams/${params.examName}/${params.year}/${params.subject}`, isCurrent: true },
   ] : [
     { label: '홈', href: '/' },
     { label: '모의고사', href: '/exams' },
@@ -117,8 +117,8 @@ export default function ExamStartConfirmationPage() {
             <p className="text-lg font-semibold">{decodedParams.year}</p>
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-500">회차</p>
-            <p className="text-lg font-semibold">{decodedParams.session}</p>
+            <p className="text-sm font-medium text-gray-500">과목</p>
+            <p className="text-lg font-semibold">{decodedParams.subject}</p>
           </div>
           <Button className="w-full mt-4" onClick={handleStartExam}>
             시험 시작하기

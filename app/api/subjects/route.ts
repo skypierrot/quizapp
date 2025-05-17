@@ -1,51 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { questions } from '@/db/schema';
-import { sql } from 'drizzle-orm';
+import { exams } from '@/db/schema';
+import { sql, eq, and } from 'drizzle-orm';
 
-// GET: 과목 목록 조회 (questions.tags에서 과목명 추출)
-export async function GET() {
+// GET: 과목 목록 조회 (exams 테이블에서 subject 컬럼 사용)
+export async function GET(request: NextRequest) {
   try {
-    console.log('Attempting to fetch subjects...');
-    // 쿼리 실행 (jsonb 타입에 맞게 수정)
-    const result = await db.execute(
-      sql`SELECT DISTINCT jsonb_array_elements_text(tags) as tag FROM ${questions} WHERE jsonb_typeof(tags) = 'array'`
-    );
-    console.log('DB query result:', result);
+    const url = new URL(request.url);
+    const examName = url.searchParams.get('name');
+    const year = url.searchParams.get('year');
 
-    // result가 배열인지, rows 프로퍼티가 있는지 확인 후 파싱
-    let rows: any[] = [];
-    if (Array.isArray(result)) {
-      rows = result;
-    } else if (result && 'rows' in result && Array.isArray((result as any).rows)) {
-      rows = (result as any).rows;
-    } else {
-      console.warn('Unexpected DB result structure:', result);
+    if (!examName || !year) {
+      return NextResponse.json({ error: '시험명과 년도는 필수 파라미터입니다.' }, { status: 400 });
     }
 
-    console.log('Parsed rows:', rows);
+    // Drizzle ORM을 사용하여 쿼리
+    const subjectList = await db
+      .selectDistinct({ subject: exams.subject })
+      .from(exams)
+      .where(and(eq(exams.name, examName), eq(exams.year, parseInt(year))))
+      .orderBy(exams.subject)
+      .execute();
 
-    // tag 추출 및 필터링
-    const subjects = rows
-      .map((row: any) => row.tag)
-      .filter((tag: any) => typeof tag === 'string' && tag.startsWith('과목:'))
-      .map((tag: string) => tag.replace('과목:', ''));
-
-    // 중복 제거
-    const uniqueSubjects = Array.from(new Set(subjects));
-    console.log('Returning subjects:', uniqueSubjects);
+    const uniqueSubjects = subjectList.map(item => item.subject);
+    
+    console.log(`Returning subjects for ${examName} - ${year}:`, uniqueSubjects);
     return NextResponse.json({ subjects: uniqueSubjects });
 
   } catch (error: any) {
-    // 상세 에러 로그 추가
     console.error('과목 목록 조회 중 오류 발생:', error);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
     return NextResponse.json({ error: '과목 목록 조회 중 서버 오류 발생', details: error.message }, { status: 500 });
   }
 }
 
-// POST: 새 과목 추가 (questions 테이블에 더미 데이터로 추가, 실제로는 별도 subject 테이블 필요)
+// POST 핸들러는 useCascadingTags에서 POST /api/exams로 통합되었으므로 주석 처리 또는 삭제
+/*
 export async function POST(request: NextRequest) {
   try {
     const { name } = await request.json();
@@ -66,3 +55,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '과목 추가 실패', details: error.message }, { status: 500 });
   }
 } 
+*/ 

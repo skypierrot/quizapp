@@ -8,7 +8,7 @@ import { z } from 'zod';
 const createExamSchema = z.object({
   name: z.string().min(1, { message: "Exam name cannot be empty" }),
   year: z.number().int().gte(1900).lte(new Date().getFullYear() + 1, { message: "Invalid year" }),
-  round: z.string().min(1, { message: "Round cannot be empty" }) // 회차는 문자열로 처리 (e.g., "1", "실기")
+  subject: z.string().min(1, { message: "Subject cannot be empty" }) // round -> subject
 });
 
 export async function POST(request: NextRequest) {
@@ -25,13 +25,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid input', details: validationResult.error.flatten().fieldErrors }, { status: 400 });
   }
 
-  const { name, year, round } = validationResult.data;
+  const { name, year, subject } = validationResult.data; // round -> subject
 
   try {
-    console.log(`Checking for existing exam: ${name}, ${year}, ${round}...`);
+    console.log(`Checking for existing exam: ${name}, ${year}, ${subject}...`); // round -> subject
     // 기존 시험 정보 확인
     const existingExam = await db.query.exams.findFirst({
-      where: and(eq(exams.name, name), eq(exams.year, year), eq(exams.round, parseInt(round, 10))) // round는 DB 타입에 맞게 변환
+      where: and(eq(exams.name, name), eq(exams.year, year), eq(exams.subject, subject)) // round -> subject, parseInt 제거
     });
 
     if (existingExam) {
@@ -40,13 +40,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Exam already exists', exam: existingExam }, { status: 200 }); 
     }
 
-    console.log(`Creating new exam: ${name}, ${year}, ${round}...`);
+    console.log(`Creating new exam: ${name}, ${year}, ${subject}...`); // round -> subject
     // 새 시험 정보 삽입
     const newExam = await db.insert(exams).values({
       name,
       year,
-      round: parseInt(round, 10), // DB 타입에 맞게 변환
-      // createdAt, updatedAt은 default 값 사용
+      subject: subject, // round -> subject, parseInt 제거
     }).returning(); // 삽입된 레코드 반환
 
     console.log('New exam created:', newExam[0]);
@@ -68,7 +67,7 @@ export async function GET() {
     const allExams = await db
       .select()
       .from(exams)
-      .orderBy(asc(exams.name), asc(exams.year), asc(exams.round)); // 이름, 년도, 회차순 정렬
+      .orderBy(asc(exams.name), asc(exams.year), asc(exams.subject)); // round -> subject
 
     console.log(`Found ${allExams.length} exams.`);
     

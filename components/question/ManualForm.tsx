@@ -59,15 +59,26 @@ const normalizeImages = (imgs: any) => {
 const parseInitialTags = (tags: string[] = []) => {
   let initialExamName = "";
   let initialYear = "";
-  let initialSession = "";
-  let initialSubject = "";
+  let initialSubjectFromSession = ""; // session에서 파싱될 값
+  let initialSubjectFromSubject = ""; // subject에서 파싱될 값
+
   tags.forEach((tag: string) => {
     if (tag.startsWith('시험명:')) initialExamName = tag.replace('시험명:', '');
     else if (tag.startsWith('년도:')) initialYear = tag.replace('년도:', '');
-    else if (tag.startsWith('회차:')) initialSession = tag.replace('회차:', '');
-    else if (tag.startsWith('과목:')) initialSubject = tag.replace('과목:', '');
+    // "회차:" 태그를 "과목:"으로 간주하고 값을 가져옴 (session -> subject 변경의 일환)
+    else if (tag.startsWith('회차:')) initialSubjectFromSession = tag.replace('회차:', ''); 
+    else if (tag.startsWith('과목:')) initialSubjectFromSubject = tag.replace('과목:', '');
   });
-  return { initialExamName, initialYear, initialSession, initialSubject };
+  // 만약 "과목:" 태그가 존재하면 그것을 우선 사용하고, 없다면 "회차:"에서 변환된 값을 사용
+  // 사용자의 요청은 session을 subject로 대체하는 것이므로, initialSubject는 하나여야 함.
+  // 여기서는 initialSubjectFromSubject (원래 과목 태그)가 있다면 그것을 쓰고, 
+  // 없다면 initialSubjectFromSession (회차에서 변환된 과목 태그)를 쓴다.
+  // useCascadingTags에는 initialSubject 하나만 전달됨.
+  const finalInitialSubject = initialSubjectFromSubject || initialSubjectFromSession;
+  
+  // useCascadingTags는 initialSubject prop 하나만 받으므로, 여기서 결정해서 넘겨야 함.
+  // initialSession은 더 이상 사용하지 않음.
+  return { initialExamName, initialYear, initialSubject: finalInitialSubject };
 };
 
 export function ManualForm({ 
@@ -130,25 +141,23 @@ export function ManualForm({
   const {
     examName,
     year,
-    session,
     subject,
     examNameOptions,
     yearOptions,
-    sessionOptions,
+    subjectOptions,
     isLoadingExamNames,
     isLoadingYears,
-    isLoadingSessions,
+    isLoadingSubjects,
     isYearValid,
     isYearDisabled,
-    isSessionDisabled,
+    isSubjectDisabled,
     handleExamNameChange,
     handleYearChange,
-    handleSessionChange,
+    handleSubjectChange,
     handleExamNameCreate,
     handleYearCreate,
-    handleSessionCreate,
-    setSubject,
-  } = useCascadingTags(initialTags); // 파싱된 초기값 전달
+    handleSubjectCreate,
+  } = useCascadingTags(initialTags);
   
   // useManualFormTag 훅 사용
   const tagManager = useManualFormTag({
@@ -203,33 +212,30 @@ export function ManualForm({
     // --- 수정: 제출 시 기본 태그 자동 적용 및 검증 (훅 값 사용) ---
     const trimmedExamName = examName.trim();
     const trimmedYear = year.trim();
-    const trimmedSession = session.trim();
-    const trimmedSubject = subject.trim(); // 과목 값 가져오기
+    const trimmedSubject = subject.trim();
 
     // 필수 태그 입력 및 년도 형식 확인 (훅의 isYearValid 사용)
-    if (!trimmedExamName || !trimmedYear || !trimmedSession || !isYearValid) { // isYearValid 사용
+    if (!trimmedExamName || !trimmedYear || !trimmedSubject || !isYearValid) {
       toast({
         title: "필수 태그 오류",
-        description: "시험명, 년도(YYYY 형식), 회차는 필수 입력 항목입니다.", 
+        description: "시험명, 년도(YYYY 형식), 과목은 필수 입력 항목입니다.",
         variant: "error"
       });
-      // 년도 형식 피드백은 isYearValid 상태에 따라 BasicTagSettings 아래에서 처리됨
-      return; // 제출 중단
+      return;
     }
     
     // 기본 태그 구성 (훅의 subject 사용)
     const basicTags: string[] = [
       `시험명:${trimmedExamName}`,
       `년도:${trimmedYear}`,
-      `회차:${trimmedSession}`,
-      ...(trimmedSubject ? [`과목:${trimmedSubject}`] : []), // subject 사용
+      `과목:${trimmedSubject}`,
     ];
     
     // 기존 태그에서 기본 태그가 아닌 것만 필터링 + 새로운 기본 태그 추가
     const currentTags = question.tags || [];
     const otherTags = currentTags.filter((tag: string) => 
       !(tag.startsWith('시험명:') || tag.startsWith('년도:') || 
-        tag.startsWith('회차:') || tag.startsWith('과목:'))
+        tag.startsWith('과목:'))
     );
     const finalTags = [...otherTags, ...basicTags];
     
@@ -242,16 +248,27 @@ export function ManualForm({
     
     // apiData 구성 전에 finalTags를 사용하도록 수정
     const apiData = {
-      content: question.content,
+      ...question,
       options: optionsPayload,
-      answer: question.answer,
-      explanation: question.explanation || "",
-      images: mapAndFilterImageUrls(question.images),
-      explanationImages: mapAndFilterImageUrls(question.explanationImages),
-      tags: finalTags, // 최종 태그 사용
-      updatedAt: new Date()
+      images: normalizeImages(question.images),
+      explanationImages: normalizeImages(question.explanationImages),
+      tags: finalTags, // 수정된 finalTags 사용
+      // examId는 서버에서 tags를 기반으로 생성/조회하므로 클라이언트에서 보내지 않음
     };
-    // --- 자동 적용 및 검증 끝 ---
+    // delete apiData.id; // id는 서버에서 생성 (isEditMode가 아닐 때) -> 아래 로직으로 대체
+    if (!isEditMode) {
+      delete apiData.id; // 새 문제 생성 시에는 id 필드 제거
+    } else if (questionId) {
+      apiData.id = questionId; // 수정 모드이고 questionId가 있으면 id 설정
+    } else {
+      // 수정 모드인데 questionId가 없는 경우 (이론적으로 발생하면 안됨)
+      console.warn("Edit mode without questionId, id will be auto-generated if not present in question object");
+      if (!question.id) delete apiData.id; // question 객체에도 id가 없으면 제거
+    }
+
+    console.log("API 요청 정보:", {url: apiUrl || '/api/questions', method: apiMethod || (isEditMode ? 'PUT' : 'POST') });
+    console.log("API 요청 데이터 tags:", apiData.tags); // 디버깅 로그 추가
+    // console.log("API 요청 전체 데이터:", JSON.stringify(apiData, null, 2)); // 전체 데이터 확인용 로그
     
     setIsSubmitting(true);
 
@@ -344,23 +361,21 @@ export function ManualForm({
       <BasicTagSettings
         examName={examName}
         year={year}
-        session={session}
         subject={subject}
         examNameOptions={examNameOptions}
         yearOptions={yearOptions}
-        sessionOptions={sessionOptions}
+        subjectOptions={subjectOptions}
         isLoadingExamNames={isLoadingExamNames}
         isLoadingYears={isLoadingYears}
-        isLoadingSessions={isLoadingSessions}
+        isLoadingSubjects={isLoadingSubjects}
         isYearDisabled={isYearDisabled}
-        isSessionDisabled={isSessionDisabled}
+        isSubjectDisabled={isSubjectDisabled}
         onExamNameChange={handleExamNameChange}
         onYearChange={handleYearChange}
-        onSessionChange={handleSessionChange}
+        onSubjectChange={handleSubjectChange}
         onExamNameCreate={handleExamNameCreate}
         onYearCreate={handleYearCreate}
-        onSessionCreate={handleSessionCreate}
-        onSubjectChange={setSubject}
+        onSubjectCreate={handleSubjectCreate}
       />
       {!isYearValid && year && (
         <p className="text-xs text-red-500 mt-1 ml-1">년도는 4자리 숫자로 입력해주세요.</p>

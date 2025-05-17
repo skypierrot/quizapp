@@ -25,12 +25,16 @@ export interface IQuestion {
   options: IOption[];
   answer: number;
   explanation?: string | null;
-  images?: { url: string; hash: string }[];
-  explanationImages?: { url: string; hash: string }[];
-  tags?: string[];
-  userId?: string;
+  images: { url: string; hash: string }[];
+  explanationImages: { url: string; hash: string }[];
+  tags: string[];
+  userId?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
+  examId?: string | null;
+  examName?: string | null;
+  examYear?: number | null;
+  examSubject?: string | null;
 }
 
 export interface IOption {
@@ -50,6 +54,7 @@ export interface IManualQuestion {
   explanationImages: { url: string; hash: string }[];
   tags: string[];
   examId?: string;
+  userId?: string;
 }
 
 export interface IQuestionImage {
@@ -62,7 +67,7 @@ export interface IQuestionImage {
 export interface IExamInstance {
   examName: string;
   year: string;
-  session: string;
+  subject: string;
   questionCount: number;
 }
 
@@ -82,7 +87,7 @@ export type INewExamResult = {
   userId: string;
   examName: string;
   examYear: number;
-  examSession: string;
+  examSubject: string;
   answers: IAnswerDetail[];
   score: number;
   correctCount: number;

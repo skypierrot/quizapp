@@ -14,21 +14,19 @@ interface Option {
 const createExamSchema = z.object({
   name: z.string().min(1),
   year: z.number().int().min(1900),
-  round: z.string().min(1)
+  subject: z.string().min(1)
 });
 type CreateExamPayload = z.infer<typeof createExamSchema>;
 
 interface UseCascadingTagsProps {
   initialExamName?: string;
   initialYear?: string;
-  initialSession?: string;
   initialSubject?: string;
 }
 
 export function useCascadingTags({
   initialExamName = "",
   initialYear = "",
-  initialSession = "",
   initialSubject = ""
 }: UseCascadingTagsProps = {}) {
   const { toast } = useToast();
@@ -36,17 +34,16 @@ export function useCascadingTags({
   // --- 상태 변수 ---
   const [examName, setExamName] = useState<string>(initialExamName);
   const [year, setYear] = useState<string>(initialYear);
-  const [session, setSession] = useState<string>(initialSession);
   const [subject, setSubject] = useState<string>(initialSubject);
   const [isYearValid, setIsYearValid] = useState<boolean>(true);
 
   const [examNameOptions, setExamNameOptions] = useState<Option[]>([]);
   const [yearOptions, setYearOptions] = useState<Option[]>([]);
-  const [sessionOptions, setSessionOptions] = useState<Option[]>([]);
+  const [subjectOptions, setSubjectOptions] = useState<Option[]>([]);
 
   const [isLoadingExamNames, setIsLoadingExamNames] = useState<boolean>(false);
   const [isLoadingYears, setIsLoadingYears] = useState<boolean>(false);
-  const [isLoadingSessions, setIsLoadingSessions] = useState<boolean>(false);
+  const [isLoadingSubjects, setIsLoadingSubjects] = useState<boolean>(false);
 
   // --- 유효성 검사 ---
   const validateYear = useCallback((value: string): boolean => {
@@ -100,9 +97,9 @@ export function useCascadingTags({
       const options = data.years.map((yr: string) => ({ value: yr, label: `${yr}년` }));
       setYearOptions(options);
 
-       // 초기 년도값이 있고 로드된 옵션에 포함되어 있으면, 회차 로드 시도
+       // 초기 년도값이 있고 로드된 옵션에 포함되어 있으면, 과목 로드 시도
        if (initialYr && options.some((opt: Option) => opt.value === initialYr)) {
-            fetchRoundsForExam(selectedExamName, initialYr);
+            fetchSubjectsForExam(selectedExamName, initialYr, initialSubject);
        }
 
     } catch (error) {
@@ -117,42 +114,41 @@ export function useCascadingTags({
       setIsLoadingYears(false);
     }
    // eslint-disable-next-line react-hooks/exhaustive-deps
-   }, [toast, initialSession]); // 초기값 로직 위해 initialSession 추가
+   }, [toast, initialSubject]); // 초기값 로직 위해 initialSubject 추가
 
-  const fetchRoundsForExam = useCallback(async (selectedExamName: string, selectedYear: string) => {
+  const fetchSubjectsForExam = useCallback(async (selectedExamName: string, selectedYear: string, initialSubj?: string) => {
     if (!selectedExamName || !selectedYear || !validateYear(selectedYear)) {
-      setSessionOptions([]);
+      setSubjectOptions([]);
       return;
     }
-    setIsLoadingSessions(true);
-    setSessionOptions([]);
+    setIsLoadingSubjects(true);
+    setSubjectOptions([]);
     try {
-      const response = await fetch(`/api/exams/rounds?name=${encodeURIComponent(selectedExamName)}&year=${encodeURIComponent(selectedYear)}`);
+      const response = await fetch(`/api/subjects?name=${encodeURIComponent(selectedExamName)}&year=${encodeURIComponent(selectedYear)}`);
       if (!response.ok) {
-        throw new Error('회차 목록을 불러오는데 실패했습니다.');
+        throw new Error('과목 목록을 불러오는데 실패했습니다.');
       }
       const data = await response.json();
-      const options = data.rounds.map((round: string) => ({ value: round, label: `${round}회차` }));
-      setSessionOptions(options);
+      const options = data.subjects.map((subj: string) => ({ value: subj, label: subj }));
+      setSubjectOptions(options);
       
-      // 초기 회차값이 있으면 설정 (옵션 로드 후)
-      if (initialSession && options.some((opt: Option) => opt.value === initialSession)) {
-          // setSession(initialSession); // session 상태는 이미 useEffect에서 설정됨
+      if (initialSubj && options.some((opt: Option) => opt.value === initialSubj)) {
+          setSubject(initialSubj);
       }
 
     } catch (error) {
-      console.error("Error fetching rounds:", error);
+      console.error("Error fetching subjects:", error);
       toast({
         title: "오류",
-        description: error instanceof Error ? error.message : "회차 목록 로딩 중 오류 발생",
+        description: error instanceof Error ? error.message : "과목 목록 로딩 중 오류 발생",
         variant: "error",
       });
-      setSessionOptions([]);
+      setSubjectOptions([]);
     } finally {
-      setIsLoadingSessions(false);
+      setIsLoadingSubjects(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toast, validateYear, initialSession]); // 초기값 로직 위해 initialSession 추가
+  }, [toast, validateYear]);
 
   // --- 초기 데이터 로딩 ---
   useEffect(() => {
@@ -162,7 +158,7 @@ export function useCascadingTags({
   // --- 생성 로직 헬퍼 ---
  const handleCreateExamInfo = useCallback(async (
     value: string,
-    type: 'name' | 'year' | 'round'
+    type: 'name' | 'year' | 'subject'
   ) => {
     let payload: CreateExamPayload;
     let newLabel = '';
@@ -170,25 +166,25 @@ export function useCascadingTags({
     try {
       if (type === 'name') {
         const currentYear = new Date().getFullYear();
-        payload = { name: value, year: currentYear, round: '1' };
+        payload = { name: value, year: currentYear, subject: '기본과목' };
         newLabel = value;
       } else if (type === 'year') {
         if (!examName) throw new Error("시험명을 먼저 선택해주세요.");
         const yearNum = parseInt(value, 10);
         if (isNaN(yearNum) || !validateYear(value)) throw new Error("유효한 년도(YYYY)를 입력해주세요.");
-        payload = { name: examName, year: yearNum, round: '1' };
+        payload = { name: examName, year: yearNum, subject: '기본과목' };
         newLabel = `${value}년`;
       } else {
         if (!examName) throw new Error("시험명을 먼저 선택해주세요.");
         if (!year || !validateYear(year)) throw new Error("유효한 년도를 먼저 선택해주세요.");
         const yearNum = parseInt(year, 10);
-        payload = { name: examName, year: yearNum, round: value };
-        newLabel = `${value}회차`;
+        payload = { name: examName, year: yearNum, subject: value };
+        newLabel = value;
       }
 
       if (type === 'name') setIsLoadingExamNames(true);
       else if (type === 'year') setIsLoadingYears(true);
-      else setIsLoadingSessions(true);
+      else setIsLoadingSubjects(true);
 
       const response = await fetch('/api/exams', {
         method: 'POST',
@@ -208,16 +204,16 @@ export function useCascadingTags({
         setExamNameOptions(prev => [...prev, newOption]);
         setExamName(newOption.value);
         setYear(''); setYearOptions([]);
-        setSession(''); setSessionOptions([]);
-        fetchYearsForExam(newOption.value); // 생성 후 바로 년도 로드
+        setSubject(''); setSubjectOptions([]);
+        fetchYearsForExam(newOption.value);
       } else if (type === 'year') {
         setYearOptions(prev => [...prev, newOption].sort((a, b) => a.label.localeCompare(b.label)));
         setYear(newOption.value);
-        setSession(''); setSessionOptions([]);
-         fetchRoundsForExam(examName, newOption.value); // 생성 후 바로 회차 로드
+        setSubject(''); setSubjectOptions([]);
+        fetchSubjectsForExam(examName, newOption.value);
       } else {
-        setSessionOptions(prev => [...prev, newOption].sort((a, b) => a.label.localeCompare(b.label)));
-        setSession(newOption.value);
+        setSubjectOptions(prev => [...prev, newOption].sort((a, b) => a.label.localeCompare(b.label)));
+        setSubject(newOption.value);
       }
 
       toast({ title: "성공", description: `${newLabel} 정보가 생성되었습니다.`, variant: "success" });
@@ -228,9 +224,9 @@ export function useCascadingTags({
     } finally {
        if (type === 'name') setIsLoadingExamNames(false);
        else if (type === 'year') setIsLoadingYears(false);
-       else setIsLoadingSessions(false);
+       else setIsLoadingSubjects(false);
     }
-  }, [examName, year, validateYear, fetchYearsForExam, fetchRoundsForExam, toast]);
+  }, [examName, year, validateYear, fetchYearsForExam, fetchSubjectsForExam, toast]);
 
 
   // --- 핸들러 ---
@@ -238,8 +234,8 @@ export function useCascadingTags({
     setExamName(value);
     setYear('');
     setYearOptions([]);
-    setSession('');
-    setSessionOptions([]);
+    setSubject('');
+    setSubjectOptions([]);
     setIsYearValid(true);
     if (value) {
       fetchYearsForExam(value);
@@ -250,15 +246,15 @@ export function useCascadingTags({
     const isValid = validateYear(value);
     setYear(value);
     setIsYearValid(isValid);
-    setSession('');
-    setSessionOptions([]);
+    setSubject('');
+    setSubjectOptions([]);
     if (value && examName && isValid) {
-      fetchRoundsForExam(examName, value);
+      fetchSubjectsForExam(examName, value);
     }
-  }, [examName, validateYear, fetchRoundsForExam]);
+  }, [examName, validateYear, fetchSubjectsForExam]);
 
-  const handleSessionChange = useCallback((value: string) => {
-    setSession(value);
+  const handleSubjectChange = useCallback((value: string) => {
+    setSubject(value);
   }, []);
 
   const handleExamNameCreate = useCallback(async (value: string) => {
@@ -272,10 +268,10 @@ export function useCascadingTags({
     await handleCreateExamInfo(value.trim(), 'year');
   }, [examName, validateYear, handleCreateExamInfo, toast]);
 
-  const handleSessionCreate = useCallback(async (value: string) => {
+  const handleSubjectCreate = useCallback(async (value: string) => {
     if (!examName || !year || !validateYear(year)) { toast({ title: "오류", description: "시험명과 유효한 년도를 먼저 선택해주세요.", variant: "error" }); return; }
-    if (!value.trim()) { toast({ title: "오류", description: "회차를 입력해주세요.", variant: "error" }); return; }
-    await handleCreateExamInfo(value.trim(), 'round');
+    if (!value.trim()) { toast({ title: "오류", description: "과목명을 입력해주세요.", variant: "error" }); return; }
+    await handleCreateExamInfo(value.trim(), 'subject');
   }, [examName, year, validateYear, handleCreateExamInfo, toast]);
 
   // --- 초기값 설정 useEffect ---
@@ -283,38 +279,33 @@ export function useCascadingTags({
   useEffect(() => {
       setExamName(initialExamName);
       setYear(initialYear);
-      setSession(initialSession);
       setSubject(initialSubject);
-      setIsYearValid(initialYear ? validateYear(initialYear) : true); // 초기 년도 유효성 검사
+      setIsYearValid(initialYear ? validateYear(initialYear) : true);
 
-      // 초기값이 변경되었을 때, 관련된 옵션들도 다시 로드할 필요가 있을 수 있음
-      // 단, 이미 fetchExamNames에서 초기값 기반 로드를 처리하므로 여기서는 상태 설정만
-  }, [initialExamName, initialYear, initialSession, initialSubject, validateYear]);
+  }, [initialExamName, initialYear, initialSubject, validateYear]);
 
 
   return {
     // 상태 값
     examName,
     year,
-    session,
     subject,
     examNameOptions,
     yearOptions,
-    sessionOptions,
+    subjectOptions,
     isLoadingExamNames,
     isLoadingYears,
-    isLoadingSessions,
+    isLoadingSubjects,
     isYearValid,
     // 계산된 값
     isYearDisabled: !examName || isLoadingExamNames,
-    isSessionDisabled: !year || isLoadingYears || !isYearValid,
+    isSubjectDisabled: !year || isLoadingYears || !isYearValid,
     // 핸들러 함수
     handleExamNameChange,
     handleYearChange,
-    handleSessionChange,
+    handleSubjectChange,
     handleExamNameCreate,
     handleYearCreate,
-    handleSessionCreate,
-    setSubject, // 과목은 직접 설정 함수를 반환
+    handleSubjectCreate,
   };
 } 

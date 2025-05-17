@@ -19,7 +19,7 @@ export default function ExamDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const examNameParam = params.examName;
+    const examNameParam = params?.examName ?? null;
     if (typeof examNameParam === 'string') {
       try {
         const decodedName = decodeURIComponent(examNameParam);
@@ -38,10 +38,10 @@ export default function ExamDetailPage() {
               throw new Error(errorData.error || `API 호출 실패: ${response.statusText}`);
             }
             const data: IExamInstancesResponse = await response.json();
-            // 년도 내림차순, 회차 오름차순 정렬
+            // 년도 내림차순, 과목 오름차순 정렬 (session -> subject)
             const sortedInstances = (data.examInstances || []).sort((a, b) => {
               if (a.year !== b.year) return b.year.localeCompare(a.year);
-              return a.session.localeCompare(b.session);
+              return a.subject.localeCompare(b.subject);
             });
             setExamInstances(sortedInstances);
           } catch (err) {
@@ -62,7 +62,7 @@ export default function ExamDetailPage() {
       setError("URL에서 시험명을 찾을 수 없습니다.");
       setLoading(false);
     }
-  }, [params.examName]);
+  }, [params]);
 
   if (loading) {
     return <div className="container mx-auto py-8 text-center">로딩 중...</div>;
@@ -73,16 +73,16 @@ export default function ExamDetailPage() {
 
   return (
     <div className="container mx-auto py-8">
-      <Breadcrumb items={decodedExamName ? [
+      <Breadcrumb items={decodedExamName && params ? [
         { label: '홈', href: '/' },
         { label: '모의고사', href: '/exams' },
         { label: decodedExamName, href: `/exams/${params.examName}`, isCurrent: true },
       ] : []} />
-      {/* ExamSessionListDisplay 사용하여 회차 목록 표시 (basePath, title 수정) */}
+      {/* ExamSessionListDisplay 사용하여 과목 목록 표시 (title 수정) */}
       <ExamSessionListDisplay
         examInstances={examInstances}
         basePath="/exams" // 모의고사 기본 경로
-        title={decodedExamName ? `${decodedExamName} - 모의고사 회차 선택` : "모의고사 회차 선택"}
+        title={decodedExamName ? `${decodedExamName} - 모의고사 과목 선택` : "모의고사 과목 선택"}
       />
     </div>
   );

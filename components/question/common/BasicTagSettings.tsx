@@ -20,21 +20,18 @@ interface BasicTagSettingsProps {
   onYearCreate: (value: string) => void
   isLoadingYears: boolean
   isYearDisabled: boolean
-  session: string
-  sessionOptions: Option[]
-  onSessionChange: (value: string) => void
-  onSessionCreate: (value: string) => void
-  isLoadingSessions: boolean
-  isSessionDisabled: boolean
   subject: string
+  subjectOptions: Option[]
   onSubjectChange: (value: string) => void
+  onSubjectCreate: (value: string) => void
+  isLoadingSubjects: boolean
+  isSubjectDisabled: boolean
 }
 
 export function BasicTagSettings({
   examName, examNameOptions, onExamNameChange, onExamNameCreate, isLoadingExamNames,
   year, yearOptions, onYearChange, onYearCreate, isLoadingYears, isYearDisabled,
-  session, sessionOptions, onSessionChange, onSessionCreate, isLoadingSessions, isSessionDisabled,
-  subject, onSubjectChange
+  subject, subjectOptions, onSubjectChange, onSubjectCreate, isLoadingSubjects, isSubjectDisabled
 }: BasicTagSettingsProps) {
   return (
     <div className="mb-4 p-3 border border-gray-200 rounded-md bg-gray-50">
@@ -80,29 +77,19 @@ export function BasicTagSettings({
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-gray-500 block">
-            회차: <span className="text-red-500 font-bold">*</span>
+            과목: <span className="text-red-500 font-bold">*</span>
           </Label>
           <CascadingCombobox
-            options={sessionOptions}
-            value={session}
-            onSelect={onSessionChange}
-            onCreate={onSessionCreate}
-            placeholder="회차 선택 또는 생성"
-            searchPlaceholder="회차 검색..."
-            emptyStateMessage="회차를 찾을 수 없습니다."
-            createLabel="새 회차 생성"
-            disabled={isSessionDisabled}
-            isLoading={isLoadingSessions}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs text-gray-500 block">과목:</Label>
-          <Input
-            type="text"
-            placeholder="과목 입력 (선택)"
+            options={subjectOptions}
             value={subject}
-            onChange={(e) => onSubjectChange(e.target.value)}
-            className="h-8 text-sm w-full"
+            onSelect={onSubjectChange}
+            onCreate={onSubjectCreate}
+            placeholder="과목 선택 또는 생성"
+            searchPlaceholder="과목 검색..."
+            emptyStateMessage="과목을 찾을 수 없습니다."
+            createLabel="새 과목 생성"
+            disabled={isSubjectDisabled}
+            isLoading={isLoadingSubjects}
           />
         </div>
       </div>

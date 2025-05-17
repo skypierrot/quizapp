@@ -1,1 +1,0 @@
-ALTER TABLE "user_question_memos" DROP COLUMN "id";

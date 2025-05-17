@@ -40,6 +40,14 @@ function QuestionCard({
   detailView: boolean;
   onImageZoom: (url: string) => void;
 }) {
+    const displayTags: string[] = [];
+    if (question.examName) displayTags.push(`시험명:${question.examName}`);
+    if (question.examYear) displayTags.push(`년도:${question.examYear}`);
+    if (question.examSubject) displayTags.push(`과목:${question.examSubject}`);
+    if (question.tags && question.tags.length > 0) {
+      displayTags.push(...question.tags);
+    }
+
     return (
     <Card className="h-full overflow-hidden flex flex-col">
       <CardHeader className="p-4 pb-2 space-y-2 bg-gray-50">
@@ -56,13 +64,13 @@ function QuestionCard({
             </div>
           </div>
         </div>
-        {question.tags && question.tags.length > 0 && (
+        {displayTags.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {question.tags.map((tag, idx) => (
-                      <Badge key={idx} variant="outline" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
+            {displayTags.map((tag, idx) => (
+              <Badge key={idx} variant="outline" className="text-xs">
+                {tag}
+              </Badge>
+            ))}
           </div>
         )}
       </CardHeader>
@@ -172,6 +180,15 @@ function QuestionCard({
 // 해설(상세) 다이얼로그
 function QuestionDetailDialog({ open, question, onClose }: { open: boolean; question: IQuestion | null; onClose: () => void }) {
   if (!question) return null;
+
+  const displayTags: string[] = [];
+  if (question.examName) displayTags.push(`시험명:${question.examName}`);
+  if (question.examYear) displayTags.push(`년도:${question.examYear}`);
+  if (question.examSubject) displayTags.push(`과목:${question.examSubject}`);
+  if (question.tags && question.tags.length > 0) {
+    displayTags.push(...question.tags);
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -179,9 +196,9 @@ function QuestionDetailDialog({ open, question, onClose }: { open: boolean; ques
         <DialogDescription>문제 상세 설명</DialogDescription>
         <div className="space-y-6 mt-4">
           {/* 태그 */}
-          {question.tags && question.tags.length > 0 && (
+          {displayTags.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              {question.tags.map((tag, idx) => (
+              {displayTags.map((tag, idx) => (
                 <Badge key={idx}>{tag}</Badge>
               ))}
             </div>
