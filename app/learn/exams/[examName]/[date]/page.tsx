@@ -74,7 +74,7 @@ const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, sho
         
         return (
           <div 
-            key={opt.number || i} 
+            key={`q${question.id}-opt-${i}`} 
             className={`p-3 my-2 border rounded-md transition-all duration-150 ${optionStyle}`}
             onClick={() => onOptionSelect && onOptionSelect(i)}
           >
@@ -195,6 +195,14 @@ export default function ExamDateLearningPage() {
         explanationImages: normalizeImages(q.explanationImages), 
         options: (q.options || []).map((opt: IOption) => ({...opt, images: normalizeImages(opt.images)}))
       }));
+
+      // 문제 ID 중복 확인 로그 추가
+      const questionIds = processedQuestions.map(q => q.id);
+      const duplicateIds = questionIds.filter((id, index) => questionIds.indexOf(id) !== index);
+      if (duplicateIds.length > 0) {
+        console.warn("[fetchQuestions] !!! 중복된 문제 ID 발견 !!!:", duplicateIds);
+        console.log("[fetchQuestions] 중복 ID를 포함하는 전체 문제 목록:", processedQuestions.filter(q => duplicateIds.includes(q.id!))); // q.id가 undefined일 수 없다고 단언
+      }
 
       setQuestions(processedQuestions);
       console.log("[fetchQuestions] Processed Questions Set (count):", processedQuestions.length, "for", { examName, date });

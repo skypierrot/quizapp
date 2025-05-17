@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
+import postgres, { type Sql } from 'postgres';
 import * as schema from './schema';
 
 // DATABASE_URL 환경변수를 사용해 PostgreSQL에 연결합니다.
@@ -13,7 +13,7 @@ const CONNECT_TIMEOUT_SEC = 5;
 // 연결 재시도 함수
 const createDBConnection = async () => {
   let retries = 0;
-  let client;
+  let client: Sql<{}>;
 
   while (retries < MAX_RETRIES) {
     try {
@@ -48,9 +48,9 @@ const createDBConnection = async () => {
 };
 
 // 클라이언트 비동기 초기화
-let dbClient;
+let dbClient: Sql<{}> | undefined;
 let initialized = false;
-let initializationPromise;
+let initializationPromise: Promise<Sql<{}>> | null = null;
 
 const initDB = async () => {
   if (!initialized && !initializationPromise) {
@@ -75,8 +75,11 @@ initDB().catch(err => console.error('초기 DB 연결 오류:', err));
 
 // DB 인스턴스 비동기 래퍼
 const getDB = async () => {
-  if (!initialized) {
+  if (!initialized || !dbClient) {
     await initDB();
+    if (!dbClient) {
+      throw new Error('DB client could not be initialized after initDB.');
+    }
   }
   return drizzle(dbClient, { schema });
 };
