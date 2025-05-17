@@ -31,3 +31,6 @@ public/images/uploaded/
 
 # Other
 *.tsbuildinfolegacy-backup-*.tar.gz
+
+# Ignore predata directory
+predata/
