@@ -140,6 +140,7 @@ export default function StudyPage() {
   const [showIndividualAnswer, setShowIndividualAnswer] = useState<Record<string, boolean>>({});
   const [isShuffled, setIsShuffled] = useState(false);
   const [userAnswers, setUserAnswers] = useState<Record<string, number | null>>({});
+  const [isQuestionsShuffled, setIsQuestionsShuffled] = useState(false);
 
   const shuffledOptionsData = useMemo(() => {
     if (!isShuffled) return null;
@@ -168,6 +169,7 @@ export default function StudyPage() {
       setTotalPages(1);
       setLoading(false);
       setCurrentExamSubject(undefined);
+      setIsQuestionsShuffled(false);
       return;
     }
     setLoading(true);
@@ -227,10 +229,12 @@ export default function StudyPage() {
       setUserAnswers({});
       setShowExplanation({});
       setShowIndividualAnswer({});
+      setIsQuestionsShuffled(false);
     } catch (error) { 
       toast({ title: "데이터 로딩 오류", description: error instanceof Error ? error.message : "문제를 불러오는데 실패했습니다." }); 
       setQuestions([]); 
       setTotalPages(1); 
+      setIsQuestionsShuffled(false);
     }
     finally { setLoading(false); }
   }, [toast, normalizeImages]);
@@ -326,18 +330,43 @@ export default function StudyPage() {
   const handleToggleShuffle = useCallback(() => {
     setIsShuffled(prev => !prev);
   }, []);
+
+  const handleToggleQuestionsShuffle = useCallback(() => {
+    setIsQuestionsShuffled(prevShuffled => {
+      const nextShuffled = !prevShuffled;
+      if (nextShuffled) {
+        setUserAnswers({});
+        setShowIndividualAnswer({});
+        setShowExplanation({});
+      }
+      setCurrentQuestionIndex(0);
+      return nextShuffled;
+    });
+  }, []);
   
   const handleOptionSelect = (questionId: string | undefined, optionIndex: number) => {
     if (!questionId) return;
     setUserAnswers(prev => ({...prev, [questionId]: optionIndex }));
   };
 
-  const displayedQuestions = useMemo(() => {
-    if (isSingleViewMode) {
-      return questions.length > 0 ? [questions[currentQuestionIndex]] : [];
+  const shuffledQuestionsList = useMemo(() => {
+    if (isQuestionsShuffled) {
+      return shuffleArray([...questions]);
     }
     return questions;
-  }, [isSingleViewMode, questions, currentQuestionIndex]);
+  }, [questions, isQuestionsShuffled]);
+
+  const displayedQuestions = useMemo(() => {
+    if (isSingleViewMode) {
+      return shuffledQuestionsList.length > 0 ? [shuffledQuestionsList[currentQuestionIndex]] : [];
+    }
+    return shuffledQuestionsList;
+  }, [isSingleViewMode, shuffledQuestionsList, currentQuestionIndex]);
+
+  const currentDisplayQuestionsRef = React.useRef(displayedQuestions);
+  useEffect(() => {
+    currentDisplayQuestionsRef.current = displayedQuestions;
+  }, [displayedQuestions]);
 
   const handleImageZoom = (url: string) => setZoomedImage(url);
   const closeImageZoom = () => setZoomedImage(null);
@@ -413,35 +442,46 @@ export default function StudyPage() {
         onToggleSingleViewMode={handleToggleSingleViewMode}
         isShuffled={isShuffled}
         onToggleShuffle={handleToggleShuffle}
+        isQuestionsShuffled={isQuestionsShuffled}
+        onToggleQuestionsShuffle={handleToggleQuestionsShuffle}
         currentQuestionNumber={isSingleViewMode ? currentQuestionIndex + 1 : undefined}
-        totalQuestions={isSingleViewMode ? questions.length : undefined}
+        totalQuestions={isSingleViewMode ? shuffledQuestionsList.length : undefined}
         onPrev={isSingleViewMode ? handlePrevQuestion : undefined}
         onNext={isSingleViewMode ? handleNextQuestion : undefined}
-        showControls={questions.length > 0}
+        showControls={shuffledQuestionsList.length > 0}
       />
 
       {loading && <p className="text-center py-8">문제 로딩 중...</p>}
-      {!loading && questions.length === 0 && (
+      {!loading && shuffledQuestionsList.length === 0 && (
         <p className="text-center py-8 text-gray-600">표시할 문제가 없습니다.</p>
       )}
 
-      {!loading && questions.length > 0 && (
+      {!loading && shuffledQuestionsList.length > 0 && (
         <>
           {isSingleViewMode ? (
-            displayedQuestions.map((question) => (
-              <StudyQuestionCard
-                key={question.id}
-                question={question}
-                index={currentQuestionIndex}
-                onImageZoom={handleImageZoom}
-                showAnswer={showAllAnswers || (question.id ? !!showIndividualAnswer[question.id] : false)}
-                showExplanation={showAllExplanations || (question.id ? !!showExplanation[question.id] : false)}
-                onOptionSelect={(optionIndex) => question.id && handleOptionSelect(question.id, optionIndex)}
-                userAnswer={question.id ? userAnswers[question.id] : null}
-                shuffledOptions={shuffledOptionsData ? shuffledOptionsData.find(d => d.questionId === question.id)?.shuffledOptions : undefined}
-                shuffledAnswerIndex={shuffledOptionsData ? shuffledOptionsData.find(d => d.questionId === question.id)?.newAnswerIndex : undefined}
-              />
-            ))
+            <>
+              {shuffledQuestionsList[currentQuestionIndex]?.examSubject && (
+                <div className="mt-4 mb-2 p-3 bg-gray-50 rounded-md border border-gray-200">
+                  <h2 className="text-md font-semibold text-gray-700">
+                    과목: {shuffledQuestionsList[currentQuestionIndex].examSubject}
+                  </h2>
+                </div>
+              )}
+              {displayedQuestions.map((question) => (
+                <StudyQuestionCard
+                  key={question.id}
+                  question={question}
+                  index={currentQuestionIndex}
+                  onImageZoom={handleImageZoom}
+                  showAnswer={showAllAnswers || (question.id ? !!showIndividualAnswer[question.id] : false)}
+                  showExplanation={showAllExplanations || (question.id ? !!showExplanation[question.id] : false)}
+                  onOptionSelect={(optionIndex) => question.id && handleOptionSelect(question.id, optionIndex)}
+                  userAnswer={question.id ? userAnswers[question.id] : null}
+                  shuffledOptions={shuffledOptionsData ? shuffledOptionsData.find(d => d.questionId === question.id)?.shuffledOptions : undefined}
+                  shuffledAnswerIndex={shuffledOptionsData ? shuffledOptionsData.find(d => d.questionId === question.id)?.newAnswerIndex : undefined}
+                />
+              ))}
+            </>
           ) : (
             displayedQuestions.map((question, idx) => {
               const prevQuestion = idx > 0 ? displayedQuestions[idx - 1] : null;
@@ -481,15 +521,15 @@ export default function StudyPage() {
             })
           )}
           
-          {isSingleViewMode && questions.length > 1 && (
+          {isSingleViewMode && shuffledQuestionsList.length > 1 && (
             <div className="flex justify-between items-center mt-6 mb-2">
               <Button onClick={handlePrevQuestion} disabled={currentQuestionIndex === 0} variant="outline">
                 이전 문제
               </Button>
               <p className="text-sm text-gray-600">
-                {currentQuestionIndex + 1} / {questions.length}
+                {currentQuestionIndex + 1} / {shuffledQuestionsList.length}
               </p>
-              <Button onClick={handleNextQuestion} disabled={currentQuestionIndex === questions.length - 1} variant="outline">
+              <Button onClick={handleNextQuestion} disabled={currentQuestionIndex === shuffledQuestionsList.length - 1} variant="outline">
                 다음 문제
               </Button>
             </div>

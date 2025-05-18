@@ -13,6 +13,8 @@ interface StudyPageHeaderProps {
   onToggleSingleViewMode: () => void;
   isShuffled: boolean;
   onToggleShuffle: () => void;
+  isQuestionsShuffled?: boolean;
+  onToggleQuestionsShuffle?: () => void;
   currentQuestionNumber?: number;
   totalQuestions?: number;
   onPrev?: () => void;
@@ -30,6 +32,8 @@ const StudyPageHeader: React.FC<StudyPageHeaderProps> = ({
   onToggleSingleViewMode,
   isShuffled,
   onToggleShuffle,
+  isQuestionsShuffled,
+  onToggleQuestionsShuffle,
   currentQuestionNumber,
   totalQuestions,
   onPrev,
@@ -46,18 +50,14 @@ const StudyPageHeader: React.FC<StudyPageHeaderProps> = ({
         </div>
         {showControls && (
           <div className="flex flex-wrap items-center justify-start sm:justify-end gap-x-3 gap-y-2 mt-2 sm:mt-0 w-full sm:w-auto">
-            {isSingleViewMode && onPrev && onNext && totalQuestions && totalQuestions > 0 && (
-              <div className="flex items-center gap-x-2 mr-3">
-                <Button variant="outline" size="sm" onClick={onPrev} disabled={currentQuestionNumber === 1}>
-                  이전
-                </Button>
-                <span className="text-sm text-gray-600 dark:text-gray-300">
-                  {currentQuestionNumber} / {totalQuestions}
-                </span>
-                <Button variant="outline" size="sm" onClick={onNext} disabled={currentQuestionNumber === totalQuestions}>
-                  다음
-                </Button>
-              </div>
+            {onToggleQuestionsShuffle && (
+              <Button
+                variant={isQuestionsShuffled ? "default" : "outline"}
+                size="sm"
+                onClick={onToggleQuestionsShuffle}
+              >
+                {isQuestionsShuffled ? "문제 순서대로" : "문제 섞기"}
+              </Button>
             )}
             <Button
               variant={isShuffled ? "default" : "outline"}
