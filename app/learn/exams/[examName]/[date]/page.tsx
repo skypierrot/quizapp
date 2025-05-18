@@ -33,7 +33,7 @@ const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, sho
   shuffledOptions?: IOption[];
   shuffledAnswerIndex?: number;
 }) => {
-  const questionNumber = (page && page > 0 ? (page - 1) * 10 : 0) + index + 1;
+  // const questionNumber = (page && page > 0 ? (page - 1) * 10 : 0) + index + 1; // 기존 페이지 기반 번호 주석 처리 또는 삭제
 
   // 렌더링에 사용할 선택지와 정답 인덱스 결정
   const optionsToDisplay = shuffledOptions && shuffledOptions.length > 0 ? shuffledOptions : question.options;
@@ -41,7 +41,7 @@ const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, sho
 
   return (
     <div className="p-4 border rounded-lg bg-white shadow mb-4">
-      <p className="text-xs text-gray-500 mb-2">문제 #{questionNumber}</p>
+      <p className="text-xs text-gray-500 mb-2">문제 {question.questionNumber !== undefined ? question.questionNumber : index + 1}</p>
       
       <p className="font-semibold mb-3 whitespace-pre-wrap">{question.content || "문제 내용 없음"}</p>
       
@@ -49,7 +49,7 @@ const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, sho
         <div className="mb-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
           {question.images.map((img, imgIndex) => (
             <div key={img.hash || imgIndex} className="cursor-pointer border rounded overflow-hidden hover:opacity-80" onClick={() => onImageZoom(getImageUrl(img.url))}>
-              <CommonImage src={getImageUrl(img.url)} alt={`문제 ${questionNumber} 이미지 ${imgIndex + 1}`} className="w-full h-auto object-contain max-h-40" containerClassName="w-full" />
+              <CommonImage src={getImageUrl(img.url)} alt={`문제 ${question.questionNumber !== undefined ? question.questionNumber : index + 1} 이미지 ${imgIndex + 1}`} className="w-full h-auto object-contain max-h-40" containerClassName="w-full" />
             </div>
           ))}
         </div>
@@ -127,6 +127,7 @@ export default function ExamDateLearningPage() {
 
   const [decodedExamName, setDecodedExamName] = useState<string>('');
   const [decodedDate, setDecodedDate] = useState<string>('');
+  const [currentExamSubject, setCurrentExamSubject] = useState<string | undefined>(undefined);
 
   const [showExplanation, setShowExplanation] = useState<Record<string, boolean>>({});
   const [showAllAnswers, setShowAllAnswers] = useState(false);
@@ -168,9 +169,11 @@ export default function ExamDateLearningPage() {
       setQuestions([]);
       setTotalPages(1);
       setLoading(false);
+      setCurrentExamSubject(undefined);
       return;
     }
     setLoading(true);
+    setCurrentExamSubject(undefined);
     try {
       const tags = [`시험명:${examName}`, `날짜:${date}`];
       const queryParams = new URLSearchParams({
@@ -205,6 +208,14 @@ export default function ExamDateLearningPage() {
       }
 
       setQuestions(processedQuestions);
+      if (processedQuestions.length > 0 && processedQuestions[0].examSubject) {
+        setCurrentExamSubject(processedQuestions[0].examSubject);
+      } else if (processedQuestions.length > 0 && !processedQuestions[0].examSubject) {
+        console.warn(`[fetchQuestions] 과목(examSubject) 정보가 첫 번째 문제에 없습니다. 시험: ${examName}, 날짜: ${date}`);
+        setCurrentExamSubject(undefined);
+      } else {
+        setCurrentExamSubject(undefined);
+      }
       console.log("[fetchQuestions] Processed Questions Set (count):", processedQuestions.length, "for", { examName, date });
       setTotalPages(data.totalPages || 1);
       setCurrentQuestionIndex(0);
@@ -317,14 +328,11 @@ export default function ExamDateLearningPage() {
   const handleImageZoom = (url: string) => setZoomedImage(url);
   const closeImageZoom = () => setZoomedImage(null);
 
-  const breadcrumbItems: BreadcrumbItem[] = [
-    { label: "시험 목록", href: "/learn/exams" },
-    {
-      label: decodedExamName || "시험 상세",
-      href: decodedExamName ? '/learn/exams/' + encodeURIComponent(decodedExamName) : "/learn/exams"
-    },
-    { label: decodedDate || "날짜별 학습", href: '#', isCurrent: true }
-  ];
+  const breadcrumbItems: BreadcrumbItem[] = useMemo(() => [
+    { label: "시험준비", href: "/learn/exams" },
+    { label: decodedExamName || (params?.examName as string) || "시험 상세", href: `/learn/exams/${encodeURIComponent((params?.examName as string) || '')}` },
+    { label: decodedDate || (params?.date as string) || "날짜 상세", isCurrent: true }
+  ], [params, decodedExamName, decodedDate]);
 
   if (loading) return <div className="container mx-auto p-4 text-center">로딩 중...</div>;
   if (!params || !decodedExamName || !decodedDate) return <div className="container mx-auto p-4 text-center">잘못된 접근입니다. 시험 정보 또는 날짜 정보가 없습니다.</div>;
@@ -394,28 +402,39 @@ export default function ExamDateLearningPage() {
             ))
           ) : (
             displayedQuestions.map((question, idx) => {
-              const questionActualIndex = isSingleViewMode ? currentQuestionIndex : questions.findIndex(q => q.id === question.id); 
+              const prevQuestion = idx > 0 ? displayedQuestions[idx - 1] : null;
+              const showSubjectHeader = !prevQuestion || (question.examSubject !== prevQuestion.examSubject);
+
               const currentShuffledData = isShuffled && shuffledOptionsData ? 
                                         shuffledOptionsData.find(d => d.questionId === question.id) : 
                                         null;
 
               const optionsToRender = currentShuffledData ? currentShuffledData.shuffledOptions : question.options;
               const answerToUse = currentShuffledData ? currentShuffledData.newAnswerIndex : question.answer;
-              const individualShowAnswer = showIndividualAnswer[question.id || ''] || showAllAnswers;
+              const individualShowAnswer = (question.id && showIndividualAnswer[question.id]) || showAllAnswers;
+              const individualShowExplanation = (question.id && showExplanation[question.id]) || showAllExplanations;
 
               return (
-                <StudyQuestionCard
-                  key={question.id || idx}
-                  question={question}
-                  index={idx}
-                  onImageZoom={handleImageZoom}
-                  showAnswer={answerToUse !== undefined && individualShowAnswer}
-                  showExplanation={showExplanation[question.id || ''] || showAllExplanations}
-                  onOptionSelect={(optionIndex) => question.id && handleOptionSelect(question.id, optionIndex)}
-                  userAnswer={userAnswers[question.id || '']}
-                  shuffledOptions={currentShuffledData ? currentShuffledData.shuffledOptions : undefined}
-                  shuffledAnswerIndex={currentShuffledData ? currentShuffledData.newAnswerIndex : undefined}
-                />
+                <React.Fragment key={question.id || idx}>
+                  {showSubjectHeader && question.examSubject && (
+                    <div className="mt-8 mb-4 pt-3 pb-2 border-t border-b border-gray-200 bg-gray-50 rounded-md">
+                      <h2 className="text-lg font-semibold text-gray-700 px-4">
+                        과목: {question.examSubject}
+                      </h2>
+                    </div>
+                  )}
+                  <StudyQuestionCard
+                    question={question}
+                    index={idx}
+                    onImageZoom={handleImageZoom}
+                    showAnswer={answerToUse !== undefined && individualShowAnswer}
+                    showExplanation={individualShowExplanation}
+                    onOptionSelect={(optionIndex) => question.id && handleOptionSelect(question.id, optionIndex)}
+                    userAnswer={question.id ? userAnswers[question.id || ''] : null}
+                    shuffledOptions={optionsToRender}
+                    shuffledAnswerIndex={answerToUse}
+                  />
+                </React.Fragment>
               );
             })
           )}

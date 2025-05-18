@@ -76,7 +76,10 @@ function QuestionCard({
       </CardHeader>
       <CardContent className="p-4 flex-grow">
         <div className="mb-3">
-          <p className="font-medium line-clamp-3">{question.content}</p>
+          <p className="font-medium line-clamp-3">
+            {question.questionNumber !== null && question.questionNumber !== undefined ? `${question.questionNumber}. ` : ''}
+            {question.content}
+          </p>
         </div>
         {detailView && (
           <div className="mt-4 space-y-4">

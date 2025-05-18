@@ -38,10 +38,12 @@ const StudyPageHeader: React.FC<StudyPageHeaderProps> = ({
 }) => {
   return (
     <div className="mb-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-gray-100 dark:bg-gray-800 rounded-lg shadow mb-4">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100 mb-3 sm:mb-0 flex-shrink min-w-0 truncate">
-          {title}
-        </h1>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between p-4 bg-gray-100 dark:bg-gray-800 rounded-lg shadow mb-4">
+        <div className="flex-shrink min-w-0">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100 truncate">
+            {title}
+          </h1>
+        </div>
         {showControls && (
           <div className="flex flex-wrap items-center justify-start sm:justify-end gap-x-3 gap-y-2 mt-2 sm:mt-0 w-full sm:w-auto">
             {isSingleViewMode && onPrev && onNext && totalQuestions && totalQuestions > 0 && (

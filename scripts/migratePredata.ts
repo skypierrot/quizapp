@@ -20,7 +20,8 @@ interface ParsedQuestion {
   examName: string;
   examDate: string; // "YYYY-MM-DD"
   subject: string;
-  questionContent: string; // 문제 번호 포함
+  questionNumber?: number;
+  questionContent: string; // 문제 번호가 제거된 문제 내용
   options: ParsedOption[];
   answerIndex: number;
   questionImages: { url: string; hash: string }[];
@@ -80,8 +81,16 @@ async function processImage(
 
 // --- HTML 파싱 및 데이터 추출 함수 ---
 async function parseHtmlFile(filePath: string, dryRun: boolean = false): Promise<ParsedQuestion[]> {
-  console.log(`[ParseHtml] Parsing ${filePath}...`);
-  const htmlContent = await fs.readFile(filePath, 'utf-8');
+  console.log(`[ParseHtml] Attempting to parse ${filePath}...`);
+  let htmlContent;
+  try {
+    htmlContent = await fs.readFile(filePath, 'utf-8');
+    console.log(`[ParseHtml] Successfully read file: ${filePath}`);
+  } catch (error) {
+    console.error(`[ParseHtml] Error reading file ${filePath}:`, error);
+    return []; // 파일 읽기 실패 시 빈 배열 반환
+  }
+
   const $ = cheerio.load(htmlContent);
   const questionsData: ParsedQuestion[] = [];
 
@@ -105,8 +114,27 @@ async function parseHtmlFile(filePath: string, dryRun: boolean = false): Promise
 
     if (el.is('h2')) {
       currentSubject = el.text().replace(/^\d+과목:\s*/, '').trim();
+      console.log(`[DebugParse] Current subject changed to: ${currentSubject}`);
     } else if (el.is('h3')) {
-      const questionTitle = el.text().trim();
+      const h3Text = el.text().trim();
+      console.log(`[DebugParse] Found H3. Raw h3Text: "${h3Text}", Current Subject: ${currentSubject}`);
+      
+      let questionNumber: number | undefined = undefined;
+      const titleNumberMatch = h3Text.match(/^문제\s*(\d+)/);
+
+      if (titleNumberMatch && titleNumberMatch[1]) {
+        questionNumber = parseInt(titleNumberMatch[1], 10);
+        console.log(`[DebugParse] Matched question number from H3: ${questionNumber} from "${h3Text}"`);
+      } else {
+        const fallbackMatch = h3Text.match(/^(\d+)\.\s*/);
+        if (fallbackMatch && fallbackMatch[1]) {
+            questionNumber = parseInt(fallbackMatch[1], 10);
+            console.log(`[DebugParse] Matched question number from H3 (fallback): ${questionNumber} from "${h3Text}"`);
+        } else {
+            console.log(`[DebugParse] No question number match in H3 title: "${h3Text}", Current Subject: ${currentSubject}`);
+        }
+      }
+
       let questionP: any | null = null;
       let questionUl: any | null = null;
       let questionImagesInP: { url: string; hash: string }[] = [];
@@ -140,9 +168,23 @@ async function parseHtmlFile(filePath: string, dryRun: boolean = false): Promise
       }
       
       if (questionP && questionUl) {
-        const questionContentWithNumber = questionP.text().trim();
+        let finalQuestionContent = questionP.text().trim();
         const allQuestionImages = [...questionImagesInP, ...questionImagesAfterP];
         
+        const contentNumberMatch = finalQuestionContent.match(/^(\d+)\.\s*/);
+        if (contentNumberMatch && contentNumberMatch[1]) {
+            const pTagNumber = parseInt(contentNumberMatch[1], 10);
+            if (questionNumber !== undefined && questionNumber !== pTagNumber) {
+                console.warn(`[DebugParse] Mismatch! Q# from H3: ${questionNumber}, Q# from P: ${pTagNumber}. Using H3's. Content: ${finalQuestionContent.substring(0,70)}`);
+            } else if (questionNumber === undefined) {
+                questionNumber = pTagNumber;
+                console.log(`[DebugParse] Used Q# from P: ${questionNumber}, as H3 had no number. Original P content: "${finalQuestionContent.substring(0,70)}"`)
+            }
+            finalQuestionContent = finalQuestionContent.replace(/^(\d+)\.\s*/, '').trim();
+        } else if (questionNumber !== undefined) {
+            console.log(`[DebugParse] Q# ${questionNumber} from H3, but no leading number pattern in P: "${finalQuestionContent.substring(0,70)}"`)
+        }
+
         const parsedOptions: ParsedOption[] = [];
         let answerIdx = -1;
 
@@ -170,21 +212,25 @@ async function parseHtmlFile(filePath: string, dryRun: boolean = false): Promise
         }
 
         if (answerIdx === -1 && parsedOptions.length > 0) { // 선택지가 있는데 답이 없는 경우만 경고
-          console.warn(`[ParseHtml] Answer not found for question (Title: ${questionTitle}) in: ${filePath}. Subject: ${currentSubject}. Options count: ${parsedOptions.length}`);
+          console.warn(`[ParseHtml] Answer not found for question (H3 text: ${h3Text}) in: ${filePath}. Subject: ${currentSubject}. Options count: ${parsedOptions.length}`);
         }
 
+        console.log(`[DebugParse] Preparing to push question. Subject: ${currentSubject}, Q#: ${questionNumber}, Content (start): "${finalQuestionContent.replace(/\n/g, ' ').substring(0, 70)}..."`);
         questionsData.push({
           examName,
           examDate,
           subject: currentSubject,
-          questionContent: questionContentWithNumber,
+          questionNumber,
+          questionContent: finalQuestionContent,
           options: parsedOptions,
           answerIndex: answerIdx,
           questionImages: allQuestionImages,
         });
       } else {
-         console.warn(`[ParseHtml] Could not find P or UL for question (Title: ${questionTitle}) in: ${filePath}. Subject: ${currentSubject}`);
+         console.warn(`[ParseHtml] Could not find P or UL for question (H3 text: ${h3Text}) in: ${filePath}. Subject: ${currentSubject}`);
       }
+    } else if (el.is('ol')) {
+      // ... existing code ...
     }
   }
   console.log(`[ParseHtml] Finished parsing ${filePath}. Found ${questionsData.length} questions.`);
@@ -335,16 +381,21 @@ async function migrate(options: MigrateOptions = {}) {
                 continue;
             }
             
-            await tx.insert(questions).values({
+            const newQuestion = await tx.insert(questions).values({
               examId: currentExamId,
               content: q.questionContent,
-              options: q.options,
+              questionNumber: q.questionNumber,
+              options: q.options.map(opt => ({ 
+                number: opt.number, 
+                text: opt.text, 
+                images: opt.images
+              })),
               answer: q.answerIndex,
+              explanation: null,
               images: q.questionImages,
-              tags: [],
-              explanation: '', 
               explanationImages: [],
-            });
+              userId: 'system-migration',
+            }).returning({ id: questions.id });
             console.log(`[DB Insert] Question inserted for exam ID ${currentExamId}: ${q.questionContent.substring(0, 50)}...`);
           } catch (dbError) {
             console.error(`[DB Insert] Error inserting question (ExamID: ${currentExamId}, Content: "${q.questionContent.substring(0,50)}..."):`, dbError);
@@ -364,10 +415,27 @@ async function main() {
   if (args.includes('--dry-run')) {
     options.dryRun = true;
   }
-  const singleFileArgIndex = args.indexOf('--singleFile');
-  if (singleFileArgIndex !== -1 && args[singleFileArgIndex + 1]) {
-    options.singleFile = args[singleFileArgIndex + 1];
+
+  // --singleFile 인자 처리 수정
+  const singleFileArg = args.find(arg => arg.startsWith('--singleFile='));
+  if (singleFileArg) {
+    options.singleFile = singleFileArg.split('=')[1];
+    if (!options.singleFile) { // --singleFile= 다음에 값이 없는 경우
+        console.warn("[ArgsParse] --singleFile option used with '=' but no value provided. Ignoring.");
+        options.singleFile = undefined; // 확실히 undefined로 설정
+    }
+  } else {
+    const singleFileArgIndex = args.indexOf('--singleFile');
+    if (singleFileArgIndex !== -1 && args[singleFileArgIndex + 1]) {
+      // 다음 인자가 다른 옵션이 아닌지 확인 (간단한 체크)
+      if (!args[singleFileArgIndex + 1].startsWith('--')) {
+        options.singleFile = args[singleFileArgIndex + 1];
+      } else {
+        console.warn(`[ArgsParse] --singleFile option used but next argument '${args[singleFileArgIndex + 1]}' looks like another option. Ignoring --singleFile value.`);
+      }
+    }
   }
+
   const limitArgIndex = args.indexOf('--limit');
   if (limitArgIndex !== -1 && args[limitArgIndex + 1]) {
     options.limit = parseInt(args[limitArgIndex + 1], 10);

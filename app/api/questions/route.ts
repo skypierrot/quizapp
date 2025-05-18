@@ -271,7 +271,8 @@ export async function GET(req: NextRequest) {
         .select(selectFields)
         .from(questions)
         .leftJoin(exams, eq(questions.examId, exams.id))
-        .where(and(...conditions)); // conditions에는 idArray 조건만 있음
+        .where(and(...conditions)) // conditions에는 idArray 조건만 있음
+        .orderBy(asc(questions.questionNumber), asc(questions.createdAt));
 
       fetchedQuestions = resultsById.map(q => ({
         ...q,
@@ -379,7 +380,7 @@ export async function GET(req: NextRequest) {
         .from(questions)
         .leftJoin(exams, eq(questions.examId, exams.id))
         .where(combinedConditionForTags)
-        .orderBy(desc(questions.createdAt));
+        .orderBy(asc(questions.questionNumber), asc(questions.createdAt));
       
       let finalQueryForTags;
       if (effectiveLimit !== undefined) {
@@ -416,8 +417,8 @@ export async function GET(req: NextRequest) {
         .select(selectFields)
         .from(questions)
         .leftJoin(exams, eq(questions.examId, exams.id))
-        // .where(and(...conditions)) // conditions가 비어있으므로 모든 데이터 대상. 필요 시 사용자별 필터 등 추가.
-        .orderBy(desc(questions.createdAt));
+        // .where(and(...conditions)) // conditions가 비어있으므로 모든 문제 대상
+        .orderBy(asc(exams.name), asc(exams.date), asc(exams.subject), asc(questions.questionNumber), asc(questions.createdAt));
       
       let finalQueryForAll;
       if (effectiveLimit !== undefined) {

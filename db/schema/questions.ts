@@ -16,6 +16,8 @@ export const questions = pgTable("questions", {
   id: uuid("id").primaryKey().defaultRandom(),
   // 문제 내용
   content: text("content").notNull(),
+  // 문제 번호
+  questionNumber: integer("question_number"),
   // 선택지 (객체 배열로 변경)
   options: jsonb("options").$type<{ number: number; text: string; images: { url: string; hash: string }[] }[]>().notNull(),
   // 정답 (인덱스 번호)

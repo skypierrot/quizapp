@@ -35,6 +35,7 @@ export interface IQuestion {
   examName?: string | null;
   examDate?: string | null;
   examSubject?: string | null;
+  questionNumber?: number | null;
 }
 
 export interface IOption {
