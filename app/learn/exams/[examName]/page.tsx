@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import * as React from 'react';
+const { useEffect, useState } = React;
+
 import { useParams } from 'next/navigation';
 // import Link from 'next/link'; // Link는 공통 컴포넌트 내부에서 사용됨
 // import { Card, CardHeader } from '@/components/ui/card'; // Card 관련 import 제거
@@ -32,15 +34,27 @@ export default function LearnExamDateListPage() { // 컴포넌트 이름 변경 
   useEffect(() => {
     if (examNameParam && typeof examNameParam === 'string') {
       try {
-        const decodedName = decodeURIComponent(examNameParam);
-        setDecodedExamName(decodedName);
+        // 이중 인코딩된 경우를 처리하기 위해 decodeURIComponent를 여러 번 시도할 수 있도록 수정
+        let tempDecodedName = decodeURIComponent(examNameParam);
+        // 첫 번째 디코딩 후에도 %가 남아있고, 일반적인 공백(%20)이 아닌 다른 인코딩 문자가 있다면 추가 디코딩 시도
+        if (tempDecodedName.includes('%') && !/^[^%]+$/.test(tempDecodedName.replace(/%20/g, ''))) {
+          try {
+            tempDecodedName = decodeURIComponent(tempDecodedName);
+          } catch (innerError) {
+            // 내부 디코딩 실패 시 경고만 하고 첫 번째 디코딩 값 사용 (선택적)
+            console.warn('Inner decodeURIComponent failed for examNameParam, using first decoded value:', examNameParam, innerError);
+          }
+        }
+        const finalDecodedName = tempDecodedName;
+        setDecodedExamName(finalDecodedName);
 
         const fetchAndProcessExamData = async () => {
           setLoading(true);
           setError(null);
           try {
             const apiUrl = '/api/exam-instances';
-            const encodedTag = encodeURIComponent(`시험명:${decodedName}`);
+            // API 호출 시에는 디코딩된 이름을 사용하되, 태그 값으로 인코딩
+            const encodedTag = encodeURIComponent(`시험명:${finalDecodedName}`);
             const response = await fetch(`${apiUrl}?tags=${encodedTag}`, { cache: 'no-store' });
             
             if (!response.ok) {
@@ -93,10 +107,11 @@ export default function LearnExamDateListPage() { // 컴포넌트 이름 변경 
     }
   }, [examNameParam, params]); // 의존성 배열에 params도 포함
 
-  const breadcrumbItems = decodedExamName && params?.examName ? [
+  const breadcrumbItems = decodedExamName ? [
     { label: '홈', href: '/' },
     { label: '문제 은행', href: '/learn/exams' },
-    { label: decodedExamName, href: `/learn/exams/${params.examName}`, isCurrent: true },
+    // label에는 디코딩된 이름을, href에는 인코딩된 이름을 사용
+    { label: decodedExamName, href: `/learn/exams/${encodeURIComponent(decodedExamName)}`, isCurrent: true },
   ] : [];
 
   if (loading) {
