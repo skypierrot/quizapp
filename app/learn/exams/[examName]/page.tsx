@@ -49,10 +49,10 @@ export default function LearnExamDateListPage() { // 컴포넌트 이름 변경 
             }
             
             const data: IExamInstancesResponse = await response.json();
-            console.log('[fetchAndProcessExamData] Raw Exam Instances Received:', JSON.stringify(data.examInstances, null, 2)); // 원본 데이터 로그 추가
+            // console.log('[fetchAndProcessExamData] Raw Exam Instances Received:', JSON.stringify(data.examInstances, null, 2)); // 원본 데이터 로그 추가
             
             const filteredRawInstances = (data.examInstances || []).filter(instance => instance.questionCount > 0);
-            console.log('[fetchAndProcessExamData] Filtered Instances (questionCount > 0):', JSON.stringify(filteredRawInstances, null, 2)); // 필터링 후 데이터 로그 추가
+            // console.log('[fetchAndProcessExamData] Filtered Instances (questionCount > 0):', JSON.stringify(filteredRawInstances, null, 2)); // 필터링 후 데이터 로그 추가
 
             // 날짜 기준으로 그룹화 및 합산
             const groupedByDate: Record<string, IAggregatedExamDate> = {};

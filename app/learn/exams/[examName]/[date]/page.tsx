@@ -346,17 +346,6 @@ export default function ExamDateLearningPage() {
   
   return (
     <div className="container mx-auto p-4">
-      <VisuallyHidden>
-        <Dialog open={!!zoomedImage} onOpenChange={(isOpen) => !isOpen && closeImageZoom()}>
-          <DialogContent className="max-w-3xl max-h-[80vh] p-2">
-            <DialogHeader className="sr-only">
-              <DialogTitle>이미지 확대</DialogTitle>
-              <DialogDescription>확대된 이미지입니다.</DialogDescription>
-            </DialogHeader>
-            <img src={zoomedImage || ''} alt="Zoomed content" className="w-full h-full object-contain" />
-          </DialogContent>
-        </Dialog>
-      </VisuallyHidden>
       {zoomedImage && <ImageZoomModal imageUrl={zoomedImage} onClose={closeImageZoom} />}
 
       <Breadcrumb items={breadcrumbItems} />

@@ -48,11 +48,11 @@ export default function LearnExamsPage() {
 
         const data = await response.json(); 
         let examInstances: IExamInstance[] = data.examInstances || [];
-        console.log('[/learn/exams/page.tsx] Raw Exam Instances Received:', JSON.stringify(examInstances, null, 2));
+        // console.log('[/learn/exams/page.tsx] Raw Exam Instances Received:', JSON.stringify(examInstances, null, 2));
 
         // !!! 중요: questionCount > 0 인스턴스만 사용하도록 필터링 !!!
         examInstances = examInstances.filter(instance => instance.questionCount > 0);
-        console.log('[/learn/exams/page.tsx] Filtered Exam Instances (questionCount > 0):', JSON.stringify(examInstances, null, 2));
+        // console.log('[/learn/exams/page.tsx] Filtered Exam Instances (questionCount > 0):', JSON.stringify(examInstances, null, 2));
 
         // Group instances by examName (same logic as before)
         const grouped: GroupedExams = examInstances.reduce((acc, instance) => {
@@ -68,7 +68,7 @@ export default function LearnExamsPage() {
           const uniqueDates = new Set(grouped[examName].instances.map(inst => inst.date));
           grouped[examName].uniqueDateCount = uniqueDates.size;
         }
-        console.log('[/learn/exams/page.tsx] Grouped exams with unique date counts:', JSON.stringify(grouped, null, 2));
+        // console.log('[/learn/exams/page.tsx] Grouped exams with unique date counts:', JSON.stringify(grouped, null, 2));
 
         setGroupedExams(grouped);
       } catch (err) {
