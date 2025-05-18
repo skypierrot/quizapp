@@ -214,11 +214,12 @@ export default function StudyPage() {
       }
 
       setQuestions(processedQuestions);
-      if (processedQuestions.length > 0 && processedQuestions[0].examSubject) {
-        setCurrentExamSubject(processedQuestions[0].examSubject);
-      } else {
-        setCurrentExamSubject(undefined);
+      if (mode === 'date') {
+        setCurrentExamSubject(processedQuestions.length > 0 && processedQuestions[0].examSubject ? processedQuestions[0].examSubject : paramValue);
+      } else if (mode === 'subject') {
+        setCurrentExamSubject(paramValue); 
       }
+
       setTotalPages(data.totalPages || 1);
       setCurrentQuestionIndex(0);
       setUserAnswers({});
@@ -235,6 +236,7 @@ export default function StudyPage() {
   useEffect(() => {
     const examNameFromPath = params?.examName as string | undefined;
     const dateQueryParam = searchParams?.get('date');
+    const subjectsQueryParam = searchParams?.get('subjects');
 
     if (examNameFromPath) {
       try {
@@ -245,27 +247,30 @@ export default function StudyPage() {
           const dateStr = decodeURIComponent(dateQueryParam);
           setStudyMode('date');
           setStudyModeParam(dateStr);
-          fetchQuestions(name, 'date', dateStr, currentPage);
+          fetchQuestions(name, 'date', dateStr, 1);
+        } else if (subjectsQueryParam) {
+          const subjectsStr = decodeURIComponent(subjectsQueryParam);
+          setStudyMode('subject');
+          setStudyModeParam(subjectsStr);
+          fetchQuestions(name, 'subject', subjectsStr, 1);
         } else {
           toast({ title: "정보 부족", description: "URL에 날짜 또는 과목 정보가 누락되었습니다." });
           setLoading(false);
           setQuestions([]);
         }
       } catch (e) {
-        console.error("Error decoding URL params in useEffect:", e);
-        toast({ title: "URL 오류", description: "시험 정보 또는 날짜/과목 정보를 URL에서 올바르게 읽어올 수 없습니다." });
+        console.error("Error decoding URL params or fetching data:", e);
+        toast({ title: "오류 발생", description: "페이지를 로드하는 중 오류가 발생했습니다." });
         setLoading(false);
-        setDecodedExamName('');
-        setStudyModeParam(null);
-        setStudyMode(null);
         setQuestions([]);
       }
     } else {
-      toast({ title: "정보 부족", description: "URL에 시험명 정보가 누락되었습니다." });
+      toast({ title: "시험 정보 없음", description: "시험명을 URL에서 찾을 수 없습니다." });
       setLoading(false);
       setQuestions([]);
     }
-  }, [params, searchParams, currentPage, fetchQuestions, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params, searchParams, toast]);
 
   const toggleExplanationHandler = (questionId: string | undefined) => {
     if (!questionId) return;
@@ -335,26 +340,39 @@ export default function StudyPage() {
   const handleImageZoom = (url: string) => setZoomedImage(url);
   const closeImageZoom = () => setZoomedImage(null);
 
-  const breadcrumbItems: BreadcrumbItem[] = useMemo(() => {
-    const items: BreadcrumbItem[] = [
-        { label: "홈", href: "/" }, 
-        { label: "시험별 학습", href: "/learn/exams" }
+  const breadcrumbItems = useMemo<BreadcrumbItem[]>(() => {
+    const baseItems: BreadcrumbItem[] = [
+      { label: '홈', href: '/' },
+      { label: '문제 은행', href: '/learn/exams' },
     ];
     if (decodedExamName) {
-        items.push({ label: decodedExamName, href: `/learn/exams/${encodeURIComponent(decodedExamName)}` });
-        if (studyMode === 'date' && studyModeParam) {
-            items.push({ label: `날짜: ${studyModeParam}`, isCurrent: true });
-        } else {
-            items.push({ label: "학습 세션", isCurrent: true });
+      baseItems.push({ label: decodedExamName, href: `/learn/exams/${encodeURIComponent(decodedExamName)}` });
+      if (studyMode && studyModeParam) {
+        let studyModeLabel = '';
+        if (studyMode === 'date') {
+          studyModeLabel = studyModeParam;
+        } else if (studyMode === 'subject') {
+          studyModeLabel = studyModeParam.split(',').join(', ');
+          if (studyModeLabel.length > 30) {
+            studyModeLabel = `${studyModeLabel.substring(0, 27)}...`;
+          }
         }
+        baseItems.push({ label: studyModeLabel, isCurrent: true });
+      } else {
+        baseItems.push({ label: '학습 모드 선택 중...', isCurrent: true });
+      }
     } else {
-        items.push({ label: "학습 세션 로딩 중...", isCurrent: true });
+      baseItems.push({ label: '시험 정보 로딩 중...', isCurrent: true });
     }
-    return items;
+    return baseItems;
   }, [decodedExamName, studyMode, studyModeParam]);
 
+  const handlePageChange = (newPage: number) => {
+    // ... 기존 코드 ...
+  };
+
   if (loading) return <div className="container mx-auto p-4 text-center">로딩 중...</div>;
-  if (!decodedExamName || !studyMode || !studyModeParam) { 
+  if (!loading && (!decodedExamName || !studyMode || !studyModeParam)) { 
     return (
         <div className="container mx-auto p-4 text-center">
             <Breadcrumb items={breadcrumbItems} />
@@ -362,13 +380,18 @@ export default function StudyPage() {
         </div>
     );
   }
-  if (!loading && questions.length === 0) return (
+  if (!loading && questions.length === 0 && decodedExamName && studyModeParam) return (
     <div className="container mx-auto p-4">
       <Breadcrumb items={breadcrumbItems} />
-      <h1 className="text-2xl font-bold my-4">
-        {decodedExamName} - {studyMode === 'date' && studyModeParam ? `날짜: ${studyModeParam}` : '과목 학습'}
-      </h1>
-      <p>해당 조건의 문제 데이터가 없습니다.</p>
+      <StudyPageHeader
+        title={`${decodedExamName} - ${studyMode === 'date' ? `날짜: ${studyModeParam}` : `과목: ${currentExamSubject || studyModeParam}`}`}
+        showAllAnswers={false} onToggleShowAllAnswers={() => {}}
+        showAllExplanations={false} onToggleShowAllExplanations={() => {}}
+        isSingleViewMode={false} onToggleSingleViewMode={() => {}}
+        isShuffled={false} onToggleShuffle={() => {}}
+        showControls={false}
+      />
+      <p className="text-center py-8 text-gray-600">해당 조건의 문제 데이터가 없습니다.</p>
     </div>
   );
   
@@ -379,7 +402,7 @@ export default function StudyPage() {
       <Breadcrumb items={breadcrumbItems} />
       
       <StudyPageHeader
-        title={`${decodedExamName} - ${studyMode === 'date' && studyModeParam ? `날짜: ${studyModeParam}` : '과목 학습'}`}
+        title={`${decodedExamName} - ${studyMode === 'date' ? `날짜: ${studyModeParam}` : `과목: ${currentExamSubject || studyModeParam}`}`}
         showAllAnswers={showAllAnswers}
         onToggleShowAllAnswers={handleToggleShowAllAnswers}
         showAllExplanations={showAllExplanations}
