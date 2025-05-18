@@ -34,6 +34,7 @@ const Navbar = () => {
                 <div className="absolute left-0 top-full min-w-[160px] rounded bg-white shadow-lg flex flex-col transition-all duration-200 ease-in-out z-10">
                   <Link href="/learn/exams" className="block px-4 py-2 hover:bg-gray-100 active:bg-gray-200 focus:bg-gray-200 transition-colors">문제은행</Link>
                   {/* <Link href="/exams" className="block px-4 py-2 hover:bg-gray-100 active:bg-gray-200 focus:bg-gray-200 transition-colors">모의고사</Link> */}
+                  <Link href="/results" className="block px-4 py-2 hover:bg-gray-100 active:bg-gray-200 focus:bg-gray-200 transition-colors">나의 시험 결과</Link>
                   <Link href="/learn/review-quiz" className="block px-4 py-2 hover:bg-gray-100 active:bg-gray-200 focus:bg-gray-200 transition-colors">오답노트</Link>
                   <Link href="/statistics" className="block px-4 py-2 hover:bg-gray-100 active:bg-gray-200 focus:bg-gray-200 transition-colors">통계</Link>
                 </div>
@@ -93,6 +94,7 @@ const Navbar = () => {
                   <div className="flex flex-col space-y-2 pl-4">
                     <Link href="/learn/exams" className="hover:text-blue-600">문제은행</Link>
                     {/* <Link href="/exams" className="hover:text-blue-600">모의고사</Link> */}
+                    <Link href="/results" className="hover:text-blue-600">나의 시험 결과</Link>
                     <Link href="/learn/review-quiz" className="hover:text-blue-600">오답노트</Link>
                     <Link href="/statistics" className="hover:text-blue-600">통계</Link>
                   </div>

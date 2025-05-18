@@ -3,20 +3,36 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/db';
 import { examResults, type InsertExamResult } from '@/db/schema';
-import type { INewExamResult } from '@/types';
+import type { INewExamResult, IExamResult } from '@/types';
+import { eq, desc } from 'drizzle-orm';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method === 'POST') {
+  const session = await getServerSession(req, res, authOptions);
+  const userId = session?.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
+  if (req.method === 'GET') {
+    try {
+      const results = await db
+        .select()
+        .from(examResults)
+        .where(eq(examResults.userId, userId))
+        .orderBy(desc(examResults.createdAt));
+      
+      return res.status(200).json(results as IExamResult[]);
+    } catch (error) {
+      console.error('Error fetching exam results:', error);
+      return res.status(500).json({ message: '시험 결과를 불러오는 중 오류가 발생했습니다.' });
+    }
+  } else if (req.method === 'POST') {
     // 요청 헤더, 쿠키, 세션 모두 로그로 출력
     console.log('==== [API] /api/exam-results POST (Pages Router) ====');
     console.log('Headers:', req.headers);
     console.log('Cookies:', req.cookies);
-    const session = await getServerSession(req, res, authOptions);
     console.log('Session:', session);
-    const userId = session?.user?.id;
-    if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
 
     let resultData: INewExamResult;
     try {
@@ -55,7 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const [saved] = await db.insert(examResults).values(insertData).returning();
     return res.status(201).json(saved);
   } else {
-    res.setHeader('Allow', ['POST']);
+    res.setHeader('Allow', ['GET', 'POST']);
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 } 
