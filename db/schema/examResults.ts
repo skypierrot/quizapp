@@ -7,6 +7,7 @@ import {
   index,
   uuid,
   text,
+  date,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { users } from './auth';
@@ -21,6 +22,7 @@ export const examResults = pgTable(
     userId: uuid('user_id').notNull(), // uuid로 변경
     examName: varchar('exam_name', { length: 255 }).notNull(),
     examYear: integer('exam_year').notNull(),
+    examDate: date('exam_date').notNull(), // 추가된 컬럼
     examSubject: text('exam_subject').notNull(), // examSession -> examSubject, varchar -> text
 
     // Store detailed answer info including correctness

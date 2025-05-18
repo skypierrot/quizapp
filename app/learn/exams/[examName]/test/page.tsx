@@ -77,8 +77,6 @@ export default function ExamStartPage() {
     const dateParam = searchParams!.get('date');
     const subjectsParam = searchParams!.get('subjects');
     const randomStartParam = searchParams!.get('randomStart') === 'true';
-    const yearParam = searchParams!.get('year'); 
-    const subjectParam = searchParams!.get('subject'); 
 
     let mode: 'date' | 'subject' | null = null;
     let paramValue: string | null = null;
@@ -89,13 +87,6 @@ export default function ExamStartPage() {
     } else if (subjectsParam) {
       mode = 'subject';
       paramValue = subjectsParam;
-    } else if (yearParam && subjectParam) {
-      // 분기 로직 변경으로 이 경우는 지양되지만, 이전 URL 직접 접근 시 호환성 위해 남겨둘 수 있음.
-      // 현재는 명확성을 위해 date 또는 subjects 파라미터를 강제.
-      console.warn('Legacy params (year, subject) used. Please use date or subjects for consistency.');
-      setError('시험 시작을 위해 URL에 date 또는 subjects 파라미터가 필요합니다.');
-      setExamState('error');
-      return;
     } else {
       setError('시험을 시작하기 위한 정보(date 또는 subjects)가 URL에 없습니다.');
       setExamState('error');
@@ -285,45 +276,60 @@ export default function ExamStartPage() {
     const totalQuestions = questions.length;
     const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
     
-    const representativeQuestion = questions[0];
-    let examYearForSubmit: number;
-    let examSubjectForSubmit: string;
-    let examDateForSubmit: string | undefined = undefined;
+    const representativeQuestion = questions.length > 0 ? questions[0] : null; // questions가 비어있을 수 있으므로 null 체크
+    let determinedExamYear: number;
+    let determinedExamSubject: string;
+    let determinedExamDate: string; 
 
-    // searchParams가 null일 수 있으므로, 사용 전에 null 체크 또는 옵셔널 체이닝 필요
-    const currentSearchParams = searchParams; // useEffect 외부의 searchParams 참조
+    const currentSearchParams = searchParams; 
 
-    if (currentSearchParams) { // null 체크
+    if (currentSearchParams) { 
       const dateValue = currentSearchParams.get('date');
       const subjectsValue = currentSearchParams.get('subjects');
 
       if (dateValue) { 
-          examYearForSubmit = parseInt(dateValue.substring(0, 4));
-          examDateForSubmit = dateValue;
-          examSubjectForSubmit = representativeQuestion?.examSubject || representativeQuestion?.subject || "종합"; 
+          determinedExamYear = parseInt(dateValue.substring(0, 4)) || new Date().getFullYear();
+          determinedExamDate = dateValue;
+          determinedExamSubject = representativeQuestion?.examSubject || representativeQuestion?.subject || "종합"; 
       } else if (subjectsValue) { 
-          examYearForSubmit = representativeQuestion?.examYear || new Date().getFullYear(); 
-          examSubjectForSubmit = subjectsValue.split(',').length > 1 ? "선택 과목 종합" : subjectsValue;
+          determinedExamYear = representativeQuestion?.examYear || new Date().getFullYear(); 
+          determinedExamSubject = subjectsValue.split(',').length > 1 ? "선택 과목 종합" : subjectsValue;
       } else {
-          examYearForSubmit = parseInt(currentSearchParams.get('year') || representativeQuestion?.examYear?.toString() || new Date().getFullYear().toString());
-          examSubjectForSubmit = currentSearchParams.get('subject') || representativeQuestion?.subject || (representativeQuestion?.examSubject || '과목 정보 없음');
-          examDateForSubmit = currentSearchParams.get('date') || representativeQuestion?.examDate; // dateParam을 직접 사용
+          determinedExamYear = new Date().getFullYear();
+          determinedExamSubject = "정보 없음";
+          setError("시험 정보(date 또는 subjects)가 누락되어 결과를 정확히 기록할 수 없습니다.");
       }
     } else {
-      // searchParams가 null인 경우의 fallback 로직 (이론상 발생하기 어려움)
       setError("시험 정보를 URL에서 완전히 로드할 수 없습니다. 페이지를 새로고침하거나 다시 시도해주세요.");
-      // 기본값 설정 또는 에러 상태로 처리
-      examYearForSubmit = representativeQuestion?.examYear || new Date().getFullYear();
-      examSubjectForSubmit = representativeQuestion?.subject || "정보 없음";
-      examDateForSubmit = representativeQuestion?.examDate;
+      determinedExamYear = representativeQuestion?.examYear || new Date().getFullYear();
+      determinedExamSubject = representativeQuestion?.subject || "정보 없음";
+    }
+
+    // examYear 최종 유효성 검사
+    if (!determinedExamYear || isNaN(determinedExamYear)) {
+        determinedExamYear = new Date().getFullYear();
+    }
+
+    // examDate 최종 결정 (determinedExamDate가 아직 할당되지 않은 경우)
+    if (!currentSearchParams?.get('date')) { // dateValue가 없는 경우에만 이 블록 실행
+        if (representativeQuestion?.examDate) {
+            determinedExamDate = representativeQuestion.examDate;
+        } else {
+            determinedExamDate = `${determinedExamYear}-01-01`;
+        }
+    } else {
+        // dateValue가 있었으므로, determinedExamDate는 이미 할당됨 (위의 if(dateValue) 블록에서)
+        // 이 else 블록은 사실상 determinedExamDate가 이미 설정된 상태를 확인하는 것.
+        // 만약 dateValue가 있었음에도 determinedExamDate가 할당되지 않았다면 로직 오류.
+        // 여기서는 dateValue가 있을 때 determinedExamDate가 확실히 할당되었다고 가정.
     }
 
     const resultData: INewExamResult = {
       userId: userId!,
       examName: decodedExamName || "모의고사",
-      examYear: examYearForSubmit,
-      examDate: examDateForSubmit || `${examYearForSubmit}-00-00`, 
-      examSubject: examSubjectForSubmit, 
+      examYear: determinedExamYear,
+      examDate: determinedExamDate!, // Non-null assertion, 로직상 항상 string 값이어야 함
+      examSubject: determinedExamSubject!,
       answers: answerDetails,
       score: score,
       correctCount: correctCount,
