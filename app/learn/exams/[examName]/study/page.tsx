@@ -41,7 +41,7 @@ const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, sho
 
   return (
     <div className="p-4 border rounded-lg bg-white shadow mb-4">
-      <p className="text-xs text-gray-500 mb-2">문제 {question.questionNumber !== undefined ? question.questionNumber : index + 1}</p>
+      <p className="text-xs text-gray-500 mb-2">문제 {question.questionNumber !== undefined ? question.questionNumber : index + 1}{question.examDate ? ` (${question.examDate})` : ''}</p>
       
       <p className="font-semibold mb-3 whitespace-pre-wrap">{question.content || "문제 내용 없음"}</p>
       
@@ -181,12 +181,14 @@ export default function StudyPage() {
 
       if (mode === 'date') {
         tags.push(`날짜:${paramValue}`);
+      } else if (mode === 'subject') {
+        const individualSubjects = paramValue.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        individualSubjects.forEach(subject => {
+          tags.push(`과목:${subject}`);
+        });
       }
-      queryParams.append('tags', tags.join(','));
 
-      if (mode === 'subject') {
-        queryParams.append('subjects', paramValue);
-      }
+      queryParams.append('tags', tags.join(','));
 
       const response = await fetch(`/api/questions?${queryParams.toString()}`, { cache: 'no-store' });
       console.log("[fetchQuestions] API URL:", `/api/questions?${queryParams.toString()}`);
