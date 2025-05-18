@@ -20,6 +20,8 @@ import { ImageZoomModal } from '@/components/common/ImageZoomModal';
 import { getImageUrl } from "@/utils/image";
 import { CommonImage } from "@/components/common/CommonImage";
 
+const SUBJECT_QUESTIONS_PER_PAGE = 50; // 한 번에 불러올 과목별 문제 수
+
 // 학습용 카드 컴포넌트 (기존과 동일)
 const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, showExplanation, onOptionSelect, userAnswer, shuffledOptions, shuffledAnswerIndex }: {
   question: IQuestion;
@@ -122,6 +124,7 @@ export default function StudyPage() {
   const { toast } = useToast();
   const [questions, setQuestions] = useState<IQuestion[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
@@ -141,6 +144,28 @@ export default function StudyPage() {
   const [isShuffled, setIsShuffled] = useState(false);
   const [userAnswers, setUserAnswers] = useState<Record<string, number | null>>({});
   const [isQuestionsShuffled, setIsQuestionsShuffled] = useState(false);
+  const [previousShuffledListLength, setPreviousShuffledListLength] = useState(0); // 자동 넘김용
+  const [shouldAutoAdvance, setShouldAutoAdvance] = useState(false); // 자동 넘김용
+
+  // shuffledQuestionsList, displayedQuestions를 사용하는 콜백들보다 먼저 정의
+  const shuffledQuestionsList = useMemo(() => {
+    if (isQuestionsShuffled) {
+      return shuffleArray([...questions]);
+    }
+    return questions;
+  }, [questions, isQuestionsShuffled]);
+
+  const displayedQuestions = useMemo(() => {
+    if (isSingleViewMode) {
+      return shuffledQuestionsList.length > 0 ? [shuffledQuestionsList[currentQuestionIndex]] : [];
+    }
+    return shuffledQuestionsList;
+  }, [isSingleViewMode, shuffledQuestionsList, currentQuestionIndex]);
+
+  const currentDisplayQuestionsRef = React.useRef(displayedQuestions);
+  useEffect(() => {
+    currentDisplayQuestionsRef.current = displayedQuestions;
+  }, [displayedQuestions]);
 
   const shuffledOptionsData = useMemo(() => {
     if (!isShuffled) return null;
@@ -162,23 +187,32 @@ export default function StudyPage() {
     return [];
   }, []);
 
-  const fetchQuestions = useCallback(async (examName: string, mode: 'date' | 'subject', paramValue: string, currentPageValue: number) => {
+  const fetchQuestionsForPage = useCallback(async (examName: string, mode: 'date' | 'subject', paramValue: string, pageToFetch: number) => {
     if (!examName || !mode || !paramValue) {
-      console.log("[fetchQuestions] Aborted: examName, mode, or paramValue is missing", { examName, mode, paramValue });
+      console.log("[fetchQuestionsForPage] Aborted: examName, mode, or paramValue is missing", { examName, mode, paramValue });
       setQuestions([]);
       setTotalPages(1);
       setLoading(false);
+      setLoadingMore(false);
       setCurrentExamSubject(undefined);
       setIsQuestionsShuffled(false);
       return;
     }
-    setLoading(true);
+
+    if (pageToFetch === 1) {
+      setLoading(true);
+      setQuestions([]);
+      setCurrentPage(1);
+    } else {
+      setLoadingMore(true);
+    }
     setCurrentExamSubject(undefined);
+
     try {
       const tags: string[] = [`시험명:${examName}`];
       const queryParams = new URLSearchParams({
-        page: currentPageValue.toString(),
-        limit: "0"
+        page: pageToFetch.toString(),
+        limit: mode === 'subject' ? SUBJECT_QUESTIONS_PER_PAGE.toString() : "20"
       });
 
       if (mode === 'date') {
@@ -193,51 +227,71 @@ export default function StudyPage() {
       queryParams.append('tags', tags.join(','));
 
       const response = await fetch(`/api/questions?${queryParams.toString()}`, { cache: 'no-store' });
-      console.log("[fetchQuestions] API URL:", `/api/questions?${queryParams.toString()}`);
-      console.log("[fetchQuestions] API Response Status:", response.status, "for", { examName, mode, paramValue });
+      console.log("[fetchQuestionsForPage] API URL:", `/api/questions?${queryParams.toString()}`);
+      console.log("[fetchQuestionsForPage] API Response Status:", response.status, "for", { examName, mode, paramValue, pageToFetch });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: "Error fetching data" }));
-        console.error("[fetchQuestions] API Error Data:", errorData, "for", { examName, mode, paramValue });
+        console.error("[fetchQuestionsForPage] API Error Data:", errorData, "for", { examName, mode, paramValue, pageToFetch });
         throw new Error(errorData.message || `Failed to load questions for ${examName} (${mode}: ${paramValue})`);
       }
-      const data: { questions: IQuestion[], totalPages: number, currentPage: number } = await response.json();
-      console.log("[fetchQuestions] API Data Received (count):", data.questions?.length, "for", { examName, mode, paramValue });
+      const data: { questions: IQuestion[], totalQuestions: number, totalPages: number, page: number, limit: number } = await response.json();
+      console.log("[fetchQuestionsForPage] API Data Received (count):", data.questions?.length, "for", { examName, mode, paramValue, pageToFetch });
       
-      let processedQuestions = (data.questions || []).map((q: IQuestion) => ({ 
+      let processedNewQuestions = (data.questions || []).map((q: IQuestion) => ({ 
         ...q, 
         images: normalizeImages(q.images), 
         explanationImages: normalizeImages(q.explanationImages), 
         options: (q.options || []).map((opt: IOption) => ({...opt, images: normalizeImages(opt.images)}))
       }));
 
-      const questionIds = processedQuestions.map(q => q.id);
-      const duplicateIds = questionIds.filter((id, index) => questionIds.indexOf(id) !== index);
-      if (duplicateIds.length > 0) {
-        console.warn("[fetchQuestions] !!! 중복된 문제 ID 발견 !!!:", duplicateIds);
+      if (pageToFetch === 1) {
+        setQuestions(processedNewQuestions);
+      } else {
+        setQuestions(prevQuestions => [...prevQuestions, ...processedNewQuestions]);
       }
-
-      setQuestions(processedQuestions);
+      
       if (mode === 'date') {
-        setCurrentExamSubject(processedQuestions.length > 0 && processedQuestions[0].examSubject ? processedQuestions[0].examSubject : paramValue);
+        setCurrentExamSubject(processedNewQuestions.length > 0 && processedNewQuestions[0].examSubject ? processedNewQuestions[0].examSubject : paramValue);
       } else if (mode === 'subject') {
         setCurrentExamSubject(paramValue); 
       }
 
       setTotalPages(data.totalPages || 1);
-      setCurrentQuestionIndex(0);
-      setUserAnswers({});
-      setShowExplanation({});
-      setShowIndividualAnswer({});
-      setIsQuestionsShuffled(false);
+      setCurrentPage(pageToFetch);
+      
+      if (pageToFetch === 1) {
+        setCurrentQuestionIndex(0);
+        setUserAnswers({});
+        setShowExplanation({});
+        setShowIndividualAnswer({});
+        setIsQuestionsShuffled(false);
+      } else {
+        // 더 보기 로드로 문제가 추가되었고, 이전 상태가 마지막 문제였다면, 새로 추가된 문제의 첫번째로 이동
+        // 이 로직은 handleLoadMore의 성공 시점에 더 명확하게 처리 가능. 또는 useEffect로 questions 변경 감지.
+        // 임시 방편: 만약 currentQuestionIndex가 이전 questions.length -1 였다면, 다음 문제로 이동.
+        // 이 부분은 좀 더 견고한 상태 관리가 필요할 수 있습니다.
+        // 예를 들어, 로딩 전 currentQuestionIndex가 마지막이었는지 flag로 관리.
+        // 아래 setCurrentPage(pageToFetch) 후에 실행되어야 올바른 length 참조 가능
+      }
+
     } catch (error) { 
       toast({ title: "데이터 로딩 오류", description: error instanceof Error ? error.message : "문제를 불러오는데 실패했습니다." }); 
-      setQuestions([]); 
+      if (pageToFetch === 1) setQuestions([]);
       setTotalPages(1); 
-      setIsQuestionsShuffled(false);
     }
-    finally { setLoading(false); }
+    finally { 
+      if (pageToFetch === 1) setLoading(false);
+      setLoadingMore(false);
+    }
   }, [toast, normalizeImages]);
+
+  // handleLoadMore를 handleNextQuestion보다 먼저 정의
+  const handleLoadMore = useCallback(() => {
+    if (currentPage < totalPages && !loadingMore && decodedExamName && studyMode && studyModeParam) {
+      fetchQuestionsForPage(decodedExamName, studyMode, studyModeParam, currentPage + 1);
+    }
+  }, [currentPage, totalPages, loadingMore, decodedExamName, studyMode, studyModeParam, fetchQuestionsForPage]);
 
   useEffect(() => {
     const examNameFromPath = params?.examName as string | undefined;
@@ -253,12 +307,12 @@ export default function StudyPage() {
           const dateStr = decodeURIComponent(dateQueryParam);
           setStudyMode('date');
           setStudyModeParam(dateStr);
-          fetchQuestions(name, 'date', dateStr, 1);
+          fetchQuestionsForPage(name, 'date', dateStr, 1);
         } else if (subjectsQueryParam) {
           const subjectsStr = decodeURIComponent(subjectsQueryParam);
           setStudyMode('subject');
           setStudyModeParam(subjectsStr);
-          fetchQuestions(name, 'subject', subjectsStr, 1);
+          fetchQuestionsForPage(name, 'subject', subjectsStr, 1);
         } else {
           toast({ title: "정보 부족", description: "URL에 날짜 또는 과목 정보가 누락되었습니다." });
           setLoading(false);
@@ -307,8 +361,15 @@ export default function StudyPage() {
   }, []);
 
   const handleNextQuestion = useCallback(() => {
-    setCurrentQuestionIndex(prev => Math.min(questions.length - 1, prev + 1));
-  }, [questions.length]);
+    const lastIndexOfCurrentList = shuffledQuestionsList.length - 1;
+    if (currentQuestionIndex < lastIndexOfCurrentList) {
+      setCurrentQuestionIndex(prev => prev + 1);
+    } else if (currentQuestionIndex === lastIndexOfCurrentList && currentPage < totalPages && !loadingMore) {
+      setPreviousShuffledListLength(shuffledQuestionsList.length); 
+      setShouldAutoAdvance(true); 
+      handleLoadMore();
+    }
+  }, [shuffledQuestionsList, currentQuestionIndex, currentPage, totalPages, loadingMore, handleLoadMore, setCurrentQuestionIndex, setPreviousShuffledListLength, setShouldAutoAdvance]);
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     if (isSingleViewMode) {
@@ -349,24 +410,15 @@ export default function StudyPage() {
     setUserAnswers(prev => ({...prev, [questionId]: optionIndex }));
   };
 
-  const shuffledQuestionsList = useMemo(() => {
-    if (isQuestionsShuffled) {
-      return shuffleArray([...questions]);
-    }
-    return questions;
-  }, [questions, isQuestionsShuffled]);
-
-  const displayedQuestions = useMemo(() => {
-    if (isSingleViewMode) {
-      return shuffledQuestionsList.length > 0 ? [shuffledQuestionsList[currentQuestionIndex]] : [];
-    }
-    return shuffledQuestionsList;
-  }, [isSingleViewMode, shuffledQuestionsList, currentQuestionIndex]);
-
-  const currentDisplayQuestionsRef = React.useRef(displayedQuestions);
+  // 자동 다음 문제 이동 로직 (기존 위치 유지 또는 handleImageZoom 위로 이동 가능)
   useEffect(() => {
-    currentDisplayQuestionsRef.current = displayedQuestions;
-  }, [displayedQuestions]);
+    if (shouldAutoAdvance && !loadingMore) {
+      if (shuffledQuestionsList.length > previousShuffledListLength) {
+        setCurrentQuestionIndex(previousShuffledListLength);
+      }
+      setShouldAutoAdvance(false); // 플래그 리셋
+    }
+  }, [shuffledQuestionsList, loadingMore, shouldAutoAdvance, previousShuffledListLength, setCurrentQuestionIndex, setShouldAutoAdvance]);
 
   const handleImageZoom = (url: string) => setZoomedImage(url);
   const closeImageZoom = () => setZoomedImage(null);
@@ -529,12 +581,29 @@ export default function StudyPage() {
               <p className="text-sm text-gray-600">
                 {currentQuestionIndex + 1} / {shuffledQuestionsList.length}
               </p>
-              <Button onClick={handleNextQuestion} disabled={currentQuestionIndex === shuffledQuestionsList.length - 1} variant="outline">
-                다음 문제
+              <Button 
+                onClick={handleNextQuestion} 
+                disabled={currentQuestionIndex === shuffledQuestionsList.length - 1 && currentPage === totalPages && !loadingMore} 
+                variant="outline"
+              >
+                {currentQuestionIndex === shuffledQuestionsList.length - 1 && currentPage < totalPages && !loadingMore 
+                  ? (loadingMore ? "로딩 중..." : "다음 문제 로드") 
+                  : "다음 문제"}
               </Button>
             </div>
           )}
         </>
+      )}
+
+      {!isSingleViewMode && currentPage < totalPages && (
+        <div className="text-center mt-8 mb-4">
+          <Button onClick={handleLoadMore} disabled={loadingMore} variant="outline">
+            {loadingMore ? "로딩 중..." : "더 보기"}
+          </Button>
+        </div>
+      )}
+      {loadingMore && (
+        <p className="text-center py-4 text-gray-500">추가 문제 로딩 중...</p>
       )}
     </div>
   );

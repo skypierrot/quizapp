@@ -445,7 +445,15 @@ export async function GET(req: NextRequest) {
       console.log(`[API /questions GET] Found ${fetchedQuestions.length} questions (total ${totalQuestions}) - all questions (paginated).`);
     }
 
-    return NextResponse.json({ questions: fetchedQuestions, totalQuestions, page: currentPage, limit: effectiveLimit === undefined ? 0 : effectiveLimit });
+    const calculatedTotalPages = effectiveLimit && totalQuestions > 0 ? Math.ceil(totalQuestions / effectiveLimit) : 1;
+
+    return NextResponse.json({
+      questions: fetchedQuestions,
+      totalQuestions,
+      totalPages: calculatedTotalPages,
+      page: currentPage,
+      limit: effectiveLimit === undefined ? 0 : effectiveLimit,
+    });
 
   } catch (error: any) {
     console.error("[/api/questions GET Error]:", error.message, error.stack);
