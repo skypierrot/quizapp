@@ -1,27 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
-interface CommonImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
+interface CommonImageProps {
   src: string;
   alt: string;
-  hash?: string; // hash prop 추가 (optional)
-  placeholderSrc?: string; // Optional placeholder for error
-  fallbackText?: string; // Optional text fallback
+  hash?: string;
+  placeholderSrc?: string;
+  fallbackText?: string;
   containerClassName?: string;
-  maintainAspectRatio?: boolean; // 비율 유지 여부 prop 추가
+  className?: string;
+  style?: React.CSSProperties;
+  maintainAspectRatio?: boolean;
+  onClick?: React.MouseEventHandler<HTMLDivElement>;
+  loading?: "eager" | "lazy";
 }
 
 export function CommonImage({
   src,
   alt,
-  hash, // hash prop 받기
-  placeholderSrc = '/placeholder.png', // Provide a default placeholder path
+  hash,
+  placeholderSrc = '/placeholder.png',
   fallbackText = '이미지 로딩 실패',
   className,
   containerClassName,
-  maintainAspectRatio = false, // 기본값 false
+  maintainAspectRatio = false,
+  onClick,
   style,
-  ...props
+  loading = "lazy",
 }: CommonImageProps) {
   const [error, setError] = useState(false);
   const [calculatedAspectRatio, setCalculatedAspectRatio] = useState<string | undefined>(undefined);
@@ -34,7 +39,6 @@ export function CommonImage({
       const img = new Image();
       img.onload = () => {
         if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-          // CSS aspect-ratio 속성값 (width / height)
           setCalculatedAspectRatio(`${img.naturalWidth} / ${img.naturalHeight}`);
         }
       };
@@ -50,15 +54,17 @@ export function CommonImage({
     setError(true);
   };
 
-  // 컨테이너 스타일 계산 (기존 스타일 + aspect-ratio)
-  const containerStyle: React.CSSProperties = {
-    ...style,
+  const computedContainerStyle: React.CSSProperties = {
     aspectRatio: maintainAspectRatio ? calculatedAspectRatio : undefined,
-    height: maintainAspectRatio && calculatedAspectRatio && !style?.height ? 'auto' : style?.height,
+    height: maintainAspectRatio && calculatedAspectRatio ? 'auto' : undefined,
   };
 
   return (
-    <div className={cn("relative overflow-hidden", containerClassName)} style={containerStyle}>
+    <div 
+      className={cn("relative overflow-hidden", containerClassName)}
+      style={computedContainerStyle}
+      onClick={onClick}
+    >
       {error ? (
         <div className={cn("absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-500 text-xs", className)}>
           {placeholderSrc ? (
@@ -76,10 +82,9 @@ export function CommonImage({
             maintainAspectRatio ? "w-full h-auto" : "w-full h-full object-cover",
             className
           )}
-          loading="lazy"
+          loading={loading}
           onError={handleError}
-          {...props}
-          style={{}}
+          style={style}
         />
       )}
     </div>

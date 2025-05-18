@@ -1,48 +1,57 @@
 'use client';
 
-import * as React from 'react';
-const { useEffect, useState, useMemo } = React;
+import React, { useEffect, useState, useMemo } from 'react';
 
-import { useParams } from 'next/navigation';
-import Link from 'next/link'; // Link 추가
-// import { Card, CardHeader } from '@/components/ui/card'; // Card 관련 import 제거
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { IExamInstance } from '@/types';
 import Breadcrumb from '@/components/common/Breadcrumb';
-import { ExamSessionListDisplay, IDisplayItem } from '@/components/exam-selection/ExamSessionListDisplay'; // IDisplayItem import
-// Tabs 컴포넌트 import 추가
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// Switch, Label, Button 컴포넌트 import 추가
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-interface IExamInstancesResponse { // 이 인터페이스는 API 응답 형식이므로 유지하거나 types로 이동
+interface IExamInstancesResponse {
   examInstances: IExamInstance[];
 }
 
-// 날짜별로 그룹화된 데이터의 인터페이스
 interface IAggregatedExamDate {
   date: string;
   totalQuestionCount: number;
-  subjects: string[]; // 해당 날짜에 포함된 과목 목록 (필요시 사용)
+  subjects: string[];
+  year?: string;
+  subject?: string;
 }
 
-export default function LearnExamDateListPage() { // 컴포넌트 이름 변경 (의미 명확화)
+export default function LearnExamDateListPage() {
   const params = useParams();
+  const router = useRouter();
   const [decodedExamName, setDecodedExamName] = useState<string | null>(null);
   const [aggregatedExamDates, setAggregatedExamDates] = useState<IAggregatedExamDate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 과목별 학습을 위한 상태 추가
   const [allSubjects, setAllSubjects] = useState<string[]>([]);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
-  const [randomStart, setRandomStart] = useState<boolean>(false); // 랜덤 시작 옵션 상태
-
-  // 1. 원시 시험 데이터 상태 추가
+  const [randomStart, setRandomStart] = useState<boolean>(false);
   const [rawExamInstances, setRawExamInstances] = useState<IExamInstance[]>([]);
 
-  const examNameParam = params?.examName as string | undefined; // 타입 단언
+  const [isDateModalOpen, setIsDateModalOpen] = useState(false);
+  const [selectedDateInstanceData, setSelectedDateInstanceData] = useState<IAggregatedExamDate | null>(null);
+
+  const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
+
+  const examNameParam = params?.examName as string | undefined;
 
   useEffect(() => {
     if (examNameParam && typeof examNameParam === 'string') {
@@ -76,7 +85,7 @@ export default function LearnExamDateListPage() { // 컴포넌트 이름 변경 
             setRawExamInstances(filteredRawInstances);
 
             const groupedByDate: Record<string, IAggregatedExamDate> = {};
-            const subjectsSet = new Set<string>(); // 고유 과목을 수집하고 가나다순 정렬하기 위해 Set을 다시 사용합니다.
+            const subjectsSet = new Set<string>();
 
             for (const instance of filteredRawInstances) {
               if (!groupedByDate[instance.date]) {
@@ -90,14 +99,14 @@ export default function LearnExamDateListPage() { // 컴포넌트 이름 변경 
               if (!groupedByDate[instance.date].subjects.includes(instance.subject)) {
                 groupedByDate[instance.date].subjects.push(instance.subject);
               }
-              subjectsSet.add(instance.subject); // Set에 과목명을 추가합니다.
+              subjectsSet.add(instance.subject);
             }
             
             const aggregatedData = Object.values(groupedByDate).sort((a, b) => b.date.localeCompare(a.date));
             setAggregatedExamDates(aggregatedData);
-            setAllSubjects(Array.from(subjectsSet).sort()); // Set에서 배열을 만들어 가나다순으로 정렬합니다.
+            setAllSubjects(Array.from(subjectsSet).sort());
 
-          } catch (err) {
+          } catch (err: any) {
             console.error("Exam data loading/processing failed:", err);
             setError(err instanceof Error ? err.message : "데이터를 불러오는 중 오류가 발생했습니다.");
             setAggregatedExamDates([]);
@@ -108,7 +117,7 @@ export default function LearnExamDateListPage() { // 컴포넌트 이름 변경 
           }
         };
         fetchAndProcessExamData();
-      } catch (e) {
+      } catch (e: any) {
         console.error("Error decoding exam name:", e);
         setError("잘못된 시험명 형식입니다.");
         setLoading(false);
@@ -132,43 +141,65 @@ export default function LearnExamDateListPage() { // 컴포넌트 이름 변경 
     ];
   }, [decodedExamName]);
 
-  // IAggregatedExamDate[]를 IDisplayItem[]으로 변환 (날짜별 학습용)
-  const displayItemsByDate: IDisplayItem[] = useMemo(() => aggregatedExamDates.map((aggDate): IDisplayItem => {
-    const displayDateLabel = aggDate.date;
-    const encodedDate = encodeURIComponent(aggDate.date);
-    let linkUrl: string = '#';
-
-    if (typeof decodedExamName === 'string') {
-      const encodedExam = encodeURIComponent(decodedExamName);
-      // randomStart 상태를 반영하여 링크 URL 생성
-      const randomQueryParam = randomStart ? '&randomStart=true' : '';
-      linkUrl = `/learn/exams/${encodedExam}/study?date=${encodedDate}${randomQueryParam}`;
+  const handleDateCardClick = (instance: IAggregatedExamDate) => {
+    const specificInstance = rawExamInstances.find((raw: IExamInstance) => raw.date === instance.date);
+    if (specificInstance) {
+      setSelectedDateInstanceData({
+        ...instance,
+        year: specificInstance.year,
+      });
+    } else {
+      setSelectedDateInstanceData({
+        ...instance,
+        year: instance.date.substring(0, 4),
+      });
+      console.warn(`No specific instance found in rawExamInstances for date: ${instance.date}. Falling back to derived year.`);
     }
+    setIsDateModalOpen(true);
+  };
+  
+  const handleDateStudyClick = () => {
+    if (!selectedDateInstanceData || !decodedExamName || !selectedDateInstanceData.year) return;
+    const subjectToUse = selectedDateInstanceData.subjects.length === 1 ? selectedDateInstanceData.subjects[0] : (selectedDateInstanceData.subjects.length > 0 ? selectedDateInstanceData.subjects[0] : 'default');
 
-    return {
-      key: aggDate.date,
-      displayLabel: displayDateLabel,
-      countLabel: `총 문항 수: ${aggDate.totalQuestionCount}개`,
-      linkUrl: linkUrl, 
-      date: aggDate.date,
-      questionCount: aggDate.totalQuestionCount,
-    };
-  }), [aggregatedExamDates, decodedExamName, randomStart]);
+    const queryParams = new URLSearchParams({
+      name: decodedExamName,
+      year: selectedDateInstanceData.year,
+      subject: subjectToUse,
+      date: selectedDateInstanceData.date,
+      ...(randomStart && { randomStart: 'true' }),
+    }).toString();
+    router.push(`/learn/exams/${encodeURIComponent(decodedExamName)}/study?${queryParams}`);
+    setIsDateModalOpen(false);
+  };
 
-  // 과목 선택 핸들러
+  const handleDateTestClick = () => {
+    if (!selectedDateInstanceData || !decodedExamName || !selectedDateInstanceData.year) return;
+    const subjectToUse = selectedDateInstanceData.subjects.length === 1 ? selectedDateInstanceData.subjects[0] : (selectedDateInstanceData.subjects.length > 0 ? selectedDateInstanceData.subjects[0] : 'default');
+
+    const queryParams = new URLSearchParams({
+      name: decodedExamName,
+      year: selectedDateInstanceData.year,
+      subject: subjectToUse,
+      date: selectedDateInstanceData.date,
+      ...(randomStart && { randomStart: 'true' }),
+    }).toString();
+    router.push(`/learn/exams/${encodeURIComponent(decodedExamName)}/test?${queryParams}`);
+    setIsDateModalOpen(false);
+  };
+
   const handleSubjectSelection = (subject: string, checked: boolean) => {
-    setSelectedSubjects(prev => 
-      checked ? [...prev, subject] : prev.filter(s => s !== subject)
+    setSelectedSubjects((prev: string[]) =>
+      checked ? [...prev, subject] : prev.filter((s: string) => s !== subject)
     );
   };
   
-  // 3. 선택된 과목의 총 문제 수 계산
   const totalQuestionsForSelectedSubjects = useMemo(() => {
     if (selectedSubjects.length === 0 || rawExamInstances.length === 0) {
       return 0;
     }
     let count = 0;
-    const selectedSubjectsSet = new Set(selectedSubjects); // 검색 성능 향상을 위해 Set 사용
+    const selectedSubjectsSet = new Set(selectedSubjects);
     for (const instance of rawExamInstances) {
       if (selectedSubjectsSet.has(instance.subject)) {
         count += instance.questionCount;
@@ -177,6 +208,36 @@ export default function LearnExamDateListPage() { // 컴포넌트 이름 변경 
     return count;
   }, [selectedSubjects, rawExamInstances]);
   
+  const handleOpenSubjectDialog = () => {
+    if (selectedSubjects.length === 0 || !decodedExamName) {
+      console.log("과목이 선택되지 않았거나 시험명이 없습니다.");
+      return;
+    }
+    setIsSubjectModalOpen(true);
+  };
+
+  const handleSubjectStudyClick = () => {
+    if (!decodedExamName || selectedSubjects.length === 0) return;
+    const queryParams = new URLSearchParams({
+      name: decodedExamName,
+      subjects: selectedSubjects.join(','),
+      ...(randomStart && { randomStart: 'true' }),
+    }).toString();
+    router.push(`/learn/exams/${encodeURIComponent(decodedExamName)}/study?${queryParams}`);
+    setIsSubjectModalOpen(false);
+  };
+
+  const handleSubjectTestClick = () => {
+    if (!decodedExamName || selectedSubjects.length === 0) return;
+    const queryParams = new URLSearchParams({
+      name: decodedExamName,
+      subjects: selectedSubjects.join(','),
+      ...(randomStart && { randomStart: 'true' }),
+    }).toString();
+    router.push(`/learn/exams/${encodeURIComponent(decodedExamName)}/test?${queryParams}`);
+    setIsSubjectModalOpen(false);
+  };
+
   if (loading) {
     return <div className="container mx-auto py-8 text-center">로딩 중...</div>;
   }
@@ -192,71 +253,133 @@ export default function LearnExamDateListPage() { // 컴포넌트 이름 변경 
           <TabsTrigger value="byDate">시험 회차별 학습</TabsTrigger>
           <TabsTrigger value="bySubject">과목별 학습</TabsTrigger>
         </TabsList>
-        <TabsContent value="byDate" className="mt-4">
-          <ExamSessionListDisplay
-            items={displayItemsByDate} // 이름 변경: displayItems -> displayItemsByDate
-            title={decodedExamName ? `${decodedExamName} - 시험 회차별 문제 목록` : "시험 회차별 문제 목록"}
-          />
+        <TabsContent value="byDate">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+            {aggregatedExamDates.length > 0 ? (
+              aggregatedExamDates.map((instance: IAggregatedExamDate) => (
+                <Card key={instance.date} onClick={() => handleDateCardClick(instance)} className="cursor-pointer hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <CardTitle>{instance.date}</CardTitle>
+                    <CardDescription>
+                      총 {instance.totalQuestionCount} 문제
+                      <br />
+                      과목: {instance.subjects.join(', ')}
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              ))
+            ) : (
+              <p>선택하신 시험에 해당하는 회차가 없습니다.</p>
+            )}
+          </div>
         </TabsContent>
-        <TabsContent value="bySubject" className="mt-4">
-          <div className="p-4 border rounded-md bg-white shadow">
-            <h2 className="text-lg font-semibold mb-4">과목 선택하여 학습하기</h2>
-            {allSubjects.length > 0 ? (
-              <div className="space-y-3">
-                {allSubjects.map((subject) => (
-                  <div key={subject} className="flex items-center space-x-2 p-2 border rounded-md hover:bg-gray-50">
+        <TabsContent value="bySubject">
+          <div className="mt-6">
+            <div className="space-y-4 mb-6">
+              <h3 className="text-lg font-semibold">과목 선택</h3>
+              {allSubjects.length > 0 ? (
+                allSubjects.map((subject: string) => (
+                  <div key={subject} className="flex items-center space-x-2">
                     <Switch
                       id={`subject-switch-${subject}`}
                       checked={selectedSubjects.includes(subject)}
-                      onCheckedChange={(checked) => handleSubjectSelection(subject, checked)}
-                      aria-label={`과목 ${subject} 선택 스위치`}
+                      onCheckedChange={(checked: boolean) => handleSubjectSelection(subject, checked)}
                     />
-                    <Label htmlFor={`subject-switch-${subject}`} className="flex-grow cursor-pointer text-sm">
-                      {subject}
-                    </Label>
+                    <Label htmlFor={`subject-switch-${subject}`}>{subject}</Label>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">선택할 수 있는 과목이 없거나 과목 정보를 불러오는 중입니다.</p>
-            )}
-            {/* 선택된 과목 임시 표시 및 학습 시작 버튼 */}
-            {selectedSubjects.length > 0 && decodedExamName && (
-              <div className="mt-6 p-3 bg-gray-100 rounded">
-                <h3 className="text-md font-semibold mb-2">선택된 과목:</h3>
-                <p className="text-sm text-gray-700 mb-4">{selectedSubjects.join(', ')}</p>
-                {/* 4. 문제 수 표시 */}
-                <p className="text-sm text-gray-600 mt-1 mb-3">총 문제 수: {totalQuestionsForSelectedSubjects}개</p>
-                
-                {/* 랜덤 시작 옵션 스위치 추가 */}
-                <div className="flex items-center space-x-2 my-4">
-                  <Switch
-                    id="random-start-switch"
-                    checked={randomStart}
-                    onCheckedChange={setRandomStart}
-                    aria-label="문제 순서 랜덤 시작 스위치"
-                  />
-                  <Label htmlFor="random-start-switch" className="cursor-pointer text-sm">
-                    문제 순서 랜덤으로 시작하기
-                  </Label>
-                </div>
-
-                <Link 
-                  href={`/learn/exams/${encodeURIComponent(decodedExamName)}/study?subjects=${encodeURIComponent(selectedSubjects.join(','))}${randomStart ? '&randomStart=true' : ''}`}
-                  className="w-full block"
-                >
-                  <Button className="w-full">
-                    선택한 과목으로 학습 시작
-                  </Button>
-                </Link>
+                ))
+              ) : (
+                <p>선택하신 시험에 해당하는 과목 정보가 없습니다. 먼저 시험 회차 정보를 확인해주세요.</p>
+              )}
+            </div>
+            {selectedSubjects.length > 0 && (
+              <div className="mb-4">
+                <p>선택된 과목의 총 문제 수: {totalQuestionsForSelectedSubjects}</p>
               </div>
             )}
-            {selectedSubjects.length === 0 && allSubjects.length > 0 && 
-                 <p className="mt-6 text-sm text-center text-gray-500">학습할 과목을 선택해주세요.</p>
-            }
+            <Button
+              onClick={handleOpenSubjectDialog}
+              disabled={selectedSubjects.length === 0 || totalQuestionsForSelectedSubjects === 0}
+              className="w-full md:w-auto"
+            >
+              선택한 과목으로 학습/모의고사 시작
+            </Button>
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={isDateModalOpen} onOpenChange={setIsDateModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{selectedDateInstanceData?.date} 시험</DialogTitle>
+            <DialogDescription>
+              {selectedDateInstanceData?.subjects && selectedDateInstanceData.subjects.length > 0 && (
+                <>과목: {selectedDateInstanceData.subjects.join(', ')}<br /></>
+              )}
+              어떤 작업을 수행하시겠습니까?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center space-x-2 my-4">
+            <Switch
+              id="randomStartInDateDialog"
+              checked={randomStart}
+              onCheckedChange={setRandomStart}
+            />
+            <Label htmlFor="randomStartInDateDialog">문제 순서 랜덤으로 시작하기</Label>
+          </div>
+          <div className="flex flex-col sm:flex-row justify-around mt-4 space-y-2 sm:space-y-0 sm:space-x-2">
+            <Button onClick={handleDateStudyClick} variant="outline" className="w-full">
+              학습하기 (이론 및 문제 풀이)
+            </Button>
+            <Button onClick={handleDateTestClick} className="w-full">
+              모의고사 (실전처럼 테스트)
+            </Button>
+          </div>
+          <DialogFooter className="sm:justify-start mt-6">
+            <DialogClose asChild>
+              <Button type="button" variant="secondary" className="w-full sm:w-auto">
+                닫기
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isSubjectModalOpen} onOpenChange={setIsSubjectModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>선택 과목 학습/모의고사</DialogTitle>
+            <DialogDescription>
+              선택한 과목: {selectedSubjects.join(', ')}
+              <br />
+              어떤 작업을 수행하시겠습니까?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center space-x-2 my-4">
+            <Switch
+              id="randomStartInSubjectDialog"
+              checked={randomStart}
+              onCheckedChange={setRandomStart}
+            />
+            <Label htmlFor="randomStartInSubjectDialog">문제 순서 랜덤으로 시작하기</Label>
+          </div>
+          <div className="flex flex-col sm:flex-row justify-around mt-4 space-y-2 sm:space-y-0 sm:space-x-2">
+            <Button onClick={handleSubjectStudyClick} variant="outline" className="w-full">
+              학습하기
+            </Button>
+            <Button onClick={handleSubjectTestClick} className="w-full">
+              모의고사
+            </Button>
+          </div>
+          <DialogFooter className="sm:justify-start mt-6">
+            <DialogClose asChild>
+              <Button type="button" variant="secondary" className="w-full sm:w-auto">
+                닫기
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

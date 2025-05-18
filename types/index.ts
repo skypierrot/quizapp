@@ -91,6 +91,7 @@ export interface IAnswerDetail {
 export type INewExamResult = {
   userId: string;
   examName: string;
+  examYear: number;
   examDate: string;
   examSubject: string;
   answers: IAnswerDetail[];

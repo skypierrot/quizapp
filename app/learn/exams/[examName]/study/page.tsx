@@ -22,6 +22,13 @@ import { CommonImage } from "@/components/common/CommonImage";
 
 const SUBJECT_QUESTIONS_PER_PAGE = 50; // 한 번에 불러올 과목별 문제 수
 
+// 타입 추가
+interface IShuffledOptionItem {
+  questionId: string | undefined;
+  shuffledOptions: IOption[];
+  newAnswerIndex: number;
+}
+
 // 학습용 카드 컴포넌트 (기존과 동일)
 const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, showExplanation, onOptionSelect, userAnswer, shuffledOptions, shuffledAnswerIndex }: {
   question: IQuestion;
@@ -40,6 +47,9 @@ const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, sho
   // 렌더링에 사용할 선택지와 정답 인덱스 결정
   const optionsToDisplay = shuffledOptions && shuffledOptions.length > 0 ? shuffledOptions : question.options;
   const correctAnswerIndex = typeof shuffledAnswerIndex === 'number' && shuffledAnswerIndex !== -1 ? shuffledAnswerIndex : question.answer;
+
+  // 현재 섞인 선택지를 표시하는지 여부 판단
+  const isDisplayingShuffled = !!(shuffledOptions && shuffledOptions.length > 0 && optionsToDisplay === shuffledOptions);
 
   return (
     <div className="p-4 border rounded-lg bg-white shadow mb-4">
@@ -74,19 +84,24 @@ const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, sho
           }
         }
         
+        // 선택지 번호 결정 로직
+        const displayOptionNumber = isDisplayingShuffled
+                                  ? i + 1
+                                  : (opt.number !== undefined ? opt.number + 1 : i + 1);
+
         return (
           <div 
             key={`q${question.id}-opt-${i}`} 
             className={`p-3 my-2 border rounded-md transition-all duration-150 ${optionStyle}`}
             onClick={() => onOptionSelect && onOptionSelect(i)}
           >
-            <span className="mr-2 font-medium">{i + 1}.</span>
+            <span className="mr-2 font-medium">{displayOptionNumber}.</span>
             <span className="whitespace-pre-wrap">{opt.text}</span>
             {opt.images && opt.images.length > 0 && (
               <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {opt.images.map((img, imgIdx) => (
                   <div key={img.hash || imgIdx} className="cursor-pointer border rounded overflow-hidden hover:opacity-80" onClick={(e) => { e.stopPropagation(); onImageZoom(getImageUrl(img.url)); }}>
-                    <CommonImage src={getImageUrl(img.url)} alt={`선택지 ${i+1} 이미지 ${imgIdx + 1}`} className="w-full h-auto object-contain max-h-32" containerClassName="w-full" />
+                    <CommonImage src={getImageUrl(img.url)} alt={`선택지 ${displayOptionNumber} 이미지 ${imgIdx + 1}`} className="w-full h-auto object-contain max-h-32" containerClassName="w-full" />
                   </div>
                 ))}
               </div>
@@ -169,21 +184,25 @@ export default function StudyPage() {
     currentDisplayQuestionsRef.current = displayedQuestions;
   }, [displayedQuestions]);
 
-  const shuffledOptionsData = useMemo(() => {
+  const shuffledOptionsData = useMemo((): IShuffledOptionItem[] | null => {
     if (!isShuffled) return null;
-    // 전체 문제 목록 (shuffledQuestionsList) 기준으로 선택지 섞기 데이터 생성
-    const allQuestionsForOptions = displayPageSegments.flat(); 
-    return allQuestionsForOptions.map(question => {
-      if (!question.options || question.options.length === 0) {
+    const allQuestionsForOptions: IQuestion[] = displayPageSegments.flat(); 
+    return allQuestionsForOptions.map((question: IQuestion): IShuffledOptionItem => {
+      if (!question.id || !question.options || question.options.length === 0) {
         return { questionId: question.id, shuffledOptions: [], newAnswerIndex: -1 };
       }
       const originalOptions: IOption[] = question.options;
-      const originalCorrectOption = originalOptions[question.answer];
+      const originalCorrectOption = question.answer >= 0 && question.answer < originalOptions.length ? originalOptions[question.answer] : null;
+      
+      if (!originalCorrectOption) {
+        return { questionId: question.id, shuffledOptions: shuffleArray(originalOptions), newAnswerIndex: -1 };
+      }
+
       const shuffledOptions = shuffleArray(originalOptions);
       const newAnswerIndex = shuffledOptions.findIndex((opt: IOption) => opt.text === originalCorrectOption.text && JSON.stringify(opt.images) === JSON.stringify(originalCorrectOption.images));
       return { questionId: question.id, shuffledOptions, newAnswerIndex };
     });
-  }, [displayPageSegments, isShuffled]); // 의존성 변경
+  }, [displayPageSegments, isShuffled]);
 
   const normalizeImages = useCallback((imgs: any): { url: string; hash: string }[] => {
     if (Array.isArray(imgs)) { return imgs.map((img) => typeof img === 'string' ? { url: img, hash: "" } : (img && typeof img.url === 'string' ? img : {url:'', hash:''})); }
@@ -256,14 +275,14 @@ export default function StudyPage() {
       }));
 
       // 원본 데이터 저장
-      setOriginalPagesData(prevPages => {
+      setOriginalPagesData((prevPages: IQuestion[][]) => {
         const newPages = [...prevPages];
         newPages[pageToFetch -1] = processedNewQuestionsPage;
         return newPages;
       });
       
       // 화면 표시용 데이터 업데이트
-      setDisplayPageSegments(prevSegments => {
+      setDisplayPageSegments((prevSegments: IQuestion[][]) => {
         const newSegments = [...prevSegments];
         // API가 이미 랜덤으로 줬거나 (initialRandomStart && pageToFetch === 1) 또는 문제 섞기 모드가 활성화된 경우 섞음
         // 단, isApiRandomized가 true이면, API가 이미 전체적으로 섞었으므로 추가로 섞지 않음.
@@ -381,36 +400,36 @@ export default function StudyPage() {
 
   const toggleExplanationHandler = (questionId: string | undefined) => {
     if (!questionId) return;
-    setShowExplanation(prev => ({ ...prev, [questionId]: !prev[questionId] }));
+    setShowExplanation((prev: Record<string, boolean>) => ({ ...prev, [questionId]: !prev[questionId] }));
   };
 
-  const handleToggleShowAllAnswers = () => setShowAllAnswers(prev => !prev);
+  const handleToggleShowAllAnswers = () => setShowAllAnswers((prev: boolean) => !prev);
 
   const handleToggleShowAllExplanations = () => {
     const nextShowState = !showAllExplanations;
     setShowAllExplanations(nextShowState);
     const newShowExplanation: Record<string, boolean> = {};
-    shuffledQuestionsList.forEach(q => { if (q.id) { newShowExplanation[q.id] = nextShowState; } }); // questions -> shuffledQuestionsList
+    shuffledQuestionsList.forEach((q: IQuestion) => { if (q.id) { newShowExplanation[q.id] = nextShowState; } });
     setShowExplanation(newShowExplanation);
   };
 
   const handleToggleSingleViewMode = () => {
-    setIsSingleViewMode(prev => !prev);
+    setIsSingleViewMode((prev: boolean) => !prev);
   };
 
   const toggleIndividualAnswerHandler = (questionId: string | undefined) => {
     if (!questionId) return;
-    setShowIndividualAnswer(prev => ({ ...prev, [questionId]: !prev[questionId] }));
+    setShowIndividualAnswer((prev: Record<string, boolean>) => ({ ...prev, [questionId]: !prev[questionId] }));
   };
   
   const handlePrevQuestion = useCallback(() => {
-    setCurrentQuestionIndex(prev => Math.max(0, prev - 1));
+    setCurrentQuestionIndex((prev: number) => Math.max(0, prev - 1));
   }, []);
 
   const handleNextQuestion = useCallback(() => {
     const lastIndexOfCurrentList = shuffledQuestionsList.length - 1;
     if (currentQuestionIndex < lastIndexOfCurrentList) {
-      setCurrentQuestionIndex(prev => prev + 1);
+      setCurrentQuestionIndex((prev: number) => prev + 1);
     } else if (currentQuestionIndex === lastIndexOfCurrentList && isSingleViewMode) {
       // 한 문제씩 보기 모드에서 마지막 문제일 경우, API를 통해 새 문제 로드
       if (decodedExamName && studyMode && studyModeParam && !loadingMore) {
@@ -457,38 +476,35 @@ export default function StudyPage() {
   }, [handleKeyDown]);
   
   const handleToggleShuffle = useCallback(() => {
-    setIsShuffled(prev => !prev);
+    setIsShuffled((prev: boolean) => !prev);
   }, []);
 
   const handleToggleQuestionsShuffle = useCallback(() => {
     if (isApiRandomized) {
-      // API가 이미 전체 문제를 랜덤으로 제공한 경우, 프론트엔드에서 추가 섞기/해제 불가
       toast({ title: "알림", description: "문제 순서가 이미 랜덤으로 시작되어 변경할 수 없습니다." });
       return;
     }
 
-    setIsShuffleModeActive(prevActive => {
+    setIsShuffleModeActive((prevActive: boolean) => {
       const nextActive = !prevActive;
       
-      // originalPagesData를 기반으로 displayPageSegments를 재구성
-      setDisplayPageSegments(currentOriginalPages => {
-        return currentOriginalPages.map(pageOfQuestions => {
+      setDisplayPageSegments((currentOriginalPages: IQuestion[][]) => {
+        return currentOriginalPages.map((pageOfQuestions: IQuestion[]) => {
           return nextActive ? shuffleArray([...pageOfQuestions]) : pageOfQuestions;
         });
       });
 
-      // 섞기 모드 변경 시 사용자 답변 및 개별 상태 초기화
       setUserAnswers({});
       setShowIndividualAnswer({});
       setShowExplanation({});
-      setCurrentQuestionIndex(0); // 첫 문제로 이동
+      setCurrentQuestionIndex(0);
       return nextActive;
     });
-  }, [isApiRandomized]); // 의존성: originalPagesData는 setDisplayPageSegments 콜백 내에서 최신 상태를 참조하므로 명시적 의존성 불필요할 수 있으나, 안정성을 위해 추가 고려 가능
+  }, [isApiRandomized, toast]);
   
   const handleOptionSelect = (questionId: string | undefined, optionIndex: number) => {
     if (!questionId) return;
-    setUserAnswers(prev => ({...prev, [questionId]: optionIndex }));
+    setUserAnswers((prev: Record<string, number | null>) => ({...prev, [questionId]: optionIndex }));
   };
 
   // 자동 다음 문제 이동 로직 (기존 위치 유지 또는 handleImageZoom 위로 이동 가능)
@@ -604,7 +620,7 @@ export default function StudyPage() {
                   </h2>
                 </div>
               )}
-              {displayedQuestions.map((question) => (
+              {displayedQuestions.map((question: IQuestion) => (
                 <StudyQuestionCard
                   key={question.id}
                   question={question}
@@ -614,18 +630,18 @@ export default function StudyPage() {
                   showExplanation={showAllExplanations || (question.id ? !!showExplanation[question.id] : false)}
                   onOptionSelect={(optionIndex) => question.id && handleOptionSelect(question.id, optionIndex)}
                   userAnswer={question.id ? userAnswers[question.id] : null}
-                  shuffledOptions={shuffledOptionsData ? shuffledOptionsData.find(d => d.questionId === question.id)?.shuffledOptions : undefined}
-                  shuffledAnswerIndex={shuffledOptionsData ? shuffledOptionsData.find(d => d.questionId === question.id)?.newAnswerIndex : undefined}
+                  shuffledOptions={shuffledOptionsData ? shuffledOptionsData.find((d: IShuffledOptionItem) => d.questionId === question.id)?.shuffledOptions : undefined}
+                  shuffledAnswerIndex={shuffledOptionsData ? shuffledOptionsData.find((d: IShuffledOptionItem) => d.questionId === question.id)?.newAnswerIndex : undefined}
                 />
               ))}
             </>
           ) : (
-            displayedQuestions.map((question, idx) => {
+            displayedQuestions.map((question: IQuestion, idx: number) => {
               const prevQuestion = idx > 0 ? displayedQuestions[idx - 1] : null;
               const showSubjectHeader = !prevQuestion || (question.examSubject !== prevQuestion.examSubject);
 
               const currentShuffledData = isShuffled && shuffledOptionsData ? 
-                                        shuffledOptionsData.find(d => d.questionId === question.id) : 
+                                        shuffledOptionsData.find((d: IShuffledOptionItem) => d.questionId === question.id) : 
                                         null;
 
               const optionsToRender = currentShuffledData ? currentShuffledData.shuffledOptions : question.options;
