@@ -8,8 +8,32 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertCircle, ExternalLink, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
+// date-fns 관련 import 제거
+
+// 커스텀 날짜 포맷팅 함수 구현
+function formatDate(date: Date | string, formatStr: string = 'yyyy년 M월 d일 HH:mm'): string {
+  const d = new Date(date);
+  
+  // 한국어 월 이름
+  const months = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+  
+  // 날짜 포맷팅에 필요한 값들
+  const year = d.getFullYear();
+  const month = d.getMonth();
+  const day = d.getDate();
+  const hours = d.getHours().toString().padStart(2, '0');
+  const minutes = d.getMinutes().toString().padStart(2, '0');
+  
+  // 간단한 포맷 문자열 변환
+  return formatStr
+    .replace('yyyy', year.toString())
+    .replace('M', (month + 1).toString())
+    .replace('MM', (month + 1).toString().padStart(2, '0'))
+    .replace('d', day.toString())
+    .replace('dd', day.toString().padStart(2, '0'))
+    .replace('HH', hours)
+    .replace('mm', minutes);
+}
 
 export default function ExamResultsPage() {
   const { data: session, status } = useSession();
@@ -114,11 +138,12 @@ export default function ExamResultsPage() {
                       {result.examName}
                       <p className="text-xs text-gray-500 mt-1">
                         {result.examYear}년 / {result.examSubject}
-                        {result.examDate && result.examDate !== `${result.examYear}-01-01` ? ` (${format(new Date(result.examDate), 'MM.dd')})` : ''}
+                        {result.examDate && result.examDate !== `${result.examYear}-01-01` ? 
+                          ` (${formatDate(new Date(result.examDate), 'MM.dd')})` : ''}
                       </p>
                     </TableCell>
                     <TableCell>
-                      {format(new Date(result.createdAt), 'yyyy년 M월 d일 HH:mm', { locale: ko })}
+                      {formatDate(new Date(result.createdAt), 'yyyy년 M월 d일 HH:mm')}
                     </TableCell>
                     <TableCell className="text-center font-semibold text-blue-600">{result.score}점</TableCell>
                     <TableCell className="text-center">

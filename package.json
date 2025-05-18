@@ -2,7 +2,6 @@
   "name": "quizapp",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
     "dev": "DEBUG=openid-client:* NEXTAUTH_DEBUG=true next dev --hostname 0.0.0.0 --port 3000",
     "build": "next build",
@@ -38,7 +37,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "date-fns": "^4.1.0",
+    "date-fns": "2.30.0",
     "drizzle-orm": "^0.42.0",
     "lucide-react": "^0.296.0",
     "next": "^15.3.0",
