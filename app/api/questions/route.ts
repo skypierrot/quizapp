@@ -4,7 +4,7 @@ import { questions } from "@/db/schema/questions";
 import { exams } from "@/db/schema/exams"; // exams 스키마 import 추가
 import { eq, sql, and, inArray, SQL, Placeholder, desc, asc, getTableColumns } from "drizzle-orm";
 // import { auth } from "@clerk/nextjs"; // Clerk 인증 주석 완전 삭제
-import { IQuestion, IManualQuestion } from '@/types'
+import { IQuestion, IManualQuestion } from '@/types' // IOptionImage, IQuestionImage 제거
 // Node.js 모듈 import
 import fs from 'fs';
 import path from 'path';
@@ -120,6 +120,40 @@ function moveTmpToUploaded(tmpUrl: string): string {
   const finalUrl = `/images/uploaded/${filename}`;
   console.log(`[moveTmpToUploaded - single] Output (success): ${finalUrl}`);
   return finalUrl;
+}
+
+// API 응답을 위한 이미지 데이터 정규화 함수
+function normalizeDbImages(dbImages: any): { url: string; hash: string }[] {
+  if (!dbImages) return [];
+  // DB에서 문자열 또는 객체 배열 형태로 올 수 있음
+  let imagesArray: any[];
+  if (typeof dbImages === 'string') {
+    try {
+      imagesArray = JSON.parse(dbImages);
+    } catch (e) {
+      // 단일 URL 문자열일 경우 (레거시 또는 단순 필드)
+      if (dbImages.startsWith('/') || dbImages.startsWith('http')) {
+        return [{ url: moveTmpToUploaded(dbImages), hash: '' }];
+      }
+      console.error('Failed to parse images string and not a URL:', dbImages, e);
+      return [];
+    }
+  } else if (Array.isArray(dbImages)) {
+    imagesArray = dbImages;
+  } else {
+    console.warn('Unexpected images format in DB:', dbImages);
+    return [];
+  }
+
+  return imagesArray.map(img => {
+    if (typeof img === 'string') {
+      return { url: moveTmpToUploaded(img), hash: '' };
+    } else if (img && typeof img.url === 'string') {
+      return { url: moveTmpToUploaded(img.url), hash: img.hash || '' };
+    }
+    console.warn('Invalid image object in array:', img);
+    return { url: '', hash: '' }; // 유효하지 않은 항목에 대한 기본값
+  }).filter(img => img.url); // URL이 없는 항목 제거
 }
 
 export async function POST(req: NextRequest) {
@@ -243,20 +277,25 @@ export async function GET(req: NextRequest) {
     const skip = effectiveLimit !== undefined ? (currentPage - 1) * effectiveLimit : 0;
     const tagsParam = url.searchParams.get("tags");
     const idsParam = url.searchParams.get("ids");
-    const randomStart = url.searchParams.get("randomStart") === "true"; // randomStart 파라미터 추가
+    const randomStart = url.searchParams.get("randomStart") === "true";
+
+    const examNameSearch = url.searchParams.get("examNameSearch")?.trim();
+    const dateSearch = url.searchParams.get("dateSearch")?.trim();
+    const subjectSearch = url.searchParams.get("subjectSearch")?.trim();
+    const tagSearch = url.searchParams.get("tagSearch")?.trim();
 
     let fetchedQuestions: IQuestion[] = [];
     let totalQuestions = 0;
     let conditions: SQL<unknown>[] = [];
 
+    // selectFields를 핸들러 상단에 정의
     const selectFields = {
       ...getTableColumns(questions),
       examName: exams.name,
       examDate: exams.date,
-      examSubject: exams.subject
+      examSubject: exams.subject,
     };
 
-    // 1. ID 목록으로 조회 (기존 로직 유지 - 단, selectFields 사용 및 반환 타입 주의)
     if (idsParam) {
       console.log(`[API /questions GET] Fetching by IDs: ${idsParam}`);
       const idArray = idsParam.split(',').map(id => id.trim()).filter(id => id.length > 0);
@@ -274,20 +313,17 @@ export async function GET(req: NextRequest) {
         .where(and(...conditions))
         .orderBy(asc(questions.questionNumber), asc(questions.createdAt));
 
-      // 타입 변환 및 이미지 URL 처리
       fetchedQuestions = resultsById.map(q => ({
         ...q,
-        options: q.options ? q.options.map(opt => ({ ...opt, images: (opt.images || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''})) })) : [],
-        images: (q.images || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''})),
-        explanationImages: (q.explanationImages || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''})),
+        options: q.options ? (Array.isArray(q.options) ? q.options : JSON.parse(q.options as string || '[]')).map((opt: any) => ({ ...opt, images: normalizeDbImages(opt.images) })) : [],
+        images: normalizeDbImages(q.images),
+        explanationImages: normalizeDbImages(q.explanationImages),
         tags: q.tags || [], 
-      }));
+      })) as IQuestion[];
       totalQuestions = fetchedQuestions.length;
       console.log(`[API /questions GET] Found ${totalQuestions} questions by IDs.`);
 
-    }
-    // 2. 태그로 조회 (기존 로직 유지 - 단, selectFields 사용 및 반환 타입 주의)
-    else if (tagsParam) {
+    } else if (tagsParam) {
       console.log(`[API /questions GET] Fetching by tags: ${tagsParam}`);
       const tagsToFilter = tagsParam.split(',').map(tag => tag.trim()).filter(t => t);
       console.log(`[API /questions GET] Parsed tagsToFilter: ${JSON.stringify(tagsToFilter)}`);
@@ -370,11 +406,11 @@ export async function GET(req: NextRequest) {
 
             fetchedQuestions = orderedResults.map(q => ({
               ...q,
-              options: q.options ? q.options.map(opt => ({ ...opt, images: (opt.images || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''})) })) : [],
-              images: (q.images || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''})),
-              explanationImages: (q.explanationImages || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''})),
+              options: q.options ? (Array.isArray(q.options) ? q.options : JSON.parse(q.options as string || '[]')).map((opt: any) => ({ ...opt, images: normalizeDbImages(opt.images) })) : [],
+              images: normalizeDbImages(q.images),
+              explanationImages: normalizeDbImages(q.explanationImages),
               tags: q.tags || [],
-            }));
+            })) as IQuestion[];
           } else {
             fetchedQuestions = []; // ID는 있었으나, 모종의 이유로 첫 페이지 ID를 못가져온 경우 (이론상 발생 어려움)
           }
@@ -429,14 +465,14 @@ export async function GET(req: NextRequest) {
         fetchedQuestions = resultsByTags.map((q: DbQueryResult) => {
           // IQuestion에 맞게 이미지 및 옵션 구조 변환
           const mappedOptions = q.options ? 
-            (q.options as unknown as Array<{ number: number; text: string; images?: any[] }>).map(opt => ({
-              number: opt.number, // IOption에 number가 있다고 가정
+            (Array.isArray(q.options) ? q.options : JSON.parse(q.options as string || '[]')).map((opt: any) => ({
+              number: opt.number, 
               text: opt.text,
-              images: (opt.images || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''}))
+              images: normalizeDbImages(opt.images)
             })) : [];
 
-          const mappedImages = (q.images || []).map((img: any) => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''}));
-          const mappedExplanationImages = (q.explanationImages || []).map((img: any) => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''}));
+          const mappedImages = normalizeDbImages(q.images);
+          const mappedExplanationImages = normalizeDbImages(q.explanationImages);
 
           return {
             id: q.id,
@@ -467,11 +503,26 @@ export async function GET(req: NextRequest) {
     else {
       console.log(`[API /questions GET] Fetching all questions (paginated) as no ids or tags were provided.`);
       
+      // 검색 조건들을 먼저 conditions 배열에 추가
+      if (examNameSearch) {
+        conditions.push(sql`lower(${exams.name}) LIKE lower(${'%' + examNameSearch + '%'})`);
+      }
+      if (dateSearch) {
+        conditions.push(sql`lower(${exams.date}) LIKE lower(${'%' + dateSearch + '%'})`);
+      }
+      if (subjectSearch) {
+        conditions.push(sql`lower(${exams.subject}) LIKE lower(${'%' + subjectSearch + '%'})`);
+      }
+      if (tagSearch) {
+        conditions.push(sql`EXISTS (SELECT 1 FROM unnest(${questions.tags}) AS t WHERE lower(t) LIKE lower(${'%' + tagSearch + '%'}))`);
+      }
+      const combinedConditionForAllOrSearch = conditions.length > 0 ? and(...conditions) : undefined; // undefined면 모든 문제
+
       const baseQueryForAll = db
         .select(selectFields)
         .from(questions)
         .leftJoin(exams, eq(questions.examId, exams.id))
-        // .where(and(...conditions)) // conditions가 비어있으므로 모든 문제 대상
+        .where(combinedConditionForAllOrSearch) // 통합된 조건 사용
         .orderBy(asc(exams.name), asc(exams.date), asc(exams.subject), asc(questions.questionNumber), asc(questions.createdAt));
       
       let finalQueryForAll;
@@ -484,9 +535,9 @@ export async function GET(req: NextRequest) {
       console.log(`[API /questions GET] Executing query for all questions - SQL: ${finalQueryForAll.toSQL().sql} with params: ${JSON.stringify(finalQueryForAll.toSQL().params)}`);
       fetchedQuestions = (await finalQueryForAll).map(q => ({
         ...q,
-        options: q.options ? q.options.map(opt => ({ ...opt, images: (opt.images || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''})) })) : [],
-        images: (q.images || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''})),
-        explanationImages: (q.explanationImages || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''})),
+        options: q.options ? q.options.map(opt => ({ ...opt, images: normalizeDbImages(opt.images) })) : [],
+        images: normalizeDbImages(q.images),
+        explanationImages: normalizeDbImages(q.explanationImages),
         tags: q.tags || [],
       }));
 
@@ -500,26 +551,23 @@ export async function GET(req: NextRequest) {
       console.log(`[API /questions GET] Found ${fetchedQuestions.length} questions (total ${totalQuestions}) - all questions (paginated).`);
     }
 
-    // `totalQuestions`는 각 분기에서 이미 계산되었으므로, `calculatedTotalPages`는 여기서 한 번만 계산합니다.
-    const calculatedTotalPages = effectiveLimit && totalQuestions > 0 ? Math.ceil(totalQuestions / effectiveLimit) : (totalQuestions > 0 ? 1 : 0);
+    // totalPages 계산은 effectiveLimit 유무에 따라
+    const calculatedTotalPages = effectiveLimit !== undefined && totalQuestions > 0
+        ? Math.ceil(totalQuestions / effectiveLimit)
+        : (totalQuestions > 0 ? 1 : 0); // limit이 없으면 1페이지 또는 0페이지
 
     return NextResponse.json({
       questions: fetchedQuestions,
-      totalQuestions,
-      totalPages: calculatedTotalPages,
       page: currentPage,
-      limit: effectiveLimit === undefined ? 0 : effectiveLimit,
+      limit: effectiveLimit === undefined ? 0 : effectiveLimit, // limit 0은 전체를 의미
+      totalPages: calculatedTotalPages,
+      totalQuestions,
     });
 
   } catch (error: any) {
-    console.error("[/api/questions GET Error]:", error.message, error.stack);
-    // findOrCreateExamId 에서 발생하는 에러 메시지인지 확인 (POST 핸들러 관련이지만, GET에서도 유사한 로직이 있다면...)
-    // 현재 GET 핸들러에서는 findOrCreateExamId를 직접 호출하지 않으므로, 이 조건은 크게 의미 없을 수 있음.
-    if (error.message === "Failed to create or retrieve exam ID") { 
-      return NextResponse.json({ error: "요청 처리 중 시험 정보 관련 오류 발생" }, { status: 500 });
-    }
+    console.error("[/api/questions GET Error]:", error);
     return NextResponse.json(
-      { error: "문제를 가져오는 중 서버 오류가 발생했습니다." },
+      { error: error.message || "문제를 불러오는 중 오류가 발생했습니다." },
       { status: 500 }
     );
   }

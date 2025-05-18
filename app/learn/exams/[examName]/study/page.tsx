@@ -315,10 +315,19 @@ export default function StudyPage() {
 
   // handleLoadMore를 handleNextQuestion보다 먼저 정의
   const handleLoadMore = useCallback(() => {
-    // 페이지 전체를 새로고침하여 새로운 문제를 로드
-    setLoadingMore(true); // 로딩 상태 표시 (선택 사항)
-    window.location.reload();
-  }, []); // 의존성 배열 비우거나 필요한 최소한의 것만 남김
+    setLoadingMore(true); // 우선 로딩 상태로 변경
+    if (isApiRandomized) {
+      // 랜덤 스타트 모드이면 페이지 전체를 새로고침
+      window.location.reload();
+    } else {
+      // 일반(순차) 모드이면 다음 페이지 데이터 로드
+      if (decodedExamName && studyMode && studyModeParam && currentPage < totalPages) {
+        fetchQuestionsForPage(decodedExamName, studyMode, studyModeParam, currentPage + 1, false);
+      } else {
+        setLoadingMore(false); // 로드할 수 없는 조건이면 로딩 상태 해제
+      }
+    }
+  }, [isApiRandomized, decodedExamName, studyMode, studyModeParam, currentPage, totalPages, fetchQuestionsForPage]);
 
   useEffect(() => {
     const examNameFromPath = params?.examName as string | undefined;
@@ -670,15 +679,17 @@ export default function StudyPage() {
         </>
       )}
 
-      {!isSingleViewMode && shuffledQuestionsList.length > 0 && ( 
-        <div className="text-center mt-8 mb-4">
-          <Button onClick={handleLoadMore} disabled={loadingMore} variant="outline">
-            {loadingMore ? "새 문제 로딩 중..." : "새 문제 로드"}
-          </Button>
-        </div>
-      )}
-      {loadingMore && (
-        <p className="text-center py-4 text-gray-500">추가 문제 로딩 중...</p>
+      {!isSingleViewMode && shuffledQuestionsList.length > 0 && (
+        // 버튼을 보여줄지 여부는 isApiRandomized 또는 (currentPage < totalPages) 조건에 따라 결정
+        (isApiRandomized || (!isApiRandomized && currentPage < totalPages)) && (
+          <div className="text-center mt-8 mb-4">
+            <Button onClick={handleLoadMore} disabled={loadingMore} variant="outline">
+              {loadingMore
+                ? (isApiRandomized ? "새 문제 로딩 중..." : "더 로딩 중...")
+                : (isApiRandomized ? "새 문제 로드" : "더 보기")}
+            </Button>
+          </div>
+        )
       )}
     </div>
   );

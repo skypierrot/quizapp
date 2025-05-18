@@ -13,7 +13,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
-import { ImageIcon, BookOpen, User, Calendar, PlusCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ImageIcon, BookOpen, User, Calendar, PlusCircle, Search, XCircle } from "lucide-react";
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { IQuestion, IOption } from "@/types";
@@ -45,7 +47,11 @@ function QuestionCard({
   if (question.examDate) displayTags.push(`날짜:${question.examDate}`);
   if (question.examSubject) displayTags.push(`과목:${question.examSubject}`);
   if (question.tags && question.tags.length > 0) {
-    displayTags.push(...question.tags);
+    question.tags.forEach(tag => {
+      if (!displayTags.some(dt => dt.endsWith(tag))) {
+        displayTags.push(tag);
+      }
+    });
   }
 
   return (
@@ -90,12 +96,12 @@ function QuestionCard({
                   {question.images.map((img, idx) => (
                     <CommonImage
                       key={idx}
-                      src={getImageUrl(img)}
+                      src={getImageUrl(img.url)}
                       alt={`문제 이미지 ${idx + 1}`}
                       className="block max-w-full h-auto object-contain mx-auto border rounded cursor-zoom-in"
                       containerClassName="max-w-[400px] max-h-[300px] flex items-center justify-center"
                       maintainAspectRatio={true}
-                      onClick={() => onImageZoom(getImageUrl(img))}
+                      onClick={() => onImageZoom(getImageUrl(img.url))}
                     />
                   ))}
                 </div>
@@ -121,12 +127,12 @@ function QuestionCard({
                           {option.images.map((img, imgIdx) => (
                             <CommonImage
                               key={imgIdx}
-                              src={getImageUrl(img)}
+                              src={getImageUrl(img.url)}
                               alt={`선택지 ${idx + 1} 이미지 ${imgIdx + 1}`}
                               className="block max-w-full h-auto object-contain mx-auto border rounded cursor-zoom-in"
                               containerClassName="max-w-[300px] max-h-[200px] flex items-center justify-center"
                               maintainAspectRatio={true}
-                              onClick={() => onImageZoom(getImageUrl(img))}
+                              onClick={() => onImageZoom(getImageUrl(img.url))}
                             />
                           ))}
                         </div>
@@ -143,12 +149,12 @@ function QuestionCard({
                   {question.explanationImages.map((img, idx) => (
                     <CommonImage
                       key={idx}
-                      src={getImageUrl(img)}
+                      src={getImageUrl(img.url)}
                       alt={`해설 이미지 ${idx + 1}`}
                       className="block max-w-full h-auto object-contain mx-auto border rounded cursor-zoom-in"
                       containerClassName="max-w-[400px] max-h-[300px] flex items-center justify-center"
                       maintainAspectRatio={true}
-                      onClick={() => onImageZoom(getImageUrl(img))}
+                      onClick={() => onImageZoom(getImageUrl(img.url))}
                     />
                   ))}
                 </div>
@@ -202,7 +208,11 @@ function QuestionDetailDialog({
   if (question.examDate) displayTags.push(`날짜:${question.examDate}`);
   if (question.examSubject) displayTags.push(`과목:${question.examSubject}`);
   if (question.tags && question.tags.length > 0) {
-    displayTags.push(...question.tags);
+    question.tags.forEach(tag => {
+      if (!displayTags.some(dt => dt.endsWith(tag))) {
+        displayTags.push(tag);
+      }
+    });
   }
   
   const handleImageZoomInternal = onImageZoom || (() => {});
@@ -230,12 +240,12 @@ function QuestionDetailDialog({
                 {question.images.map((img, idx) => (
                   <CommonImage
                     key={idx}
-                    src={getImageUrl(img)}
+                    src={getImageUrl(img.url)}
                     alt={`문제 이미지 ${idx + 1}`}
                     className="block max-w-full h-auto object-contain mx-auto border rounded cursor-zoom-in"
                     containerClassName="max-w-[400px] max-h-[300px] flex items-center justify-center"
                     maintainAspectRatio={true}
-                    onClick={() => handleImageZoomInternal(getImageUrl(img))}
+                    onClick={() => handleImageZoomInternal(getImageUrl(img.url))}
                   />
                 ))}
               </div>
@@ -259,12 +269,12 @@ function QuestionDetailDialog({
                       {opt.images.map((img, imgIdx) => (
                         <CommonImage
                           key={imgIdx}
-                          src={getImageUrl(img)}
+                          src={getImageUrl(img.url)}
                           alt={`선택지 ${idx + 1} 이미지 ${imgIdx + 1}`}
                           className="block max-w-full h-auto object-contain mx-auto border rounded cursor-zoom-in"
                           containerClassName="max-w-[300px] max-h-[200px] flex items-center justify-center"
                           maintainAspectRatio={true}
-                          onClick={() => handleImageZoomInternal(getImageUrl(img))}
+                          onClick={() => handleImageZoomInternal(getImageUrl(img.url))}
                         />
                       ))}
                     </div>
@@ -282,12 +292,12 @@ function QuestionDetailDialog({
                   {question.explanationImages.map((img, idx) => (
                     <CommonImage
                       key={idx}
-                      src={getImageUrl(img)}
+                      src={getImageUrl(img.url)}
                       alt={`해설 이미지 ${idx + 1}`}
                       className="block max-w-full h-auto object-contain mx-auto border rounded cursor-zoom-in"
                       containerClassName="max-w-[400px] max-h-[300px] flex items-center justify-center"
                       maintainAspectRatio={true}
-                      onClick={() => handleImageZoomInternal(getImageUrl(img))}
+                      onClick={() => handleImageZoomInternal(getImageUrl(img.url))}
                     />
                   ))}
                 </div>
@@ -304,12 +314,14 @@ function ImageZoomModal({ imageUrl, onClose }: { imageUrl: string | null; onClos
   if (!imageUrl) return null;
   return (
     <Dialog open={!!imageUrl} onOpenChange={onClose}>
-      <DialogContent className="max-w-[90vw] max-h-[90vh] flex items-center justify-center p-0 bg-transparent border-0">
+      <DialogContent className="max-w-screen-lg w-auto p-0 bg-transparent border-none shadow-none">
         <VisuallyHidden>
-          <DialogTitle>이미지 확대</DialogTitle>
-          <DialogDescription>클릭된 이미지를 크게 보여줍니다.</DialogDescription>
+          <DialogHeader>
+            <DialogTitle>이미지 확대 보기</DialogTitle>
+            <DialogDescription>확대된 이미지입니다. ESC 키를 누르거나 바깥 영역을 클릭하여 닫을 수 있습니다.</DialogDescription>
+          </DialogHeader>
         </VisuallyHidden>
-        <img src={imageUrl} alt="Zoomed image" className="max-w-full max-h-full object-contain" onClick={onClose} />
+        <img src={imageUrl} alt="Zoomed content" className="max-w-full max-h-[90vh] object-contain rounded-lg" onClick={onClose} />
       </DialogContent>
     </Dialog>
   );
@@ -330,6 +342,16 @@ export default function QuestionsListPage() {
   const [dedupLoading, setDedupLoading] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
+  const [examNameSearch, setExamNameSearch] = useState("");
+  const [dateSearch, setDateSearch] = useState("");
+  const [subjectSearch, setSubjectSearch] = useState("");
+  const [tagSearch, setTagSearch] = useState("");
+
+  const [showDuplicateCheckDialog, setShowDuplicateCheckDialog] = useState(false);
+  const [duplicateCheckResult, setDuplicateCheckResult] = useState<string[]>([]);
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+  const [isDeduplicating, setIsDeduplicating] = useState(false);
+
   const normalizeImages = useCallback((imgs: any): { url: string; hash?: string }[] => {
     if (Array.isArray(imgs)) {
       return imgs.map((img) =>
@@ -339,114 +361,131 @@ export default function QuestionsListPage() {
     return [];
   }, []);
 
-  const fetchQuestions = useCallback(async () => {
+  const fetchQuestions = useCallback(async (currentPage = 1, searchParams?: { examName?: string; date?: string; subject?: string; tag?: string }) => {
     setLoading(true);
     try {
-      const queryParams = new URLSearchParams();
-      queryParams.append("page", page.toString());
-      queryParams.append("limit", "10");
-      if (searchTerm) queryParams.append("searchTerm", searchTerm);
-      if (filters.length > 0) queryParams.append("tags", filters.join(","));
+      const query = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: "10",
+      });
+      if (searchParams?.examName) query.append("examNameSearch", searchParams.examName);
+      if (searchParams?.date) query.append("dateSearch", searchParams.date);
+      if (searchParams?.subject) query.append("subjectSearch", searchParams.subject);
+      if (searchParams?.tag) query.append("tagSearch", searchParams.tag);
 
-      const response = await fetch(`/api/questions?${queryParams.toString()}`, { cache: 'no-store' });
+      const response = await fetch(`/api/questions?${query.toString()}`);
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Failed to parse error response" }));
-        throw new Error(errorData.message || errorData.error || "Failed to fetch questions");
+        const errorData = await response.json().catch(() => ({ message: "데이터 로딩 중 오류 발생" }));
+        throw new Error(errorData.message || "Failed to fetch questions");
       }
       const data = await response.json();
       
-      const processedQuestions = (data.questions || []).map((q: IQuestion) => ({
+      const normalizedQuestions = data.questions.map((q: any) => ({
         ...q,
-        images: normalizeImages(q.images),
-        explanationImages: normalizeImages(q.explanationImages),
-        options: (q.options || []).map((opt: IOption) => ({...opt, images: normalizeImages(opt.images)}))
+        images: Array.isArray(q.images) ? q.images : (q.images ? [{ url: q.images, hash: '' }] : []),
+        options: Array.isArray(q.options) ? q.options.map((opt: any) => ({
+          ...opt,
+          images: Array.isArray(opt.images) ? opt.images : (opt.images ? [{ url: opt.images, hash: '' }] : []),
+        })) : [],
+        explanationImages: Array.isArray(q.explanationImages) ? q.explanationImages : (q.explanationImages ? [{ url: q.explanationImages, hash: '' }] : []),
       }));
-      setQuestions(processedQuestions);
+      setQuestions(normalizedQuestions);
+      setTotalPages(data.totalPages || 0);
+      setPage(data.page || 1);
 
-      const limitPerPage = parseInt(queryParams.get("limit") || "10");
-      if (data.totalPages !== undefined) {
-        setTotalPages(data.totalPages);
-      } else if (data.totalQuestions !== undefined && limitPerPage > 0) {
-        setTotalPages(Math.ceil(data.totalQuestions / limitPerPage));
-      } else if (data.totalQuestions !== undefined && data.limit === 0) {
-        setTotalPages(1);
-      } else if (processedQuestions.length === 0 && data.totalQuestions === 0) {
-        setTotalPages(0);
-      } else {
-        setTotalPages(1);
-      }
-    } catch (error) {
-      toast({ title: "Error", description: (error instanceof Error ? error.message : "Failed to load questions.") });
+    } catch (error: any) {
+      toast({ title: "오류", description: error.message });
       setQuestions([]);
-      setTotalPages(1);
+      setTotalPages(0);
     } finally {
       setLoading(false);
     }
-  }, [page, searchTerm, filters, toast, normalizeImages]);
+  }, [toast]);
 
   useEffect(() => {
-    fetchQuestions();
-  }, [fetchQuestions]);
+    fetchQuestions(page);
+  }, [page, fetchQuestions]);
+
+  const handleSearch = () => {
+    fetchQuestions(1, { 
+      examName: examNameSearch, 
+      date: dateSearch, 
+      subject: subjectSearch,
+      tag: tagSearch 
+    });
+  };
+
+  const handleClearSearch = () => {
+    setExamNameSearch("");
+    setDateSearch("");
+    setSubjectSearch("");
+    setTagSearch("");
+    fetchQuestions(1);
+  };
 
   const handleDelete = async (questionId: string) => {
-    if (!confirm("정말로 이 문제를 삭제하시겠습니까?")) return;
-    try {
-      const response = await fetch(`/api/questions/${questionId}`, { method: 'DELETE' });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to delete question");
+    if (!questionId) {
+      toast({ title: "오류", description: "삭제할 문제 ID가 없습니다." });
+      return;
+    }
+    if (confirm("정말로 이 문제를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
+      try {
+        const response = await fetch(`/api/questions/${questionId}`, {
+          method: "DELETE",
+        });
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: "문제 삭제 중 오류 발생" }));
+          throw new Error(errorData.message || "Failed to delete question");
+        }
+        toast({ title: "성공", description: "문제가 성공적으로 삭제되었습니다." });
+        fetchQuestions(page, { examName: examNameSearch, date: dateSearch, subject: subjectSearch, tag: tagSearch });
+      } catch (error: any) {
+        toast({ title: "오류", description: error.message });
       }
-      toast({ title: "성공", description: "문제가 삭제되었습니다." });
-      fetchQuestions();
-    } catch (error) {
-      toast({ title: "오류", description: (error instanceof Error ? error.message : "문제 삭제에 실패했습니다.") });
     }
   };
 
   const handleCheckDuplicates = async () => {
-    setDedupLoading(true);
-    setShowDuplicateCheck(false);
+    setIsCheckingDuplicates(true);
+    setDuplicateCheckResult([]);
     try {
-      const response = await fetch('/api/questions/deduplicate');
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to check duplicates');
-      }
-      const result = await response.json();
-      setDuplicateResult(result);
-      setShowDuplicateCheck(true);
-      if (!result.hasDuplicates && (!result.duplicates || result.duplicates.length === 0)) {
-        toast({title: "중복 없음", description: "중복된 문제가 없습니다."}) 
-      }
-    } catch (error) {
-      toast({ title: "Error", description: (error instanceof Error ? error.message : "Failed to check duplicates.") });
+      const response = await fetch('/api/questions/check-duplicates');
+      if (!response.ok) throw new Error('중복 검사 실패');
+      const data = await response.json();
+      setDuplicateCheckResult(data.duplicates || []);
+      setShowDuplicateCheckDialog(true);
+    } catch (error: any) {
+      toast({ title: "중복 검사 오류", description: error.message });
     } finally {
-      setDedupLoading(false);
+      setIsCheckingDuplicates(false);
     }
   };
 
   const handleDeduplicate = async () => {
-    if (!duplicateResult || (!duplicateResult.hasDuplicates && (!duplicateResult.duplicates || duplicateResult.duplicates.length === 0))) {
-      toast({title: "정보", description: "삭제할 중복 항목이 없습니다."});
+    if (duplicateCheckResult.length === 0) {
+      toast({ title: "정보", description: "삭제할 중복 문제가 없습니다." });
       return;
     }
-    if (!confirm('중복 문제를 한 개만 남기고 모두 삭제하시겠습니까? (가장 최근에 수정된 문제만 남습니다)')) return;
-    setDedupLoading(true);
+    setIsDeduplicating(true);
     try {
-      const response = await fetch('/api/questions/deduplicate', { method: 'POST' });
+      const response = await fetch('/api/questions/deduplicate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionIds: duplicateCheckResult }),
+      });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to remove duplicates');
+        const errorData = await response.json().catch(() => ({ message: "중복 제거 중 오류" }));
+        throw new Error(errorData.message || '중복 문제 제거 실패');
       }
       const result = await response.json();
-      toast({ title: "Success", description: result.message || "Duplicates removed." });
-      setShowDuplicateCheck(false);
-      setDuplicateResult(null);
-      fetchQuestions();
-    } catch (error) {
-      toast({ title: "Error", description: (error instanceof Error ? error.message : "Failed to remove duplicates.") });
+      toast({ title: "성공", description: `${result.deletedCount}개의 중복 문제가 제거되었습니다.` });
+      setShowDuplicateCheckDialog(false);
+      setDuplicateCheckResult([]);
+      fetchQuestions(1);
+    } catch (error: any) {
+      toast({ title: "중복 제거 오류", description: error.message });
     } finally {
-      setDedupLoading(false);
+      setIsDeduplicating(false);
     }
   };
   
@@ -476,15 +515,81 @@ export default function QuestionsListPage() {
   return (
     <div className="container mx-auto py-8 px-4">
       <Breadcrumb items={breadcrumbItems} />
+      
+      {/* 검색 필터 영역 추가 */}
+      <Card className="my-6">
+        <CardHeader>
+          <h2 className="text-xl font-semibold">검색 필터</h2>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+            <div>
+              <Label htmlFor="examNameSearch">시험명</Label>
+              <Input 
+                id="examNameSearch"
+                type="text" 
+                placeholder="시험명 검색..." 
+                value={examNameSearch} 
+                onChange={(e) => setExamNameSearch(e.target.value)} 
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="dateSearch">날짜</Label>
+              <Input 
+                id="dateSearch"
+                type="text" 
+                placeholder="날짜 검색 (YYYY or YYYY-MM)" 
+                value={dateSearch} 
+                onChange={(e) => setDateSearch(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="subjectSearch">과목</Label>
+              <Input 
+                id="subjectSearch"
+                type="text" 
+                placeholder="과목 검색..." 
+                value={subjectSearch} 
+                onChange={(e) => setSubjectSearch(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="tagSearch">일반 태그</Label>
+              <Input 
+                id="tagSearch"
+                type="text" 
+                placeholder="태그 검색 (쉼표로 구분 가능)" 
+                value={tagSearch} 
+                onChange={(e) => setTagSearch(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button onClick={handleClearSearch} variant="outline">
+              <XCircle className="mr-2 h-4 w-4" />
+              초기화
+            </Button>
+            <Button onClick={handleSearch}>
+              <Search className="mr-2 h-4 w-4" />
+              검색
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl md:text-3xl font-bold">문제 목록</h1>
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={handleCheckDuplicates} disabled={dedupLoading} variant="outline">
-            {dedupLoading ? '확인 중...' : '중복문제 확인'}
+          <Button onClick={handleCheckDuplicates} disabled={isCheckingDuplicates} variant="outline">
+            {isCheckingDuplicates ? '확인 중...' : '중복문제 확인'}
           </Button>
-          {showDuplicateCheck && duplicateResult && (duplicateResult.hasDuplicates || (duplicateResult.duplicates && duplicateResult.duplicates.length > 0)) && (
-            <Button onClick={handleDeduplicate} disabled={dedupLoading} variant="destructive">
-              {dedupLoading ? '정리 중...' : '중복문제 정리'}
+          {showDuplicateCheckDialog && duplicateCheckResult.length > 0 && (
+            <Button onClick={handleDeduplicate} disabled={isDeduplicating} variant="destructive">
+              {isDeduplicating ? '정리 중...' : '중복문제 정리'}
             </Button>
           )}
           <Button 
@@ -502,34 +607,27 @@ export default function QuestionsListPage() {
         </div>
       </div>
 
-      {showDuplicateCheck && duplicateResult && (
+      {showDuplicateCheckDialog && duplicateCheckResult.length > 0 && (
         <div className="mb-8 p-4 border rounded-md bg-slate-50">
-          <h2 className="text-lg font-semibold mb-3">중복 문제 그룹 ({duplicateResult.duplicates ? duplicateResult.duplicates.length : 0}건)</h2>
-          {(!duplicateResult.duplicates || duplicateResult.duplicates.length === 0) ? (
-            <div className="text-gray-500">중복된 문제가 없습니다.</div>
-          ) : (
-            <div className="space-y-6">
-              {(duplicateResult.duplicates || []).map((group: any[], groupIdx: number) => (
-                <div key={groupIdx} className="border rounded p-4 bg-gray-50 shadow">
-                  <div className="mb-2 font-semibold text-blue-600">중복 그룹 #{groupIdx + 1} (총 {group.length}개)</div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {group.map((q: any) => (
-                      <div key={q.id} className="border rounded p-3 bg-white text-sm">
-                        <div className="text-xs text-gray-400 mb-1">ID: {q.id}</div>
-                        <div className="font-medium mb-1 line-clamp-2">{q.content}</div>
-                        {q.examName && <div className="text-xs text-gray-500">시험명: {q.examName}</div>}
-                        {q.examDate && <div className="text-xs text-gray-500">날짜: {q.examDate}</div>}
-                        {q.examSubject && <div className="text-xs text-gray-500">과목: {q.examSubject}</div>}
-                        <div className="text-xs text-gray-500 mb-1">정답: {typeof q.answer === 'number' ? q.answer + 1 : q.answer}</div>
-                        <div className="text-xs text-gray-500 mb-1">태그: {(q.tags || []).join(', ')}</div>
-                        <div className="text-xs text-gray-500">등록일: {q.createdAt ? new Date(q.createdAt).toLocaleString() : ''}</div>
-                      </div>
-                    ))}
-                  </div>
+          <h2 className="text-lg font-semibold mb-3">중복 문제 그룹 ({duplicateCheckResult.length}건)</h2>
+          <div className="space-y-6">
+            {duplicateCheckResult.map((id, idx) => {
+              const foundQuestion = questions.find(q => q.id === id);
+              return (
+                <div key={idx} className="border rounded p-4 bg-white text-sm">
+                  <div className="text-xs text-gray-400 mb-1">ID: {id}</div>
+                  {foundQuestion && (
+                    <>
+                      <div className="text-xs text-gray-500">정답: {typeof foundQuestion.answer === 'number' ? foundQuestion.answer + 1 : foundQuestion.answer}</div>
+                      <div className="text-xs text-gray-500">태그: {(foundQuestion.tags || []).join(', ')}</div>
+                      <div className="text-xs text-gray-500">등록일: {foundQuestion.createdAt ? new Date(foundQuestion.createdAt).toLocaleString() : ''}</div>
+                    </>
+                  )}
+                  {!foundQuestion && <div className="text-xs text-red-500">문제 정보를 찾을 수 없습니다.</div>}
                 </div>
-              ))}
-            </div>
-          )}
+              );
+            })}
+          </div>
         </div>
       )}
 
