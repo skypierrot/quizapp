@@ -243,6 +243,7 @@ export async function GET(req: NextRequest) {
     const skip = effectiveLimit !== undefined ? (currentPage - 1) * effectiveLimit : 0;
     const tagsParam = url.searchParams.get("tags");
     const idsParam = url.searchParams.get("ids");
+    const randomStart = url.searchParams.get("randomStart") === "true"; // randomStart 파라미터 추가
 
     let fetchedQuestions: IQuestion[] = [];
     let totalQuestions = 0;
@@ -255,7 +256,7 @@ export async function GET(req: NextRequest) {
       examSubject: exams.subject
     };
 
-    // 1. ID 목록으로 조회
+    // 1. ID 목록으로 조회 (기존 로직 유지 - 단, selectFields 사용 및 반환 타입 주의)
     if (idsParam) {
       console.log(`[API /questions GET] Fetching by IDs: ${idsParam}`);
       const idArray = idsParam.split(',').map(id => id.trim()).filter(id => id.length > 0);
@@ -266,25 +267,26 @@ export async function GET(req: NextRequest) {
       }
       conditions.push(inArray(questions.id, idArray));
       
-      // ID 조회 시에는 바로 쿼리 실행 (아래 태그 기반 로직과 분리)
       const resultsById = await db
         .select(selectFields)
         .from(questions)
         .leftJoin(exams, eq(questions.examId, exams.id))
-        .where(and(...conditions)) // conditions에는 idArray 조건만 있음
+        .where(and(...conditions))
         .orderBy(asc(questions.questionNumber), asc(questions.createdAt));
 
+      // 타입 변환 및 이미지 URL 처리
       fetchedQuestions = resultsById.map(q => ({
         ...q,
-        images: q.images ?? [], 
-        explanationImages: q.explanationImages ?? [],
-        tags: q.tags ?? [], 
+        options: q.options ? q.options.map(opt => ({ ...opt, images: (opt.images || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''})) })) : [],
+        images: (q.images || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''})),
+        explanationImages: (q.explanationImages || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''})),
+        tags: q.tags || [], 
       }));
       totalQuestions = fetchedQuestions.length;
       console.log(`[API /questions GET] Found ${totalQuestions} questions by IDs.`);
 
     }
-    // 2. 태그로 조회
+    // 2. 태그로 조회 (기존 로직 유지 - 단, selectFields 사용 및 반환 타입 주의)
     else if (tagsParam) {
       console.log(`[API /questions GET] Fetching by tags: ${tagsParam}`);
       const tagsToFilter = tagsParam.split(',').map(tag => tag.trim()).filter(t => t);
@@ -300,117 +302,169 @@ export async function GET(req: NextRequest) {
       console.log(`[API /questions GET] Parsed subjectTags: ${JSON.stringify(subjectTags)}`);
       console.log(`[API /questions GET] Parsed otherTags: ${JSON.stringify(otherTags)}`);
 
-      // examId를 찾기 위한 조건 (시험명, 날짜, 과목 기준)
+      let currentConditions: SQL<unknown>[] = []; // 이 분기에서 사용할 조건 배열
+
       if (examNameTags.length > 0 || dateTags.length > 0 || subjectTags.length > 0) {
         let examSubQueryConditions: SQL<unknown>[] = [];
-        if (examNameTags.length > 0) {
-          examSubQueryConditions.push(inArray(exams.name, examNameTags));
-        }
-        if (dateTags.length > 0) {
-          examSubQueryConditions.push(inArray(exams.date, dateTags));
-        }
-        if (subjectTags.length > 0) { // 과목 태그가 있는 경우에만 조건 추가
-          examSubQueryConditions.push(inArray(exams.subject, subjectTags));
-        }
+        if (examNameTags.length > 0) examSubQueryConditions.push(inArray(exams.name, examNameTags));
+        if (dateTags.length > 0) examSubQueryConditions.push(inArray(exams.date, dateTags));
+        if (subjectTags.length > 0) examSubQueryConditions.push(inArray(exams.subject, subjectTags));
         
-        console.log(`[API /questions GET] Number of examSubQueryConditions for examId lookup: ${examSubQueryConditions.length}`);
-
         if (examSubQueryConditions.length > 0) {
-            const subQuery = db
-                .select({ id: exams.id })
-                .from(exams)
-                .where(and(...examSubQueryConditions));
-            
-            console.log(`[API /questions GET] Executing Subquery for examIds (params will be bound by Drizzle)`);
-
-            try {
-                const examIdsFromSubQueryResult = await subQuery;
-                console.log(`[API /questions GET] Subquery Result (examIdsFromSubQueryResult): ${JSON.stringify(examIdsFromSubQueryResult)}`);
-                
-                if (examIdsFromSubQueryResult && examIdsFromSubQueryResult.length > 0) {
-                    conditions.push(inArray(questions.examId, examIdsFromSubQueryResult.map(e => e.id)));
-                    console.log(`[API /questions GET] Added examId condition to main query. Current conditions count: ${conditions.length}`);
-                } else {
-                    console.log(`[API /questions GET] Subquery returned no examIds. No questions will be fetched based on these exam criteria.`);
-                    // 중요: examId를 못찾으면 해당 태그로는 결과가 없어야 함.
-                    // 이를 보장하기 위해 절대 참이 될 수 없는 조건을 추가 (예: 1=0)
-                    // 또는, 여기서 바로 빈 결과를 반환할 수도 있습니다.
-                    conditions.push(sql`1=0`); // 해당 시험 조건으로 결과 없음을 명시
-                }
-            } catch (e: any) {
-                console.error(`[API /questions GET] Error executing subquery for examIds: ${e.message}`, e.stack);
-                conditions.push(sql`1=0`); // 에러 발생 시에도 결과 없도록 처리
+            const subQuery = db.select({ id: exams.id }).from(exams).where(and(...examSubQueryConditions));
+            const examIdsFromSubQueryResult = await subQuery;
+            if (examIdsFromSubQueryResult && examIdsFromSubQueryResult.length > 0) {
+                currentConditions.push(inArray(questions.examId, examIdsFromSubQueryResult.map(e => e.id)));
+            } else {
+                currentConditions.push(sql`1=0`); 
             }
         } else {
-          console.log("[API /questions GET] examSubQueryConditions array was empty. No subquery for examIds executed based on examName/date/subject.");
+            // No specific exam tags, might be only otherTags or empty
         }
       }
 
-      // 기타 태그 조건 추가 (otherTags)
       if (otherTags.length > 0) {
-        // PostgreSQL의 경우 배열 포함 연산자 사용 가능
-        // otherTags.forEach(tag => conditions.push(sql`${questions.tags} @> ${JSON.stringify([tag])}`));
-        // 일반적인 JSON 문자열 포함 검색 (LIKE) - 성능에 주의
         otherTags.forEach(tag => {
-            const escapedTag = tag.replace(/[\\%_]/g, char => `\\\\${char}`); // Escape special characters for LIKE
-            conditions.push(sql`${questions.tags}::text LIKE ${`%\"${escapedTag}\"%`}`);
+            const escapedTag = tag.replace(/[\\%_]/g, char => `\\\\${char}`);
+            currentConditions.push(sql`${questions.tags}::text LIKE ${`%\""${escapedTag}\""%`}`);
         });
-        console.log(`[API /questions GET] Added otherTags conditions. Current conditions count: ${conditions.length}`);
       }
       
-      console.log(`[API /questions GET] Total number of conditions for main query (tagsParam branch): ${conditions.length}`);
-
-      if (conditions.length === 0 && tagsToFilter.length > 0) {
-        // 태그가 있었지만 유효한 조건이 하나도 만들어지지 않은 경우
-        console.warn("[API /questions GET] Tags were provided, but no effective query conditions were built. Returning empty results.");
-        return NextResponse.json({ questions: [], totalQuestions: 0, page: currentPage, limit: effectiveLimit === undefined ? 0 : effectiveLimit });
+      if (currentConditions.length === 0 && tagsToFilter.length > 0) {
+        return NextResponse.json({ questions: [], totalQuestions: 0, page: currentPage, totalPages: 1, limit: effectiveLimit === undefined ? 0 : effectiveLimit });
       }
-       if (conditions.length === 0 && tagsToFilter.length === 0) {
-        // tagsParam은 있었지만 분리 후 tagsToFilter가 빈 경우 (예: tags=", , ")
-        // 이 경우는 아래 전체 조회 로직으로 빠지게 될 것임.
-        console.log("[API /questions GET] tagsParam was present but resulted in empty tagsToFilter. Will proceed to fetch all if no other branches hit.");
-      }
+      const combinedConditionForTags = currentConditions.length > 0 ? and(...currentConditions) : sql`1=1`;
 
+      if (randomStart && currentPage === 1 && effectiveLimit !== undefined) {
+        console.log(`[API /questions GET] Applying special random logic for first page with tags.`);
+        // 1. 조건에 맞는 모든 문제 ID 조회
+        const allMatchingQuestionIdsResult = await db
+          .select({ id: questions.id })
+          .from(questions)
+          .leftJoin(exams, eq(questions.examId, exams.id))
+          .where(combinedConditionForTags);
+        
+        let allMatchingQuestionIds = allMatchingQuestionIdsResult.map(q => q.id);
+        totalQuestions = allMatchingQuestionIds.length;
 
-      // 조건에 따라 쿼리 실행 (태그 기반)
-      const combinedConditionForTags = conditions.length > 0 ? and(...conditions) : sql`1=1`; // 조건이 없으면 모든 문제 (하지만 아래 전체조회와 중복 가능성 체크)
+        if (totalQuestions > 0) {
+          // 2. ID 목록 셔플 (Fisher-Yates shuffle)
+          for (let i = allMatchingQuestionIds.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [allMatchingQuestionIds[i], allMatchingQuestionIds[j]] = [allMatchingQuestionIds[j], allMatchingQuestionIds[i]];
+          }
 
-      const baseQueryForTags = db
-        .select(selectFields)
-        .from(questions)
-        .leftJoin(exams, eq(questions.examId, exams.id))
-        .where(combinedConditionForTags)
-        .orderBy(asc(questions.questionNumber), asc(questions.createdAt));
-      
-      let finalQueryForTags;
-      if (effectiveLimit !== undefined) {
-        finalQueryForTags = baseQueryForTags.limit(effectiveLimit).offset(skip);
+          // 3. 첫 페이지 분량의 ID 추출
+          const firstPageIds = allMatchingQuestionIds.slice(0, effectiveLimit);
+
+          if (firstPageIds.length > 0) {
+            // 4. 추출된 ID로 실제 문제 데이터 조회 (정렬은 ID 배열 순서 따름 - DB에 따라 다를 수 있음)
+            const resultsByShuffledIds = await db
+              .select(selectFields)
+              .from(questions)
+              .leftJoin(exams, eq(questions.examId, exams.id))
+              .where(inArray(questions.id, firstPageIds)); // ID로 조회
+            
+            // Drizzle의 inArray는 순서를 보장하지 않을 수 있으므로, 필요시 직접 정렬
+            const orderedResults = firstPageIds.map(id => resultsByShuffledIds.find(r => r.id === id)).filter(r => r !== undefined) as (typeof resultsByShuffledIds[0])[];
+
+            fetchedQuestions = orderedResults.map(q => ({
+              ...q,
+              options: q.options ? q.options.map(opt => ({ ...opt, images: (opt.images || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''})) })) : [],
+              images: (q.images || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''})),
+              explanationImages: (q.explanationImages || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''})),
+              tags: q.tags || [],
+            }));
+          } else {
+            fetchedQuestions = []; // ID는 있었으나, 모종의 이유로 첫 페이지 ID를 못가져온 경우 (이론상 발생 어려움)
+          }
+        } else {
+          fetchedQuestions = []; // 조건에 맞는 문제 없음
+        }
       } else {
-        finalQueryForTags = baseQueryForTags;
+        // 일반적인 태그 기반 조회 (첫 페이지가 아니거나, randomStart가 아니거나, limit이 없는 경우)
+        const countResultForTags = await db
+          .select({ count: sql`count(*)::int` })
+          .from(questions)
+          .leftJoin(exams, eq(questions.examId, exams.id))
+          .where(combinedConditionForTags);
+        
+        totalQuestions = Number(countResultForTags[0]?.count) || 0;
+
+        // 1. 기본 쿼리 구성
+        let query = db
+          .select(selectFields) // selectFields는 questions 테이블 컬럼 + exam 관련 컬럼을 포함
+          .from(questions)
+          .leftJoin(exams, eq(questions.examId, exams.id))
+          .where(combinedConditionForTags);
+
+        // 2. 정렬 적용 (타입을 명확히 하기 위해 query를 재할당)
+        let orderedQuery;
+        if (randomStart) {
+          orderedQuery = query.orderBy(sql`RANDOM()`);
+        } else {
+          orderedQuery = query.orderBy(asc(questions.questionNumber), asc(questions.createdAt));
+        }
+
+        // 3. 페이지네이션 적용 (타입을 명확히 하기 위해 orderedQuery를 재할당)
+        let paginatedQuery;
+        if (effectiveLimit !== undefined) {
+          paginatedQuery = orderedQuery.limit(effectiveLimit).offset(skip);
+        } else {
+          paginatedQuery = orderedQuery;
+        }
+        
+        // Drizzle 쿼리 결과의 예상 타입 정의
+        // questions 스키마의 모든 필드와 exams에서 가져온 추가 필드를 포함
+        type DbQueryResult = typeof questions.$inferSelect & {
+          examName: string | null;
+          examDate: string | null;
+          examSubject: string | null;
+          // options, images, explanationImages는 jsonb[] 또는 유사 타입일 수 있음
+          // Drizzle은 이를 string 또는 object로 가져올 수 있으므로, 실제 DB 스키마와 라이브러리 동작 확인 필요
+        };
+
+        const resultsByTags: DbQueryResult[] = await paginatedQuery;
+        
+        fetchedQuestions = resultsByTags.map((q: DbQueryResult) => {
+          // IQuestion에 맞게 이미지 및 옵션 구조 변환
+          const mappedOptions = q.options ? 
+            (q.options as unknown as Array<{ number: number; text: string; images?: any[] }>).map(opt => ({
+              number: opt.number, // IOption에 number가 있다고 가정
+              text: opt.text,
+              images: (opt.images || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''}))
+            })) : [];
+
+          const mappedImages = (q.images || []).map((img: any) => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''}));
+          const mappedExplanationImages = (q.explanationImages || []).map((img: any) => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''}));
+
+          return {
+            id: q.id,
+            content: q.content,
+            options: mappedOptions,
+            answer: q.answer,
+            explanation: q.explanation,
+            tags: q.tags || [],
+            images: mappedImages,
+            explanationImages: mappedExplanationImages,
+            createdAt: q.createdAt,
+            updatedAt: q.updatedAt,
+            userId: q.userId,
+            examId: q.examId,
+            questionNumber: q.questionNumber,
+            // difficulty: q.difficulty, // DbQueryResult에 없으므로 제거 또는 스키마/selectFields 확인 필요
+            // source: q.source,       // DbQueryResult에 없으므로 제거 또는 스키마/selectFields 확인 필요
+            // selectFields로 가져온 exam 정보 추가
+            examName: q.examName,
+            examDate: q.examDate,
+            examSubject: q.examSubject,
+          } as IQuestion; // 최종적으로 IQuestion 타입으로 단언
+        });
       }
-      
-      console.log(`[API /questions GET] Executing main query for tags - SQL: ${finalQueryForTags.toSQL().sql} with params: ${JSON.stringify(finalQueryForTags.toSQL().params)}`);
-      const resultsByTags = await finalQueryForTags;
-
-      const countResultForTags = await db
-        .select({ count: sql`count(*)::int` }) // PostgreSQL specific cast
-        .from(questions)
-        .leftJoin(exams, eq(questions.examId, exams.id))
-        .where(combinedConditionForTags);
-
-      fetchedQuestions = resultsByTags.map(q => ({
-        ...q,
-        images: q.images ?? [], 
-        explanationImages: q.explanationImages ?? [], 
-        tags: q.tags ?? [], 
-      }));
-      totalQuestions = Number(countResultForTags[0]?.count) || 0;
       console.log(`[API /questions GET] Found ${fetchedQuestions.length} questions (total ${totalQuestions}) by tags.`);
-
     }
     // 3. 파라미터 없는 경우 (전체 목록 조회 - 페이지네이션)
     else {
-      // 이 부분은 idsParam도 없고 tagsParam도 없을 때 실행됩니다.
       console.log(`[API /questions GET] Fetching all questions (paginated) as no ids or tags were provided.`);
       
       const baseQueryForAll = db
@@ -430,9 +484,10 @@ export async function GET(req: NextRequest) {
       console.log(`[API /questions GET] Executing query for all questions - SQL: ${finalQueryForAll.toSQL().sql} with params: ${JSON.stringify(finalQueryForAll.toSQL().params)}`);
       fetchedQuestions = (await finalQueryForAll).map(q => ({
         ...q,
-        images: q.images ?? [],
-        explanationImages: q.explanationImages ?? [],
-        tags: q.tags ?? [],
+        options: q.options ? q.options.map(opt => ({ ...opt, images: (opt.images || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''})) })) : [],
+        images: (q.images || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''})),
+        explanationImages: (q.explanationImages || []).map(img => ({ url: moveTmpToUploaded(img.url), hash: img.hash || ''})),
+        tags: q.tags || [],
       }));
 
       const countResultForAll = await db
@@ -445,7 +500,8 @@ export async function GET(req: NextRequest) {
       console.log(`[API /questions GET] Found ${fetchedQuestions.length} questions (total ${totalQuestions}) - all questions (paginated).`);
     }
 
-    const calculatedTotalPages = effectiveLimit && totalQuestions > 0 ? Math.ceil(totalQuestions / effectiveLimit) : 1;
+    // `totalQuestions`는 각 분기에서 이미 계산되었으므로, `calculatedTotalPages`는 여기서 한 번만 계산합니다.
+    const calculatedTotalPages = effectiveLimit && totalQuestions > 0 ? Math.ceil(totalQuestions / effectiveLimit) : (totalQuestions > 0 ? 1 : 0);
 
     return NextResponse.json({
       questions: fetchedQuestions,

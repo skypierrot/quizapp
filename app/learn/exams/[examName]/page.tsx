@@ -37,6 +37,7 @@ export default function LearnExamDateListPage() { // 컴포넌트 이름 변경 
   // 과목별 학습을 위한 상태 추가
   const [allSubjects, setAllSubjects] = useState<string[]>([]);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [randomStart, setRandomStart] = useState<boolean>(false); // 랜덤 시작 옵션 상태
 
   // 1. 원시 시험 데이터 상태 추가
   const [rawExamInstances, setRawExamInstances] = useState<IExamInstance[]>([]);
@@ -139,7 +140,9 @@ export default function LearnExamDateListPage() { // 컴포넌트 이름 변경 
 
     if (typeof decodedExamName === 'string') {
       const encodedExam = encodeURIComponent(decodedExamName);
-      linkUrl = `/learn/exams/${encodedExam}/study?date=${encodedDate}`;
+      // randomStart 상태를 반영하여 링크 URL 생성
+      const randomQueryParam = randomStart ? '&randomStart=true' : '';
+      linkUrl = `/learn/exams/${encodedExam}/study?date=${encodedDate}${randomQueryParam}`;
     }
 
     return {
@@ -150,7 +153,7 @@ export default function LearnExamDateListPage() { // 컴포넌트 이름 변경 
       date: aggDate.date,
       questionCount: aggDate.totalQuestionCount,
     };
-  }), [aggregatedExamDates, decodedExamName]);
+  }), [aggregatedExamDates, decodedExamName, randomStart]);
 
   // 과목 선택 핸들러
   const handleSubjectSelection = (subject: string, checked: boolean) => {
@@ -224,8 +227,22 @@ export default function LearnExamDateListPage() { // 컴포넌트 이름 변경 
                 <p className="text-sm text-gray-700 mb-4">{selectedSubjects.join(', ')}</p>
                 {/* 4. 문제 수 표시 */}
                 <p className="text-sm text-gray-600 mt-1 mb-3">총 문제 수: {totalQuestionsForSelectedSubjects}개</p>
+                
+                {/* 랜덤 시작 옵션 스위치 추가 */}
+                <div className="flex items-center space-x-2 my-4">
+                  <Switch
+                    id="random-start-switch"
+                    checked={randomStart}
+                    onCheckedChange={setRandomStart}
+                    aria-label="문제 순서 랜덤 시작 스위치"
+                  />
+                  <Label htmlFor="random-start-switch" className="cursor-pointer text-sm">
+                    문제 순서 랜덤으로 시작하기
+                  </Label>
+                </div>
+
                 <Link 
-                  href={`/learn/exams/${encodeURIComponent(decodedExamName)}/study?subjects=${encodeURIComponent(selectedSubjects.join(','))}`}
+                  href={`/learn/exams/${encodeURIComponent(decodedExamName)}/study?subjects=${encodeURIComponent(selectedSubjects.join(','))}${randomStart ? '&randomStart=true' : ''}`}
                   className="w-full block"
                 >
                   <Button className="w-full">

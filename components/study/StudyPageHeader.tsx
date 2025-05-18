@@ -20,6 +20,7 @@ interface StudyPageHeaderProps {
   onPrev?: () => void;
   onNext?: () => void;
   showControls?: boolean;
+  isQuestionsShuffleDisabled?: boolean;
 }
 
 const StudyPageHeader: React.FC<StudyPageHeaderProps> = ({
@@ -39,6 +40,7 @@ const StudyPageHeader: React.FC<StudyPageHeaderProps> = ({
   onPrev,
   onNext,
   showControls = true,
+  isQuestionsShuffleDisabled = false,
 }) => {
   return (
     <div className="mb-6">
@@ -50,7 +52,7 @@ const StudyPageHeader: React.FC<StudyPageHeaderProps> = ({
         </div>
         {showControls && (
           <div className="flex flex-wrap items-center justify-start sm:justify-end gap-x-3 gap-y-2 mt-2 sm:mt-0 w-full sm:w-auto">
-            {onToggleQuestionsShuffle && (
+            {onToggleQuestionsShuffle && !isQuestionsShuffleDisabled && (
               <Button
                 variant={isQuestionsShuffled ? "default" : "outline"}
                 size="sm"
