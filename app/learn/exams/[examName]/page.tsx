@@ -9,6 +9,8 @@ import { useParams } from 'next/navigation';
 import { IExamInstance } from '@/types';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { ExamSessionListDisplay, IDisplayItem } from '@/components/exam-selection/ExamSessionListDisplay'; // IDisplayItem import
+// Tabs 컴포넌트 import 추가
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface IExamInstancesResponse { // 이 인터페이스는 API 응답 형식이므로 유지하거나 types로 이동
   examInstances: IExamInstance[];
@@ -129,7 +131,8 @@ export default function LearnExamDateListPage() { // 컴포넌트 이름 변경 
 
     if (typeof decodedExamName === 'string') { // 타입 가드를 통해 null이 아님을 확인
       const encodedExam = encodeURIComponent(decodedExamName);
-      linkUrl = `/learn/exams/${encodedExam}/${encodedDate}`;
+      // study 페이지로 연결하도록 URL 변경 (날짜별)
+      linkUrl = `/learn/exams/${encodedExam}/study?date=${encodedDate}`;
     }
 
     return {
@@ -146,10 +149,26 @@ export default function LearnExamDateListPage() { // 컴포넌트 이름 변경 
   return (
     <div className="container mx-auto py-8">
       <Breadcrumb items={breadcrumbItems} />
-      <ExamSessionListDisplay
-        items={displayItems}
-        title={decodedExamName ? `${decodedExamName} - 시험 날짜별 문제 목록` : "시험 날짜별 문제 목록"}
-      />
+      {/* Tabs 컴포넌트 추가 */}
+      <Tabs defaultValue="byDate" className="w-full mt-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="byDate">시험 회차별 학습</TabsTrigger>
+          <TabsTrigger value="bySubject">과목별 학습</TabsTrigger>
+        </TabsList>
+        <TabsContent value="byDate" className="mt-4">
+          <ExamSessionListDisplay
+            items={displayItems}
+            title={decodedExamName ? `${decodedExamName} - 시험 회차별 문제 목록` : "시험 회차별 문제 목록"}
+          />
+        </TabsContent>
+        <TabsContent value="bySubject" className="mt-4">
+          <div className="p-4 border rounded-md bg-white shadow">
+            <h2 className="text-lg font-semibold mb-2">과목별 학습</h2>
+            <p>선택된 과목의 모든 문제를 모아 학습합니다. (구현 예정)</p>
+            {/* 여기에 과목 선택 UI 및 문제 목록 표시 로직 추가 예정 */}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 } 
