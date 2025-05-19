@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
-import { AlertCircle, TimerIcon, Info } from 'lucide-react';
+import { AlertCircle, TimerIcon, Info, AlertTriangle } from 'lucide-react';
 import { cn } from "@/lib/utils"; 
 import { CommonImage } from "@/components/common/CommonImage"; 
 import { getImageUrl } from "@/utils/image"; 
@@ -17,6 +17,15 @@ import { useImageZoom } from '@/hooks/useImageZoom';
 import { ImageZoomModal } from '@/components/common/ImageZoomModal'; 
 import { Switch } from "@/components/ui/switch";
 import Breadcrumb, { type BreadcrumbItem } from '@/components/common/Breadcrumb';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // 시험 상태 타입
 type ExamState = 'loading' | 'inProgress' | 'submitted' | 'error';
@@ -38,7 +47,7 @@ export default function ExamStartPage() {
   const { data: session, status } = useSession();
   const typedUser = session?.user as NextAuthUser | undefined; 
   const userId = typedUser?.id;
-  const userDisplayName = typedUser?.nickname || typedUser?.email;
+  const userDisplayName = typedUser?.name || typedUser?.email;
 
   // 시험 정보 및 문제 상태
   const [decodedExamName, setDecodedExamName] = useState<string | null>(null);
@@ -52,6 +61,13 @@ export default function ExamStartPage() {
   const [shuffledOptionsMap, setShuffledOptionsMap] = useState<Record<string, { options: IOption[], answerIndex: number }>>({});
   const [examState, setExamState] = useState<ExamState>('loading');
   const [isOptionShufflingEnabled, setIsOptionShufflingEnabled] = useState(true);
+  
+  // 미응답 문제 확인 Dialog 상태
+  const [showUnansweredDialog, setShowUnansweredDialog] = useState(false);
+  const [unansweredQuestions, setUnansweredQuestions] = useState<number[]>([]);
+
+  // 문제 이동 Dialog 상태
+  const [showMoveDialog, setShowMoveDialog] = useState(false);
 
   // URL 파라미터 및 문제 로딩 로직
   useEffect(() => {
@@ -194,10 +210,20 @@ export default function ExamStartPage() {
   // 답변 선택 핸들러
   const handleAnswerSelect = (questionId: string | undefined, selectedOptionIndexInDisplay: number) => {
     if (!questionId) return;
-    setUserAnswers((prevAnswers: Record<string, number>) => ({ // prevAnswers 타입 명시
-      ...prevAnswers,
-      [questionId]: selectedOptionIndexInDisplay
-    }));
+    setUserAnswers((prevAnswers: Record<string, number>) => {
+      // 이미 동일한 옵션이 선택되어 있으면 선택 취소
+      if (prevAnswers[questionId] === selectedOptionIndexInDisplay) {
+        // 선택 취소 시 해당 키를 제거한 새 객체를 반환
+        const newAnswers = { ...prevAnswers };
+        delete newAnswers[questionId];
+        return newAnswers;
+      }
+      // 새로운 옵션 선택 또는 다른 옵션으로 변경
+      return {
+        ...prevAnswers,
+        [questionId]: selectedOptionIndexInDisplay
+      };
+    });
   };
 
   // 문제 네비게이션 핸들러
@@ -435,6 +461,43 @@ export default function ExamStartPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentQuestionIndex, questions.length, displayOptions, currentQuestion, examState, handleAnswerSelect, handlePrevQuestion, handleNextQuestion]);
 
+  // 미응답 문제 찾기 함수
+  const findUnansweredQuestions = useCallback(() => {
+    const unanswered: number[] = [];
+    questions.forEach((question, index) => {
+      if (question.id && userAnswers[question.id] === undefined) {
+        unanswered.push(index);
+      }
+    });
+    return unanswered;
+  }, [questions, userAnswers]);
+
+  // 모든 문제에 답변했는지 확인하는 함수
+  const allQuestionsAnswered = useMemo(() => {
+    if (questions.length === 0) return false;
+
+    return questions.every(question =>
+      question.id && userAnswers[question.id] !== undefined
+    );
+  }, [questions, userAnswers]);
+
+  // 미응답 문제 처리 및 제출 준비 함수
+  const handleSubmitRequest = useCallback(() => {
+    const unanswered = findUnansweredQuestions();
+
+    if (unanswered.length > 0) {
+      setUnansweredQuestions(unanswered);
+      setShowUnansweredDialog(true);
+    } else {
+      handleSubmitExam();
+    }
+  }, [findUnansweredQuestions, handleSubmitExam]);
+
+  // 특정 미응답 문제로 이동하는 함수
+  const goToUnansweredQuestion = useCallback((index: number) => {
+    setCurrentQuestionIndex(index);
+    setShowUnansweredDialog(false);
+  }, []);
 
   if (examState === 'loading') {
     return <div className="flex justify-center items-center h-screen"><div>로딩 중...</div></div>;
@@ -676,9 +739,22 @@ export default function ExamStartPage() {
           >
             이전
           </Button>
-          {currentQuestionIndex === questions.length - 1 && examState === 'inProgress' ? (
-            <Button onClick={handleSubmitExam} size="lg" className="bg-green-600 hover:bg-green-700 text-white">
-              답안 제출
+          <Button
+            onClick={() => setShowMoveDialog(true)}
+            variant="outline"
+            size="lg"
+            disabled={questions.length === 0 || examState !== 'inProgress'}
+          >
+            문제 이동
+          </Button>
+          {currentQuestionIndex === questions.length - 1 ? (
+            <Button
+              onClick={handleSubmitRequest}
+              size="lg"
+              className={allQuestionsAnswered ? "bg-green-600 hover:bg-green-700 text-white ml-2" : "bg-yellow-600 hover:bg-yellow-700 text-white ml-2"}
+              disabled={examState !== 'inProgress'}
+            >
+              {allQuestionsAnswered ? "답안 제출" : "제출하기"}
             </Button>
           ) : (
             <Button 
@@ -691,6 +767,126 @@ export default function ExamStartPage() {
           )}
         </div>
       </footer>
+
+      {/* 미응답 문제 확인 Dialog */}
+      <Dialog open={showUnansweredDialog} onOpenChange={setShowUnansweredDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <AlertTriangle className="text-yellow-500 mr-2 h-5 w-5" />
+              미응답 문제가 있습니다
+            </DialogTitle>
+            <DialogDescription>
+              {unansweredQuestions.length > 0
+                ? "다음 문제에 답변하지 않았습니다. 아래 번호를 클릭하면 해당 문제로 이동합니다."
+                : "미응답 문제가 있습니다."}
+            </DialogDescription>
+          </DialogHeader>
+          {unansweredQuestions.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {unansweredQuestions.map((index) => (
+                <Button
+                  key={index}
+                  size="sm"
+                  variant="outline"
+                  className="min-w-[40px]"
+                  onClick={() => goToUnansweredQuestion(index)}
+                >
+                  {index + 1}
+                </Button>
+              ))}
+            </div>
+          )}
+          <DialogFooter className="flex justify-between sm:justify-between mt-4">
+            <Button
+              variant="outline"
+              onClick={() => goToUnansweredQuestion(unansweredQuestions[0])}
+            >
+              첫 미응답 문제로 이동
+            </Button>
+            <Button
+              variant="default"
+              onClick={() => {
+                setShowUnansweredDialog(false);
+                handleSubmitExam();
+              }}
+            >
+              그대로 제출하기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 문제 이동 Dialog */}
+      <Dialog open={showMoveDialog} onOpenChange={setShowMoveDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <Info className="text-blue-500 mr-2 h-5 w-5" />
+              문제로 이동
+            </DialogTitle>
+            <DialogDescription>
+              아래에서 원하는 문제 번호를 클릭하면 해당 문제로 이동합니다.
+            </DialogDescription>
+          </DialogHeader>
+          {/* 안푼 문제 */}
+          <div className="mb-2">
+            <div className="text-xs font-semibold text-gray-500 mb-1">안푼문제</div>
+            <div className="flex flex-wrap gap-1">
+              {questions
+                .map((q, idx) => ({ idx, answered: userAnswers[q.id!] !== undefined }))
+                .filter(q => !q.answered)
+                .sort((a, b) => a.idx - b.idx)
+                .map(({ idx }) => (
+                  <Button
+                    key={idx}
+                    size="sm"
+                    variant={currentQuestionIndex === idx ? "default" : "outline"}
+                    className={
+                      `border-2 ${currentQuestionIndex === idx ? 'border-black !text-black font-bold' : 'border-gray-400 text-gray-700'} bg-white` +
+                      ' min-w-[32px] h-8 px-0'
+                    }
+                    onClick={() => {
+                      setCurrentQuestionIndex(idx);
+                      setShowMoveDialog(false);
+                    }}
+                    disabled={examState !== 'inProgress'}
+                  >
+                    {idx + 1}
+                  </Button>
+                ))}
+            </div>
+          </div>
+          {/* 푼 문제 */}
+          <div>
+            <div className="text-xs font-semibold text-blue-700 mb-1">푼문제</div>
+            <div className="flex flex-wrap gap-1">
+              {questions
+                .map((q, idx) => ({ idx, answered: userAnswers[q.id!] !== undefined }))
+                .filter(q => q.answered)
+                .sort((a, b) => a.idx - b.idx)
+                .map(({ idx }) => (
+                  <Button
+                    key={idx}
+                    size="sm"
+                    variant={currentQuestionIndex === idx ? "default" : "outline"}
+                    className={
+                      `border-2 ${currentQuestionIndex === idx ? 'border-blue-700' : 'border-blue-400'} bg-blue-50 text-blue-700` +
+                      ' min-w-[32px] h-8 px-0'
+                    }
+                    onClick={() => {
+                      setCurrentQuestionIndex(idx);
+                      setShowMoveDialog(false);
+                    }}
+                    disabled={examState !== 'inProgress'}
+                  >
+                    {idx + 1}
+                  </Button>
+                ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       
       <ImageZoomModal 
         imageUrl={imageZoom.zoomedImage}
