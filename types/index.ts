@@ -100,6 +100,7 @@ export type INewExamResult = {
   totalQuestions: number;
   elapsedTime: number;
   limitTime?: number;
+  subjectStats?: Record<string, { correct: number; total: number }>;
 };
 
 export type IExamResult = INewExamResult & {

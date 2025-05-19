@@ -276,6 +276,33 @@ export default function ExamStartPage() {
     const totalQuestions = questions.length;
     const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
     
+    // 과목별 통계 및 과락 여부 계산
+    const subjectStats: Record<string, { correct: number; total: number }> = {};
+    const calculateSubjectStats = () => {
+      // 문제 목록을 과목별로 분류
+      questions.forEach((q, idx) => {
+        const subject = q.examSubject || '기타';
+        
+        if (!subjectStats[subject]) {
+          subjectStats[subject] = { correct: 0, total: 0 };
+        }
+        
+        // 해당 과목의 총 문제 수 증가
+        subjectStats[subject].total += 1;
+        
+        // 해당 문제를 맞췄는지 확인
+        const answerDetail = answerDetails[idx];
+        if (answerDetail && answerDetail.isCorrect) {
+          subjectStats[subject].correct += 1;
+        }
+      });
+      
+      return subjectStats;
+    };
+    
+    // 과목별 점수 및 통계 계산
+    const subjectStatsData = calculateSubjectStats();
+    
     const representativeQuestion = questions.length > 0 ? questions[0] : null; // questions가 비어있을 수 있으므로 null 체크
     let determinedExamYear: number;
     let determinedExamSubject: string;
@@ -293,7 +320,7 @@ export default function ExamStartPage() {
           determinedExamSubject = representativeQuestion?.examSubject || representativeQuestion?.subject || "종합"; 
       } else if (subjectsValue) { 
           determinedExamYear = representativeQuestion?.examYear || new Date().getFullYear(); 
-          determinedExamSubject = subjectsValue.split(',').length > 1 ? "선택 과목 종합" : subjectsValue;
+          determinedExamSubject = subjectsValue;
       } else {
           determinedExamYear = new Date().getFullYear();
           determinedExamSubject = "정보 없음";
@@ -335,6 +362,7 @@ export default function ExamStartPage() {
       correctCount: correctCount,
       totalQuestions: totalQuestions,
       elapsedTime: elapsedTime,
+      subjectStats: subjectStatsData, // 과목별 통계 추가
     };
 
     setExamState('submitted'); // API 호출 직전 submitted로 확실히 변경 (중복 제출 방지 및 UI 피드백)

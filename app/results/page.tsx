@@ -5,167 +5,201 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { IExamResult } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertCircle, ExternalLink, Loader2 } from 'lucide-react';
-// date-fns 관련 import 제거
-
-// 커스텀 날짜 포맷팅 함수 구현
-function formatDate(date: Date | string, formatStr: string = 'yyyy년 M월 d일 HH:mm'): string {
-  const d = new Date(date);
-  
-  // 한국어 월 이름
-  const months = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
-  
-  // 날짜 포맷팅에 필요한 값들
-  const year = d.getFullYear();
-  const month = d.getMonth();
-  const day = d.getDate();
-  const hours = d.getHours().toString().padStart(2, '0');
-  const minutes = d.getMinutes().toString().padStart(2, '0');
-  
-  // 간단한 포맷 문자열 변환
-  return formatStr
-    .replace('yyyy', year.toString())
-    .replace('M', (month + 1).toString())
-    .replace('MM', (month + 1).toString().padStart(2, '0'))
-    .replace('d', day.toString())
-    .replace('dd', day.toString().padStart(2, '0'))
-    .replace('HH', hours)
-    .replace('mm', minutes);
-}
+import { Loader2, ExternalLink, Trash2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useToast } from '@/components/ui/use-toast';
 
 export default function ExamResultsPage() {
   const { data: session, status } = useSession();
+  const { toast } = useToast();
   const [results, setResults] = useState<IExamResult[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [resultToDelete, setResultToDelete] = useState<number | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     if (status === 'authenticated') {
-      const fetchResults = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-          const response = await fetch('/api/exam-results', { credentials: 'include' });
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || `시험 결과를 불러오는 데 실패했습니다 (${response.status})`);
-          }
-          const data: IExamResult[] = await response.json();
-          setResults(data);
-        } catch (e: any) {
-          setError(e.message || '알 수 없는 오류가 발생했습니다.');
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchResults();
+      loadResults();
     } else if (status === 'unauthenticated') {
       setLoading(false);
-      setError('시험 결과를 보려면 로그인이 필요합니다.');
     }
-    // status가 'loading'일 때는 아무것도 하지 않음 (로딩 중 표시)
   }, [status]);
 
-  if (loading || status === 'loading') {
-    return (
-      <div className="container mx-auto py-8 flex justify-center items-center min-h-[calc(100vh-200px)]">
-        <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-      </div>
-    );
-  }
+  const loadResults = () => {
+    setLoading(true);
+    fetch('/api/exam-results', { credentials: 'include' })
+      .then(res => res.json())
+      .then(setResults)
+      .finally(() => setLoading(false));
+  };
 
-  if (error) {
+  const handleDeleteClick = (resultId: number) => {
+    setResultToDelete(resultId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!resultToDelete) return;
+    
+    setDeleteLoading(true);
+    try {
+      const response = await fetch(`/api/exam-results/${resultToDelete}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        throw new Error('삭제 중 오류가 발생했습니다.');
+      }
+      
+      // 삭제 성공 시 결과 목록에서 제거
+      setResults(prev => prev.filter(r => r.id !== resultToDelete));
+      toast({
+        title: "삭제 완료",
+        description: "시험 결과가 성공적으로 삭제되었습니다.",
+        variant: "success"
+      });
+    } catch (error) {
+      console.error('삭제 오류:', error);
+      toast({
+        title: "삭제 실패",
+        description: "시험 결과를 삭제하는 중 오류가 발생했습니다.",
+        variant: "error"
+      });
+    } finally {
+      setDeleteLoading(false);
+      setDeleteDialogOpen(false);
+      setResultToDelete(null);
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="container mx-auto py-8 text-center">
-        <Card className="max-w-md mx-auto">
-          <CardHeader>
-            <CardTitle className="text-red-600 flex items-center justify-center">
-              <AlertCircle className="mr-2 h-6 w-6" /> 오류 발생
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>{error}</p>
-            {status === 'unauthenticated' && (
-              <Button onClick={() => window.location.href = '/api/auth/signin'} className="mt-4">
-                로그인 페이지로 이동
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+      <div className="flex justify-center items-center min-h-[300px]">
+        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>나의 시험 결과</CardTitle>
-          <CardDescription>지금까지 응시한 모든 시험 결과 목록입니다.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {results.length === 0 ? (
-            <div className="text-center py-12">
-              <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
-              <p className="mt-4 text-lg font-medium text-gray-700">
-                아직 응시한 시험 결과가 없습니다.
-              </p>
-              <p className="mt-1 text-sm text-gray-500">
-                모의고사에 응시하고 결과를 확인해보세요!
-              </p>
-              <Button asChild className="mt-6">
-                <Link href="/learn/exams">문제 은행으로 이동</Link>
-              </Button>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[25%]">시험명</TableHead>
-                  <TableHead className="w-[20%]">응시일</TableHead>
-                  <TableHead className="text-center w-[15%]">점수</TableHead>
-                  <TableHead className="text-center w-[20%]">정답/총 문항</TableHead>
-                  <TableHead className="text-center w-[10%]">소요 시간</TableHead>
-                  <TableHead className="text-right w-[10%]">상세보기</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {results.map((result) => (
-                  <TableRow key={result.id}>
-                    <TableCell className="font-medium">
-                      {result.examName}
-                      <p className="text-xs text-gray-500 mt-1">
-                        {result.examYear}년 / {result.examSubject}
-                        {result.examDate && result.examDate !== `${result.examYear}-01-01` ? 
-                          ` (${formatDate(new Date(result.examDate), 'MM.dd')})` : ''}
-                      </p>
-                    </TableCell>
-                    <TableCell>
-                      {formatDate(new Date(result.createdAt), 'yyyy년 M월 d일 HH:mm')}
-                    </TableCell>
-                    <TableCell className="text-center font-semibold text-blue-600">{result.score}점</TableCell>
-                    <TableCell className="text-center">
-                      {result.correctCount} / {result.totalQuestions}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {Math.floor(result.elapsedTime / 60)}분 {result.elapsedTime % 60}초
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/results/${result.id}`}>
-                          <ExternalLink className="mr-1 h-3 w-3" /> 보기
-                        </Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+    <div className="w-5/6 mx-auto py-8">
+      <h2 className="text-xl font-bold mb-2">나의 시험 결과</h2>
+      <p className="mb-4 text-gray-500 text-sm">지금까지 응시한 모든 시험 결과 목록입니다.</p>
+      <div className="overflow-x-auto">
+        <table className="w-full mx-auto table-fixed border-t text-sm">
+          <thead>
+            <tr className="bg-gray-50 border-b">
+              <th className="py-3 px-2 w-[15%] text-center align-middle">응시일</th>
+              <th className="py-3 px-2 w-[20%] text-center align-middle">시험명</th>
+              <th className="py-3 px-2 w-[15%] text-center align-middle">점수(정답/총문항)</th>
+              <th className="py-3 px-2 w-[20%] text-center align-middle">과목별 점수</th>
+              <th className="py-3 px-2 w-[10%] text-center align-middle">소요시간</th>
+              <th className="py-3 px-2 w-[10%] text-center align-middle">상세</th>
+              <th className="py-3 px-2 w-[10%] text-center align-middle">삭제</th>
+            </tr>
+          </thead>
+          <tbody>
+            {results.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="py-10 text-center text-gray-400 align-middle">아직 응시한 시험 결과가 없습니다.</td>
+              </tr>
+            ) : (
+              results.map(result => (
+                <tr key={result.id} className="border-b hover:bg-gray-50">
+                  <td className="py-2 px-2 align-middle text-center">{new Date(result.createdAt).toISOString().slice(0, 16).replace('T', ' ')}</td>
+                  <td className="py-2 px-2 align-middle text-center">
+                    <div className="font-semibold">{result.examName}</div>
+                    <div className="text-xs text-gray-500">{result.examDate ? result.examDate : result.examYear}</div>
+                  </td>
+                  <td className="py-2 px-2 align-middle text-center">
+                    <span className={`font-bold ${result.score < 60 ? 'text-red-600' : 'text-blue-600'}`}>{result.score}점</span>
+                    <div className="text-xs text-gray-500">({result.correctCount}/{result.totalQuestions})</div>
+                  </td>
+                  <td className="py-2 px-2 align-middle text-right">
+                    {result.subjectStats && Object.keys(result.subjectStats).length > 0 ? (
+                      <div className="flex flex-col items-end gap-1.5">
+                        {Object.entries(result.subjectStats).map(([subject, stats]) => {
+                          const subjectScore = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
+                          const isFailScore = subjectScore < 60;
+                          return (
+                            <div key={subject} className="flex items-center w-full justify-end gap-2">
+                              <span className="text-center font-medium flex-1">{subject}</span>
+                              <span className={`px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${
+                                isFailScore ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                {subjectScore}<span className="text-xs font-normal">점</span>
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs">-</span>
+                    )}
+                  </td>
+                  <td className="py-2 px-2 align-middle text-center">
+                    {Math.floor(result.elapsedTime / 60)}분 {result.elapsedTime % 60}초
+                  </td>
+                  <td className="py-2 px-2 align-middle text-center">
+                    <Button asChild size="sm" variant="outline" className="h-7 px-2 text-xs">
+                      <Link href={`/results/${result.id}`}>
+                        <ExternalLink className="inline h-3 w-3 mr-1" /> 보기
+                      </Link>
+                    </Button>
+                  </td>
+                  <td className="py-2 px-2 align-middle text-center">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="h-7 px-2 text-xs border-gray-300 hover:bg-gray-50 hover:text-gray-800"
+                      onClick={() => handleDeleteClick(result.id)}
+                    >
+                      <Trash2 className="inline h-3 w-3 mr-1 text-gray-700" /> 삭제
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* 삭제 확인 다이얼로그 */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>시험 결과 삭제</DialogTitle>
+            <DialogDescription>
+              선택한 시험 결과를 정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={deleteLoading}
+            >
+              취소
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteConfirm}
+              disabled={deleteLoading}
+            >
+              {deleteLoading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Trash2 className="h-4 w-4 mr-1" />} 
+              삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-} 
+}

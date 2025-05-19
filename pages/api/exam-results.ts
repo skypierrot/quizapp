@@ -45,7 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // examSession 대신 examDate, examSubject 사용
-    const { examName, examYear, examDate, examSubject, answers, score, correctCount, totalQuestions, elapsedTime, limitTime } = resultData;
+    const { examName, examYear, examDate, examSubject, answers, score, correctCount, totalQuestions, elapsedTime, limitTime, subjectStats } = resultData;
     
     // 필수 필드 검사 업데이트
     if (!examName || typeof examYear !== 'number' || !examDate || !examSubject || !answers || 
@@ -64,6 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       score,
       correctCount,
       totalQuestions,
+      subjectStats: subjectStats || {}, // 과목별 통계 추가
       elapsedTime,
       limitTime: limitTime === undefined ? null : limitTime, // undefined면 null로 DB 저장
       // createdAt, updatedAt은 DB 스키마에서 defaultNow()로 자동 생성되므로 여기서 제외 가능
