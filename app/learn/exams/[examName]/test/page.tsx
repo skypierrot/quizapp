@@ -572,11 +572,11 @@ export default function ExamStartPage() {
         {searchParams!.get('subjects') && <p className="text-center text-sm text-gray-500">과목: {searchParams!.get('subjects')}</p>}
       </header>
 
-      {/* 문제 표시 영역을 Grid로 변경 */} 
+      {/* 문제 표시 영역을 Grid로 변경 - 모바일에서는 1열, 데스크탑에서는 2열 */} 
       <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 왼쪽 열: 현재 문제 */} 
+        {/* 현재 문제 - 모바일에서는 전체 너비, 데스크탑에서는 왼쪽 열 */} 
         {currentQuestion && (
-          <Card className="w-full shadow-lg">
+          <Card className="w-full shadow-lg lg:col-span-1">
             <CardHeader className="bg-gray-50 p-4 border-b">
               <div className="flex justify-between items-center mb-2"> 
                 <CardTitle className="text-lg">문제 {currentQuestionIndex + 1} / {questions.length}</CardTitle>
@@ -661,10 +661,10 @@ export default function ExamStartPage() {
           </Card>
         )}
         {!currentQuestion && examState === 'inProgress' && (
-             <div className="lg:col-span-2 flex justify-center items-center h-full"><div>문제를 표시할 수 없습니다. 설정 확인이 필요합니다.</div></div>
+             <div className="col-span-1 lg:col-span-2 flex justify-center items-center h-full"><div>문제를 표시할 수 없습니다. 설정 확인이 필요합니다.</div></div>
         )}
         {!currentQuestion && examState !== 'loading' && examState !== 'error' && !questions.length && (
-            <div className="lg:col-span-2 flex flex-col justify-center items-center h-full text-gray-700 p-4">
+            <div className="col-span-1 lg:col-span-2 flex flex-col justify-center items-center h-full text-gray-700 p-4">
                 <AlertCircle className="w-16 h-16 mb-4 text-yellow-500" />
                 <p className="text-xl font-semibold">문제가 없습니다.</p>
                 <p className="text-center mt-2">선택하신 조건에 해당하는 문제가 없습니다. 다른 시험을 선택해주세요.</p>
@@ -672,9 +672,9 @@ export default function ExamStartPage() {
             </div>
         )}
 
-        {/* 오른쪽 열: 다음 문제 (미리보기) */} 
+        {/* 오른쪽 열: 데스크탑에서만 보이는 다음 문제 (미리보기) */} 
         {nextQuestion && (
-          <Card className="w-full shadow-lg opacity-50 pointer-events-none">
+          <Card className="hidden lg:block w-full shadow-lg opacity-50 pointer-events-none">
             <CardHeader className="bg-gray-50 p-4 border-b">
               <CardTitle className="text-lg text-gray-500">다음 문제: {currentQuestionIndex + 2}</CardTitle>
               {/* 다음 문제에는 타이머나 섞기 스위치 불필요, 진행도도 현재 문제 기준이므로 불필요 */} 
