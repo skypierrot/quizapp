@@ -238,7 +238,7 @@ export function ManualForm({
       formData.append('options', JSON.stringify(optionsPayload));
       formData.append('answer', question.answer.toString());
       formData.append('explanation', question.explanation || "");
-      formData.append('tags', JSON.stringify(otherTags));
+      formData.append('tags', JSON.stringify(finalTags));
       formData.append('images', JSON.stringify(normalizeImages(question.images)));
       formData.append('explanationImages', JSON.stringify(normalizeImages(question.explanationImages)));
       formData.append('examName', trimmedExamName);

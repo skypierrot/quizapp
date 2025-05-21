@@ -238,6 +238,9 @@ export async function POST(req: NextRequest) {
       examId: determinedExamId, // 동적으로 찾거나 생성한 examId 사용
       userId: DEV_USER_ID, // Clerk 사용 시 실제 userId로 교체 필요
       // number: 0, // IManualQuestion에 있지만 questions 스키마에 없는 필드. saveQuestions 에서 처리 필요
+      examName: examNameFromTags,
+      examDate: examDateFromTags,
+      examSubject: examSubjectFromTags
     };
 
     // saveQuestions 함수 호출 (배열 형태로 전달)
