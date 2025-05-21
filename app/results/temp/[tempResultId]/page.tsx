@@ -11,7 +11,7 @@ import { CommonImage } from '@/components/common/CommonImage';
 import { getImageUrl } from '@/utils/image';
 import { useImageZoom } from '@/hooks/useImageZoom';
 import { ImageZoomModal } from '@/components/common/ImageZoomModal';
-import { formatTime } from '@/utils/time';
+import { formatTime, formatKoreanDateTime } from '@/utils/time';
 import { signIn, useSession } from 'next-auth/react';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
@@ -266,7 +266,7 @@ export default function TempResultPage() {
           )</span>
         </h1>
         <div className="text-gray-500 text-xs md:text-sm mt-1">
-          응시일: {new Date(examResult.createdAt).toLocaleString()}
+          응시일: {formatKoreanDateTime(examResult.createdAt)}
         </div>
       </div>
 

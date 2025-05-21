@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from '@/components/ui/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
+import { formatKoreanDateTime } from "@/utils/time";
 
 export default function ExamResultsPage() {
   const { data: session, status } = useSession();
@@ -116,7 +117,7 @@ export default function ExamResultsPage() {
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     <div className="flex items-center gap-1 text-sm">
                       <Calendar className="h-4 w-4 text-gray-500" />
-                      <span className="text-gray-700">{new Date(result.createdAt).toISOString().slice(0, 16).replace('T', ' ')}</span>
+                      <span className="text-gray-700">{formatKoreanDateTime(result.createdAt)}</span>
                     </div>
                     <div className="flex items-center gap-1 text-sm">
                       <Clock className="h-4 w-4 text-gray-500" />
@@ -193,7 +194,7 @@ export default function ExamResultsPage() {
               <tbody>
                 {results.map(result => (
                   <tr key={`desktop-${result.id}`} className="border-b hover:bg-gray-50">
-                    <td className="py-2 px-2 align-middle text-center">{new Date(result.createdAt).toISOString().slice(0, 16).replace('T', ' ')}</td>
+                    <td className="py-2 px-2 align-middle text-center">{formatKoreanDateTime(result.createdAt)}</td>
                     <td className="py-2 px-2 align-middle text-center">
                       <div className="font-semibold">{result.examName}</div>
                       <div className="text-xs text-gray-500">{result.examDate ? result.examDate : result.examYear}</div>
