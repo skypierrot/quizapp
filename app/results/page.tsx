@@ -38,8 +38,29 @@ export default function ExamResultsPage() {
   const loadResults = () => {
     setLoading(true);
     fetch('/api/exam-results', { credentials: 'include' })
-      .then(res => res.json())
-      .then(setResults)
+      .then(res => {
+        if (!res.ok) {
+          if (res.status === 401) {
+            toast({
+              title: "인증 오류",
+              description: "로그인이 필요합니다.",
+              variant: "destructive"
+            });
+            throw new Error('인증되지 않은 사용자입니다');
+          }
+          throw new Error('서버 오류가 발생했습니다');
+        }
+        return res.json();
+      })
+      .then(data => {
+        // 응답이 배열인지 확인
+        const resultsArray = Array.isArray(data) ? data : data.results || [];
+        setResults(resultsArray);
+      })
+      .catch(error => {
+        console.error('결과 로드 오류:', error);
+        setResults([]);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -94,6 +115,7 @@ export default function ExamResultsPage() {
   const NoResults = () => (
     <div className="text-center py-10 border rounded-lg bg-gray-50">
       <p className="text-gray-400">아직 응시한 시험 결과가 없습니다.</p>
+      <p className="text-gray-400">응시 내역을 확인하시려면 로그인하세요.</p>
     </div>
   );
 

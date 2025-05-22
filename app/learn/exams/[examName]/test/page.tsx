@@ -237,10 +237,6 @@ export default function ExamStartPage() {
 
   // 답안 제출 핸들러
   const handleSubmitExam = useCallback(async () => {
-    if (!userId) {
-      setError("로그인 후 이용해 주세요.");
-      return;
-    }
     if (questions.length === 0 && examState !== 'error') { // 에러 상태가 아닐 때만 문제 없음 오류 표시
         setError("제출할 문제가 없습니다.");
         setExamState('error'); // 오류 상태로 전환
@@ -378,7 +374,7 @@ export default function ExamStartPage() {
     }
 
     const resultData: INewExamResult = {
-      userId: userId!,
+      userId: userId || 'guest',
       examName: decodedExamName || "모의고사",
       examYear: determinedExamYear,
       examDate: determinedExamDate!, // Non-null assertion, 로직상 항상 string 값이어야 함
@@ -393,30 +389,56 @@ export default function ExamStartPage() {
 
     setExamState('submitted'); // API 호출 직전 submitted로 확실히 변경 (중복 제출 방지 및 UI 피드백)
 
-    try {
-      const response = await fetch('/api/exam-results', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(resultData),
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: '결과 저장에 실패했습니다.' }));
-        setError(`결과 저장 실패: ${errorData.message}`); // 에러 메시지 구체화
-        // setExamState('error'); // 이미 submitted 상태이므로, UI에서 에러를 표시하도록 함
-        return; // 오류 발생 시 여기서 중단
+    // 로그인 상태 확인 - 로그인된 경우 API 호출, 비로그인 시 임시 결과 저장
+    if (userId) {
+      try {
+        const response = await fetch('/api/exam-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(resultData),
+          credentials: 'include',
+        });
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: '결과 저장에 실패했습니다.' }));
+          setError(`결과 저장 실패: ${errorData.message}`); // 에러 메시지 구체화
+          return; // 오류 발생 시 여기서 중단
+        }
+        const savedResult = await response.json();
+        if (savedResult && savedResult.id) {
+          router.push(`/results/${savedResult.id}`);
+        } else {
+          setError("결과 ID를 받지 못해 결과 페이지로 이동할 수 없습니다.");
+        }
+      } catch (error: any) {
+        console.error("결과 저장 API 호출 오류:", error);
+        setError("시험 결과를 저장하는 중 오류가 발생했습니다: " + error.message);
       }
-      const savedResult = await response.json();
-      if (savedResult && savedResult.id) {
-        router.push(`/results/${savedResult.id}`);
-      } else {
-        setError("결과 ID를 받지 못해 결과 페이지로 이동할 수 없습니다.");
-        // router.push('/'); // 홈으로 이동하는 대신 에러 표시
+    } else {
+      // 비로그인 상태일 때 - 세션 스토리지에 임시 결과 저장
+      try {
+        // 현재 시간으로 임시 ID 생성
+        const tempResultId = `temp_result_${Date.now()}`;
+        
+        // 결과 데이터에 임시 ID와 생성 시간 추가
+        const tempResultData = {
+          ...resultData,
+          id: tempResultId,
+          createdAt: new Date().toISOString(),
+          isTemporary: true
+        };
+        
+        // 세션 스토리지에 결과 저장
+        sessionStorage.setItem(`exam_result_${tempResultId}`, JSON.stringify({
+          result: tempResultData,
+          questions: questions
+        }));
+        
+        // 임시 결과 페이지로 이동
+        router.push(`/results/temp/${tempResultId}`);
+      } catch (error: any) {
+        console.error("임시 결과 저장 오류:", error);
+        setError("임시 결과를 저장하는 중 오류가 발생했습니다: " + error.message);
       }
-    } catch (error: any) {
-      console.error("결과 저장 API 호출 오류:", error);
-      setError("시험 결과를 저장하는 중 오류가 발생했습니다: " + error.message);
-      // setExamState('error'); 
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, decodedExamName, questions, userAnswers, startTime, router, searchParams, shuffledOptionsMap, isOptionShufflingEnabled, examState, timeLeft]); // examState, timeLeft 추가

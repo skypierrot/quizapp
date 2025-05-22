@@ -1,64 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { drizzle } from 'drizzle-orm/node-postgres';
+import { db } from '@/db';
+import { userStats } from '@/db/schema/userStats';
 import { userDailyStats } from '@/db/schema/userDailyStats';
-import { Client } from 'pg';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 
-export async function GET(req: NextRequest) {
+export interface SummaryStat {
+  totalStudyTime: number;
+  totalSolved: number;
+  correctRate: number;
+  streak: number;
+}
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const userId = searchParams.get('userId');
+
+  if (!userId) {
+    // 전체 사용자 통계가 필요한 경우 (미구현)
+    return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+  }
+
   try {
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId');
+    // 1. userStats에서 정보 가져오기
+    const stats = await db
+      .select({
+        totalQuestions: userStats.totalQuestions,
+        totalCorrect: userStats.totalCorrect,
+      })
+      .from(userStats)
+      .where(eq(userStats.userId, userId));
 
-    const client = new Client({
-      connectionString: process.env.DATABASE_URL ||
-        'postgres://postgres:postgres@localhost:5432/quizapp',
-    });
-    await client.connect();
-    const db = drizzle(client);
+    const totalSolved = stats.length > 0 ? stats[0].totalQuestions || 0 : 0;
+    const totalCorrect = stats.length > 0 ? stats[0].totalCorrect || 0 : 0;
+    const correctRate = totalSolved > 0 ? totalCorrect / totalSolved : 0;
 
-    let rows;
-    if (userId) {
-      rows = await db.select().from(userDailyStats).where(eq(userDailyStats.userId, userId));
-    } else {
-      rows = await db.select().from(userDailyStats);
-    }
-    await client.end();
+    // 2. userDailyStats에서 정보 가져오기
+    const dailyStatsData = await db
+      .select({
+        totalStudyTime: userDailyStats.totalStudyTime,
+        streak: userDailyStats.streak,
+      })
+      .from(userDailyStats)
+      .where(eq(userDailyStats.userId, userId))
+      .orderBy(desc(userDailyStats.date))
+      .limit(1);
 
-    if (!rows.length) {
-      return NextResponse.json({ totalStudyTime: 0, totalSolved: 0, correctRate: 0, streak: 0 });
-    }
-
-    const totalStudyTime = rows.reduce((acc, r) => acc + (r.totalStudyTime || 0), 0);
-    const totalSolved = rows.reduce((acc, r) => acc + (r.solvedCount || 0), 0);
-    const correctCount = rows.reduce((acc, r) => acc + (r.correctCount || 0), 0);
-    const correctRate = totalSolved > 0 ? correctCount / totalSolved : 0;
-
+    let totalStudyTime = 0;
     let streak = 0;
-    if (userId) {
-      const dates = rows.map(r => r.date).sort((a, b) => b.localeCompare(a));
-      let prev = null;
-      for (const d of dates) {
-        if (!prev) { streak = 1; prev = d; continue; }
-        const prevDate = new Date(prev);
-        const currDate = new Date(d);
-        prevDate.setDate(prevDate.getDate() - 1);
-        if (prevDate.toISOString().slice(0, 10) === currDate.toISOString().slice(0, 10)) {
-          streak++;
-          prev = d;
-        } else {
-          break;
-        }
-      }
+
+    // 데이터베이스에 누적 학습 시간이 있는지 확인
+    // 없으면 최근 30일치 userDailyStats 데이터를 합산
+    const recentDailyStats = await db
+      .select({
+        totalStudyTime: userDailyStats.totalStudyTime,
+      })
+      .from(userDailyStats)
+      .where(eq(userDailyStats.userId, userId))
+      .orderBy(desc(userDailyStats.date))
+      .limit(30);
+
+    recentDailyStats.forEach(d => {
+      totalStudyTime += d.totalStudyTime || 0;
+    });
+
+    // 연속 학습일은 가장 최근 데이터의 streak 필드 사용
+    if (dailyStatsData.length > 0) {
+      streak = dailyStatsData[0].streak || 0;
     }
 
-    return NextResponse.json({
+    const summaryData: SummaryStat = {
       totalStudyTime,
       totalSolved,
       correctRate,
       streak,
-    });
-  } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    };
+
+    return NextResponse.json(summaryData, { status: 200 });
+  } catch (error) {
+    console.error('Error fetching summary stats:', error);
+    return NextResponse.json({ error: 'Failed to fetch summary stats' }, { status: 500 });
   }
 } 

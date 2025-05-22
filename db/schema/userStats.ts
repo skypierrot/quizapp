@@ -3,6 +3,7 @@ import {
   integer,
   timestamp,
   uuid,
+  text,
   jsonb,
   index
 } from 'drizzle-orm/pg-core';
@@ -13,7 +14,7 @@ export const userStats = pgTable(
   'user_stats',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id').notNull().unique(),
+    userId: text('user_id').notNull().unique(),
 
     // 시험 관련 통계
     totalExams: integer('total_exams').notNull().default(0),

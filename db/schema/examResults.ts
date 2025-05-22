@@ -19,7 +19,7 @@ export const examResults = pgTable(
   'exam_results',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id').notNull(), // uuid로 변경
+    userId: text('user_id').notNull(), // text로 변경
     examName: varchar('exam_name', { length: 255 }).notNull(),
     examYear: integer('exam_year').notNull(),
     examDate: date('exam_date').notNull(), // 추가된 컬럼

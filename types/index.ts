@@ -104,9 +104,9 @@ export type INewExamResult = {
 };
 
 export type IExamResult = INewExamResult & {
-  id: number;
-  createdAt: string;
-  updatedAt: string;
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 // 새로운 GroupedExamData 인터페이스 추가

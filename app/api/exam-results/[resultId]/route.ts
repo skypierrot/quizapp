@@ -11,15 +11,16 @@ export async function GET(
 ) {
   const { resultId } = await context.params;
 
-  const session = await getServerSession({ req: request, ...authOptions });
+  const session = await getServerSession(authOptions);
   console.log('[exam-results API] session:', session);
-  const userId = session && 'user' in session && session.user ? session.user.id : undefined;
-  console.log('[exam-results API] userId:', userId);
-  console.log('[exam-results API] params.resultId:', resultId);
-
-  if (!userId) {
+  
+  if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const userId = session.user.id;
+  console.log('[exam-results API] userId:', userId);
+  console.log('[exam-results API] params.resultId:', resultId);
 
   if (!resultId || typeof resultId !== 'string' || resultId.length < 10) {
     return NextResponse.json({ error: 'Invalid Result ID format' }, { status: 400 });
@@ -47,13 +48,14 @@ export async function DELETE(
 ) {
   const { resultId } = context.params;
 
-  const session = await getServerSession({ req: request, ...authOptions });
-  const userId = session && 'user' in session && session.user ? session.user.id : undefined;
-  console.log('[exam-results API] DELETE called for resultId:', resultId, 'by userId:', userId);
-
-  if (!userId) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  
+  const userId = session.user.id;
+  console.log('[exam-results API] DELETE called for resultId:', resultId, 'by userId:', userId);
 
   if (!resultId || typeof resultId !== 'string' || resultId.length < 10) {
     return NextResponse.json({ error: 'Invalid Result ID format' }, { status: 400 });

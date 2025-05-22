@@ -8,6 +8,8 @@ import { eq, inArray } from 'drizzle-orm';
 
 export async function GET(req: NextRequest, { params }: { params: { examResultId: string } }) {
   const session = await getServerSession(authOptions);
+  console.log('[wrong-note API] session:', session);
+  
   if (!session?.user?.id) {
     return NextResponse.json({ message: '로그인 필요' }, { status: 401 });
   }

@@ -12,7 +12,9 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "cleanup-tmp-images": "ts-node scripts/cleanup-tmp-images.ts"
+    "cleanup-tmp-images": "ts-node scripts/cleanup-tmp-images.ts",
+    "create-test-stats": "tsx scripts/create-test-stats.ts",
+    "sync-user-stats": "tsx scripts/sync-user-stats.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.9.0",

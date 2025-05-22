@@ -157,6 +157,22 @@ return (
 </div>
 </div>
 </div>
+
+{examResult.totalQuestions - examResult.correctCount > 0 && (
+  <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between">
+    <div className="text-sm text-rose-600 font-medium mb-2 sm:mb-0">
+      <span className="font-bold">{examResult.totalQuestions - examResult.correctCount}개</span>의 오답이 있습니다.
+    </div>
+    <Button 
+      variant="outline" 
+      size="sm"
+      className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700" 
+      onClick={() => router.push(`/results/${resultId}/wrong-note`)}
+    >
+      오답노트로 학습하기
+    </Button>
+  </div>
+)}
 </div>
 
 {/* 과목별 성적 */}
@@ -374,8 +390,8 @@ onClick={() => imageZoom.showZoom(getImageUrl(image.url))}
   모의고사 목록으로
 </Button>
 <Button 
-  variant="outline" 
-  className="w-full sm:w-auto" 
+  variant="default" 
+  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700" 
   onClick={() => router.push(`/results/${resultId}/wrong-note`)}
 >
   오답노트로 가기
