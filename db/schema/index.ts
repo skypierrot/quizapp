@@ -13,3 +13,4 @@ export * from './userStats';
 export * from './userDailyStats';
 export * from './userQuestionFlags';
 export * from './userQuestionReviewStatus';
+export * from './userQuestionOptionMemos';

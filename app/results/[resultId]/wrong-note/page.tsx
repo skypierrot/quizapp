@@ -205,7 +205,6 @@ export default function WrongNotePage() {
                   index={index}
                   resultId={resultId}
                   imageZoom={imageZoom}
-                  onFlagChange={handleFlagChange}
                 />
               ))}
             </div>

@@ -13,7 +13,7 @@ export interface SummaryStat {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const userId = searchParams.get('userId');
+    const userId = searchParams.get('userId');
 
   if (!userId) {
     // 전체 사용자 통계가 필요한 경우 (미구현)
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     // 연속 학습일은 가장 최근 데이터의 streak 필드 사용
     if (dailyStatsData.length > 0) {
       streak = dailyStatsData[0].streak || 0;
-    }
+        }
 
     const summaryData: SummaryStat = {
       totalStudyTime,

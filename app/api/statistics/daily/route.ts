@@ -6,7 +6,7 @@ import type { DailyStat } from '@/hooks/useDailyStats';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const userId = searchParams.get('userId');
+    const userId = searchParams.get('userId');
   const daysParam = searchParams.get('days');
   const days = daysParam ? parseInt(daysParam, 10) : 30; // 기본값 30일
 
@@ -18,15 +18,15 @@ export async function GET(request: NextRequest) {
   try {
     // userDailyStats에서 최근 N일 데이터 가져오기
     const dailyStats = await db
-      .select({
-        date: userDailyStats.date,
-        solvedCount: userDailyStats.solvedCount,
-        totalStudyTime: userDailyStats.totalStudyTime,
-        correctCount: userDailyStats.correctCount,
-      })
-      .from(userDailyStats)
-      .where(eq(userDailyStats.userId, userId))
-      .orderBy(desc(userDailyStats.date))
+        .select({
+          date: userDailyStats.date,
+          solvedCount: userDailyStats.solvedCount,
+          totalStudyTime: userDailyStats.totalStudyTime,
+          correctCount: userDailyStats.correctCount,
+        })
+        .from(userDailyStats)
+        .where(eq(userDailyStats.userId, userId))
+        .orderBy(desc(userDailyStats.date))
       .limit(days);
 
     // 날짜 기준 오름차순으로 재정렬 (그래프 표시 등을 위해)

@@ -101,10 +101,10 @@ export default function StatisticsPage() {
               {recentExams.map(exam => (
                 <li key={exam.examId} className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors dark:bg-gray-800 dark:hover:bg-gray-700">
                   <Link href={`/results/${exam.resultId}/wrong-note`} className="flex justify-between items-center">
-                    <div>
+          <div>
                       <p className="font-medium text-gray-700 dark:text-gray-200">{exam.examName}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">응시일: {exam.date} / 점수: {exam.score}점</p>
-                    </div>
+                </div>
                     <ArrowRight className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                   </Link>
                 </li>
@@ -112,7 +112,7 @@ export default function StatisticsPage() {
             </ul>
           ) : <div className="text-center py-8 text-gray-400">최근 응시한 시험이 없습니다.</div>}
         </section>
-      </div>
+                </div>
       
       <div className="mt-10 p-6 bg-slate-50 rounded-xl shadow-inner">
           <h3 className="text-lg font-semibold text-slate-600 mb-3">향후 추가될 기능</h3>
@@ -124,7 +124,7 @@ export default function StatisticsPage() {
       </div>
     </div>
   );
-}
+} 
 
 const SummaryCard = ({ title, value, subText }: { title: string; value: string | number; subText?: string }) => (
   <div className="bg-gradient-to-br from-white to-slate-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow">

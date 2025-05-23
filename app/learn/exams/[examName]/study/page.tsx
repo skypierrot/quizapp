@@ -19,6 +19,8 @@ import { shuffleArray } from '@/utils/array';
 import { ImageZoomModal } from '@/components/common/ImageZoomModal';
 import { getImageUrl } from "@/utils/image";
 import { CommonImage } from "@/components/common/CommonImage";
+import { useOptionMemo } from '@/hooks/useOptionMemo';
+import { OptionMemoUI } from '@/components/common/OptionMemoUI';
 
 const SUBJECT_QUESTIONS_PER_PAGE = 50; // 한 번에 불러올 과목별 문제 수
 
@@ -50,6 +52,9 @@ const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, sho
 
   // 현재 섞인 선택지를 표시하는지 여부 판단
   const isDisplayingShuffled = !!(shuffledOptions && shuffledOptions.length > 0 && optionsToDisplay === shuffledOptions);
+
+  // 선택지별 메모 훅 사용 (id가 있을 때만)
+  const optionMemo = question.id ? useOptionMemo(question.id) : null;
 
   return (
     <div className="p-4 border rounded-lg bg-white shadow mb-4">
@@ -92,7 +97,7 @@ const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, sho
         return (
           <div 
             key={`q${question.id}-opt-${i}`} 
-            className={`p-3 my-2 border rounded-md transition-all duration-150 ${optionStyle}`}
+            className={`p-3 pr-10 my-2 border rounded-md transition-all duration-150 ${optionStyle} relative`}
             onClick={() => onOptionSelect && onOptionSelect(i)}
           >
             <span className="mr-2 font-medium">{displayOptionNumber}.</span>
@@ -106,6 +111,7 @@ const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, sho
                 ))}
               </div>
             )}
+            {optionMemo && <OptionMemoUI optionIndex={i} {...optionMemo} />}
           </div>
         );
       })}

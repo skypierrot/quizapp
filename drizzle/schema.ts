@@ -239,3 +239,23 @@ export const account = pgTable("account", {
 		}).onDelete("cascade"),
 	primaryKey({ columns: [table.provider, table.providerAccountId], name: "account_provider_providerAccountId_pk"}),
 ]);
+
+export const userQuestionOptionMemos = pgTable("user_question_option_memos", {
+	userId: text("user_id").notNull(),
+	questionId: uuid("question_id").notNull(),
+	optionIndex: integer("option_index").notNull(),
+	memo: text(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	foreignKey({
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "user_question_option_memos_user_id_user_id_fk"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.questionId],
+			foreignColumns: [questions.id],
+			name: "user_question_option_memos_question_id_questions_id_fk"
+		}).onDelete("cascade"),
+	primaryKey({ columns: [table.userId, table.questionId, table.optionIndex], name: "user_question_option_memos_pk" }),
+]);
