@@ -20,7 +20,9 @@ import { ImageZoomModal } from '@/components/common/ImageZoomModal';
 import { getImageUrl } from "@/utils/image";
 import { CommonImage } from "@/components/common/CommonImage";
 import { useOptionMemo } from '@/hooks/useOptionMemo';
-import { OptionMemoUI } from '@/components/common/OptionMemoUI';
+import { OptionMemoButton, OptionMemoContent } from '@/components/common/OptionMemoUI';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 const SUBJECT_QUESTIONS_PER_PAGE = 50; // 한 번에 불러올 과목별 문제 수
 
@@ -75,7 +77,6 @@ const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, sho
       {optionsToDisplay && optionsToDisplay.map((opt, i) => {
         const isSelected = userAnswer === i;
         const isCorrect = correctAnswerIndex === i;
-
         let optionStyle = "cursor-pointer hover:bg-blue-50 border-gray-300";
         if (showAnswer && isCorrect) {
           optionStyle = "ring-2 ring-green-500 border-green-500 bg-green-50";
@@ -88,20 +89,20 @@ const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, sho
             optionStyle = "bg-blue-100 border-blue-500 text-blue-800 font-semibold";
           }
         }
-        
-        // 선택지 번호 결정 로직
         const displayOptionNumber = isDisplayingShuffled
                                   ? i + 1
                                   : (opt.number !== undefined ? opt.number + 1 : i + 1);
-
         return (
-          <div 
-            key={`q${question.id}-opt-${i}`} 
-            className={`p-3 pr-10 my-2 border rounded-md transition-all duration-150 ${optionStyle} relative`}
-            onClick={() => onOptionSelect && onOptionSelect(i)}
-          >
-            <span className="mr-2 font-medium">{displayOptionNumber}.</span>
-            <span className="whitespace-pre-wrap">{opt.text}</span>
+          <React.Fragment key={`q${question.id}-opt-${i}`}>
+            <div className={`p-3 pr-10 my-2 border rounded-md transition-all duration-150 ${optionStyle} relative`} onClick={() => onOptionSelect && onOptionSelect(i)}>
+              {optionMemo && <OptionMemoButton optionIndex={i} {...optionMemo} />}
+              <span className="ml-2 mr-2 font-medium">{displayOptionNumber}.</span>
+              <span
+                className="flex-1 whitespace-pre-wrap"
+                dangerouslySetInnerHTML={{
+                  __html: opt.text || '',
+                }}
+              />
             {opt.images && opt.images.length > 0 && (
               <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {opt.images.map((img, imgIdx) => (
@@ -111,8 +112,9 @@ const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, sho
                 ))}
               </div>
             )}
-            {optionMemo && <OptionMemoUI optionIndex={i} {...optionMemo} />}
           </div>
+            {optionMemo && <OptionMemoContent optionIndex={i} {...optionMemo} />}
+          </React.Fragment>
         );
       })}
 

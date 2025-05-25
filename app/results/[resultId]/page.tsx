@@ -274,14 +274,14 @@ className="mb-4 prose max-w-none"
 dangerouslySetInnerHTML={{ __html: question.content }}
 />
 {question.images && question.images.length > 0 && (
-<div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+<div className="mb-6 flex flex-wrap gap-3">
 {question.images.map((image, imgIndex) => (
 <CommonImage
 key={`${question.id}-img-${imgIndex}`}
 src={getImageUrl(image.url)}
 alt={`문제 ${index + 1} 이미지 ${imgIndex + 1}`}
 hash={image.hash}
-className="rounded border cursor-pointer object-contain w-full h-auto max-h-60"
+className="rounded border cursor-pointer object-contain min-w-[150px] min-h-[150px] max-w-[300px] max-h-[250px] w-auto h-auto"
 onClick={() => imageZoom.showZoom(getImageUrl(image.url))}
 />
 ))}
@@ -320,14 +320,14 @@ isCorrect ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
 )}
 </Label>
 {option.images && option.images.length > 0 && (
-<div className="ml-6 mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+<div className="ml-6 mt-2 flex flex-wrap gap-2">
 {option.images.map((image, imgIndex) => (
 <CommonImage
 key={`${question.id}-opt-${optIndex}-img-${imgIndex}`}
 src={getImageUrl(image.url)}
 alt={`선택지 ${optIndex + 1} 이미지 ${imgIndex + 1}`}
 hash={image.hash}
-className="rounded border cursor-pointer object-contain w-full h-auto max-h-40"
+className="rounded border cursor-pointer object-contain min-w-[120px] min-h-[120px] max-w-[250px] max-h-[200px] w-auto h-auto"
 onClick={() => imageZoom.showZoom(getImageUrl(image.url))}
 />
 ))}
@@ -360,14 +360,14 @@ dangerouslySetInnerHTML={{ __html: question.explanation }}
 {question.explanationImages && question.explanationImages.length > 0 && (
 <div className="mt-4">
 <p className="text-sm font-semibold mb-2">해설 이미지:</p>
-<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+<div className="flex flex-wrap gap-3">
 {question.explanationImages.map((image, imgIndex) => (
 <CommonImage
 key={`${question.id}-exp-img-${imgIndex}`}
 src={getImageUrl(image.url)}
 alt={`해설 이미지 ${imgIndex + 1}`}
 hash={image.hash}
-className="rounded border cursor-pointer object-contain w-full h-auto max-h-60"
+className="rounded border cursor-pointer object-contain min-w-[150px] min-h-[150px] max-w-[300px] max-h-[250px] w-auto h-auto"
 onClick={() => imageZoom.showZoom(getImageUrl(image.url))}
 />
 ))}

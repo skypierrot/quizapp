@@ -35,8 +35,11 @@ export function useOptionMemo(questionId: string) {
     }
   };
 
-  const handleEditOptionMemo = (optionIndex: number) => {
-    setEditingOptionMemo({ [optionIndex]: { localEditText: optionsMemoText[optionIndex] || '' } });
+  const handleEditOptionMemo = (optionIndex: number, value: string) => {
+    setEditingOptionMemo(prev => ({
+      ...prev,
+      [optionIndex]: { localEditText: value }
+    }));
   };
 
   const handleCancelEditOptionMemo = (optionIndex: number) => {

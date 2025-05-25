@@ -5,6 +5,25 @@ import { exams } from '@/db/schema/exams'; // exams 스키마 경로 추가
 import { eq, desc } from 'drizzle-orm';
 import type { RecentExamStat } from '@/hooks/useRecentExamsStats';
 
+// 날짜를 YYYY-MM-DD hh:mm:ss 형식으로 변환하는 함수
+function formatDateTime(date: Date | string): string {
+  if (!date) return '';
+  
+  const d = new Date(date);
+  
+  // 날짜 부분: YYYY-MM-DD
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  
+  // 시간 부분: hh:mm:ss
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const seconds = String(d.getSeconds()).padStart(2, '0');
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get('userId');
@@ -22,27 +41,33 @@ export async function GET(request: NextRequest) {
         examId: examResults.id, 
         examName: examResults.examName,
         score: examResults.score,
-        // examResults.examDate는 Date 객체일 수 있으므로 ISO 문자열로 변환 필요
-        // 실제 Drizzle 반환 타입 및 테이블 컬럼 타입(date vs timestamp)에 따라 조정 필요
+        // 기존 date 필드 (호환성 유지)
         date: examResults.examDate, 
+        // 실제 시험 날짜
+        examDate: examResults.examDate,
+        // 사용자가 응시한 날짜
+        createdAt: examResults.createdAt,
         resultId: examResults.id,
         // exams 테이블과 조인하여 실제 examId를 가져오려면 스키마 관계 설정 및 조인 쿼리 필요
         // 우선 examResults.id를 examId로 사용
       })
       .from(examResults)
       .where(eq(examResults.userId, userId))
-      .orderBy(desc(examResults.examDate)) // examDate로 정렬
+      .orderBy(desc(examResults.createdAt)) // 응시일 기준으로 정렬 (사용자가 응시한 순서)
       .limit(limit);
 
     if (!results || results.length === 0) {
       return NextResponse.json([], { status: 200 });
     }
     
-    // 날짜 필드를 ISO 문자열로 변환 (YYYY-MM-DD)
+    // 날짜 필드를 형식에 맞게 변환
     const formattedResults: RecentExamStat[] = results.map(r => ({
       ...r,
-      // r.date가 확실히 string이 되도록 명시적 변환
+      // examDate는 YYYY-MM-DD 형식으로
       date: String(r.date), 
+      examDate: String(r.examDate),
+      // createdAt은 YYYY-MM-DD hh:mm:ss 형식으로
+      createdAt: formatDateTime(r.createdAt),
     }));
 
     return NextResponse.json(formattedResults, { status: 200 });

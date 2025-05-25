@@ -18,7 +18,7 @@ const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res
 export function useSummaryStats(userId?: string) {
   const url = userId
     ? `/api/statistics/summary?userId=${userId}`
-    : `/api/statistics/summary`;
+    : null;
   
   const { data, error, isLoading } = useSWR<SummaryStat | null>(url, fetcher);
 

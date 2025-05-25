@@ -5,6 +5,7 @@ import { db } from '@/db';
 import { examResults, type InsertExamResult } from '@/db/schema';
 import type { INewExamResult, IExamResult } from '@/types';
 import { eq, desc, and, gt } from 'drizzle-orm';
+import { updateStatsOnExamResultSave } from '@/middleware/statisticsMiddleware';
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -95,6 +96,17 @@ export async function POST(req: NextRequest) {
     };
     
     const [saved] = await db.insert(examResults).values(insertData).returning();
+    
+    // 시험 결과가 저장된 후 통계 업데이트
+    await updateStatsOnExamResultSave(userId, {
+      id: saved.id,
+      examId: `${saved.examName}-${saved.examYear}-${saved.examSubject}`, // examId 조합
+      score: saved.score, // 실제 점수 필드 사용
+      totalQuestions: saved.totalQuestions,
+      elapsedTime: saved.elapsedTime,
+      createdAt: saved.createdAt,
+    });
+    
     return NextResponse.json(saved, { status: 201 });
   } catch (error) {
     console.error('Error saving exam result:', error);

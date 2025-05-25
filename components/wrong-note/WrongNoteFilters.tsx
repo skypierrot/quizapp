@@ -13,7 +13,7 @@ import {
   TabsTrigger
 } from '@/components/ui/tabs';
 import {
-  AlertTriangle, BookmarkPlus, Filter, SortAsc, Star
+  AlertTriangle, BookmarkMinus, BookmarkPlus, Filter, SortAsc, Star, StarOff
 } from 'lucide-react';
 import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
@@ -50,16 +50,49 @@ export default function WrongNoteFilters({ onFilterChange }: WrongNoteFiltersPro
   }, [sortBy, filterType, showBookmarked, showImportant]);
   
   return (
-    <div className="mb-6 space-y-3">
-      <div className="flex flex-wrap gap-4 items-center">
-        <div className="flex items-center">
-          <SortAsc className="h-4 w-4 text-gray-500 mr-2" />
-          <span className="text-sm font-medium mr-2">정렬:</span>
+    <div className="mb-4 space-y-3">
+      <div className="flex flex-wrap gap-2 items-center mb-3">
+        <Button
+          variant={showBookmarked ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowBookmarked(!showBookmarked)}
+          className={`flex items-center gap-1.5 h-9 transition-colors duration-150 ${
+            showBookmarked ? 'bg-gray-100 hover:bg-gray-200 border-gray-300 text-gray-700' : ''
+          }`}
+        >
+          {showBookmarked ? (
+            <BookmarkMinus className="h-4 w-4" />
+          ) : (
+            <BookmarkPlus className="h-4 w-4" />
+          )}
+          <span>북마크{showBookmarked ? ' 해제' : '만'}</span>
+        </Button>
+        
+        <Button
+          variant={showImportant ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowImportant(!showImportant)}
+          className={`flex items-center gap-1.5 h-9 transition-colors duration-150 ${
+            showImportant ? 'bg-gray-100 hover:bg-gray-200 border-gray-300 text-gray-700' : ''
+          }`}
+        >
+          {showImportant ? (
+            <StarOff className="h-4 w-4" />
+          ) : (
+            <Star className="h-4 w-4" />
+          )}
+          <span>중요 문제{showImportant ? ' 해제' : '만'}</span>
+        </Button>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="flex flex-col">
+          <label className="text-sm font-medium mb-1.5 text-gray-700">정렬</label>
           <Select
             value={sortBy}
             onValueChange={(value) => setSortBy(value)}
           >
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="px-3 py-2 text-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500">
               <SelectValue placeholder="정렬 기준" />
             </SelectTrigger>
             <SelectContent>
@@ -71,14 +104,13 @@ export default function WrongNoteFilters({ onFilterChange }: WrongNoteFiltersPro
           </Select>
         </div>
         
-        <div className="flex items-center">
-          <Filter className="h-4 w-4 text-gray-500 mr-2" />
-          <span className="text-sm font-medium mr-2">복습상태:</span>
+        <div className="flex flex-col">
+          <label className="text-sm font-medium mb-1.5 text-gray-700">복습상태</label>
           <Select
             value={filterType}
             onValueChange={(value) => setFilterType(value)}
           >
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="px-3 py-2 text-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500">
               <SelectValue placeholder="복습 상태" />
             </SelectTrigger>
             <SelectContent>
@@ -91,31 +123,9 @@ export default function WrongNoteFilters({ onFilterChange }: WrongNoteFiltersPro
         </div>
       </div>
       
-      <div className="flex flex-wrap gap-2 items-center">
-        <Button
-          variant={showBookmarked ? "default" : "outline"}
-          size="sm"
-          onClick={() => setShowBookmarked(!showBookmarked)}
-          className="flex items-center gap-1 h-8"
-        >
-          <BookmarkPlus className="h-4 w-4" />
-          <span>북마크만</span>
-        </Button>
-        
-        <Button
-          variant={showImportant ? "default" : "outline"}
-          size="sm"
-          onClick={() => setShowImportant(!showImportant)}
-          className="flex items-center gap-1 h-8"
-        >
-          <Star className="h-4 w-4" />
-          <span>중요 문제만</span>
-        </Button>
-      </div>
-      
       {(showBookmarked || showImportant || filterType !== 'all') && (
-        <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-2 rounded">
-          <AlertTriangle className="h-4 w-4" />
+        <div className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 p-3 rounded-md border border-gray-200 mt-2">
+          <AlertTriangle className="h-4 w-4 text-gray-500" />
           <span>
             {showBookmarked && showImportant
               ? '북마크와 중요 표시된 문제만 표시 중'
@@ -139,7 +149,7 @@ export default function WrongNoteFilters({ onFilterChange }: WrongNoteFiltersPro
               setShowImportant(false);
               setFilterType('all');
             }}
-            className="h-6 px-2 ml-auto text-xs"
+            className="h-6 px-2 ml-auto text-xs hover:bg-gray-200 transition-colors duration-150"
           >
             필터 초기화
           </Button>

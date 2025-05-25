@@ -16,13 +16,15 @@ import { ImageZoomModal } from "@/components/common/ImageZoomModal";
 import { getImageUrl } from "@/utils/image";
 import { useSWRConfig } from 'swr';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, BarChart4, BookmarkPlus, BookmarkMinus, Star, StarOff, CheckCircle2, Circle, RotateCcw, ChevronUp, MessageSquarePlus } from 'lucide-react';
+import { FileText, BarChart4, BookmarkPlus, BookmarkMinus, Star, StarOff, CheckCircle2, Circle, RotateCcw, ChevronUp, MessageSquarePlus, Pencil } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import React from "react";
 import { useOptionMemo } from '@/hooks/useOptionMemo';
-import { OptionMemoUI } from '@/components/common/OptionMemoUI';
+import { OptionMemoButton, OptionMemoContent } from '@/components/common/OptionMemoUI';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 // 내부 개발 서버 기준 BASE_URL
 const BASE_URL = "https://quizapp-dev";
@@ -340,7 +342,7 @@ export default function WrongNoteReviewQuizPage() {
         {questionImages.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-2">
             {questionImages.map((imgUrl: string, i: number) => (
-              <MemoImage key={imgUrl} src={imgUrl} alt={`문제이미지${i+1}`} className="rounded border max-w-[120px] max-h-[120px]" onClick={() => imageZoom.showZoom(imgUrl)} />
+              <MemoImage key={imgUrl} src={imgUrl} alt={`문제이미지${i+1}`} className="rounded border min-w-[150px] min-h-[150px] max-w-[300px] max-h-[250px] w-auto h-auto object-contain cursor-pointer" onClick={() => imageZoom.showZoom(imgUrl)} />
             ))}
           </div>
         )}
@@ -351,20 +353,9 @@ export default function WrongNoteReviewQuizPage() {
             const isCorrect = i === q.correctAnswer;
             const isSelected = i === selectedAnswer;
             const isAnswered = q.userAnswer !== null && q.userAnswer !== undefined && q.userAnswer !== -1;
-            // 디버깅용 로그
-            console.log('[선택지]', {
-              i,
-              isUser,
-              isCorrect,
-              qUserAnswer: q.userAnswer,
-              qCorrectAnswer: q.correctAnswer,
-              opt,
-              retryMode,
-              showRetryResult,
-              selectedAnswer
-            });
+            
             // 스타일 결정
-            let optionClass = "flex flex-col gap-1 p-3 rounded border cursor-pointer transition-colors";
+            let optionClass = "flex items-start p-3 rounded border cursor-pointer transition-colors";
             if (!retryMode) {
               if (isUser && !isCorrect) optionClass += " bg-red-50 border-red-300"; // 오답(내 답)
               if (isCorrect) optionClass += " bg-green-50 border-green-300"; // 정답
@@ -378,60 +369,66 @@ export default function WrongNoteReviewQuizPage() {
               if (!showRetryResult && !isSelected) optionClass += " border-gray-200 hover:bg-gray-50";
             }
             return (
-              <div
-                key={i}
-                className={`${optionClass} relative`}
-                onClick={() => retryMode && handleSelectOption(i)}
-              >
-                <div className="flex items-start">
-                  <span className="font-medium text-gray-700 mr-2">{i+1}.</span>
-                  <span className="flex-1">{typeof opt === 'string' ? opt : opt?.text || ''}</span>
-                  <OptionMemoUI optionIndex={i} {...optionMemo} />
-                  {/* 내 답/정답/오답 표시 */}
-                  {!retryMode && isUser && (
-                    <span className={
-                      isCorrect
-                        ? 'text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700'
-                        : 'text-xs font-medium px-1.5 py-0.5 rounded bg-red-100 text-red-700'
-                    }>
-                      내 답
-                    </span>
-                  )}
-                  {!retryMode && isCorrect && !isUser && (
-                    <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">정답</span>
-                  )}
-                  {retryMode && showRetryResult && isSelected && (
-                    <span className={
-                      isCorrect
-                        ? 'text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700'
-                        : 'text-xs font-medium px-1.5 py-0.5 rounded bg-red-100 text-red-700'
-                    }>
-                      {isCorrect ? '정답' : '오답'}
-                    </span>
-                  )}
-                  {retryMode && showRetryResult && !isSelected && isCorrect && (
-                    <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">정답</span>
-                  )}
-                </div>
-                {/* 선택지 이미지 */}
-                {opt?.images && Array.isArray(opt.images) && opt.images.length > 0 && (
-                  <div className="ml-6 mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {opt.images.map((img: any, j: number) => {
-                      const imageUrl = getSafeImageUrl(img?.url || img);
-                      if (!imageUrl) return null;
-                      return (
-                        <MemoImage
-                          key={`opt-${i}-img-${j}`}
-                          src={imageUrl}
-                          alt={`선택지${i+1}-${j+1}`}
-                          className="block max-w-full h-auto object-contain mx-auto border rounded"
-                          onClick={() => imageZoom.showZoom(imageUrl)}
-                        />
-                      );
-                    })}
+              <React.Fragment key={i}>
+                <div className={`${optionClass} relative`} onClick={() => retryMode && handleSelectOption(i)}>
+                  <div className="flex-shrink-0 mr-2 font-medium text-gray-700">{i+1}.</div>
+                  <div className="flex-1">
+                    {typeof opt === 'string' ? opt : opt?.text || ''}
+                    
+                    {/* 선택지 이미지 추가 */}
+                    {opt?.images && Array.isArray(opt.images) && opt.images.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {opt.images.map((img: any, imgIdx: number) => (
+                          <MemoImage 
+                            key={`opt-${i}-img-${imgIdx}`} 
+                            src={getSafeImageUrl(img?.url || img)} 
+                            alt={`선택지 ${i+1} 이미지 ${imgIdx+1}`} 
+                            className="rounded border min-w-[120px] min-h-[120px] max-w-[250px] max-h-[200px] w-auto h-auto object-contain cursor-pointer" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              imageZoom.showZoom(getSafeImageUrl(img?.url || img));
+                            }} 
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                  
+                  {/* 정답/내답/오답 배지 - 별도 공간에 배치 */}
+                  <div className="flex-shrink-0 ml-3 flex items-center gap-2">
+                    {!retryMode && isUser && (
+                      <span className={
+                        isCorrect
+                          ? 'text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700'
+                          : 'text-xs font-medium px-1.5 py-0.5 rounded bg-red-100 text-red-700'
+                      }>
+                        내 답
+                      </span>
+                    )}
+                    {!retryMode && isCorrect && !isUser && (
+                      <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">정답</span>
+                    )}
+                    {retryMode && showRetryResult && isSelected && (
+                      <span className={
+                        isCorrect
+                          ? 'text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700'
+                          : 'text-xs font-medium px-1.5 py-0.5 rounded bg-red-100 text-red-700'
+                      }>
+                        {isCorrect ? '정답' : '오답'}
+                      </span>
+                    )}
+                    {retryMode && showRetryResult && !isSelected && isCorrect && (
+                      <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">정답</span>
+                    )}
+                  
+                    {/* 선택지 메모 버튼 - 배지 오른쪽에 배치 */}
+                    {optionMemo && 
+                      <OptionMemoButton optionIndex={i} {...optionMemo} />
+                    }
+                  </div>
+                </div>
+                <OptionMemoContent optionIndex={i} {...optionMemo} />
+              </React.Fragment>
             );
           })}
           {/* 미응답 안내 */}
@@ -465,9 +462,12 @@ export default function WrongNoteReviewQuizPage() {
           )}
         </div>
         {/* 해설/정답/해설이미지 */}
-        <div className="bg-gray-50 p-3 rounded mb-2">
-          <div className="mb-2">
-            <p className="text-sm font-semibold mb-1">해설:</p>
+        <div className="bg-gray-100 p-4 rounded-md mb-2 border border-gray-200">
+          <div className="mb-3">
+            <h3 className="text-md font-semibold mb-2 text-gray-700 flex items-center gap-1.5">
+              <FileText className="h-4 w-4" />
+              <span>해설</span>
+            </h3>
             <div className="prose prose-sm max-w-none text-sm" dangerouslySetInnerHTML={{__html: q?.explanation || ''}} />
           </div>
           {explanationImages.length > 0 && (
@@ -477,7 +477,7 @@ export default function WrongNoteReviewQuizPage() {
                   key={imgUrl}
                   src={imgUrl}
                   alt={`해설이미지${i+1}`}
-                  className="block max-w-full h-auto object-contain mx-auto border rounded"
+                  className="block min-w-[150px] min-h-[150px] max-w-[300px] max-h-[250px] w-auto h-auto object-contain mx-auto border rounded cursor-pointer"
                   onClick={() => imageZoom.showZoom(imgUrl)}
                 />
               ))}
@@ -485,32 +485,59 @@ export default function WrongNoteReviewQuizPage() {
           )}
         </div>
         {/* 메모 */}
-        <div className="mt-4 border-2 border-blue-200 rounded bg-blue-50 p-3">
-          <div className="font-semibold text-blue-700 mb-2 flex items-center gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487c.637-.637 1.671-.184 1.671.715V18a2 2 0 01-2 2H7a2 2 0 01-2-2V5.202c0-.899 1.034-1.352 1.671-.715l2.829 2.829a1 1 0 001.414 0l2.828-2.829z" /></svg>
-            나의 메모
+        <div className="mt-4 border border-gray-200 rounded-md">
+          <div className="flex justify-between items-center border-b border-gray-200 p-2">
+            <div className="flex items-center gap-1.5">
+              <Pencil className="w-4 h-4 text-gray-600" />
+              <span className="font-medium text-gray-700 text-sm">나의 메모</span>
+            </div>
+            {!editMode && (
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                onClick={() => setEditMode(true)} 
+                className="h-7 px-2 text-xs text-gray-600 hover:bg-gray-100"
+              >
+                수정
+              </Button>
+            )}
           </div>
           {editMode ? (
-            <>
+            <div className="p-3 space-y-2">
               <textarea
                 value={localEditMemo}
                 onChange={e => setLocalEditMemo(e.target.value)}
-                className="w-full border rounded p-2 text-sm"
-                rows={2}
+                className="w-full border border-gray-200 rounded p-2 text-sm focus:ring-1 focus:ring-gray-400 focus:border-gray-400"
+                rows={3}
                 placeholder="이 문제에 대한 나만의 메모를 남겨보세요!"
               />
-              <div className="flex gap-2 mt-1 justify-end">
-                <button onClick={handleSaveMemo} className="px-3 py-1 bg-blue-500 text-white rounded">저장</button>
-                <button onClick={() => setEditMode(false)} className="px-3 py-1 bg-gray-300 rounded">취소</button>
+              <div className="flex gap-1 justify-end">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => setEditMode(false)}
+                  className="h-7 px-2 text-xs"
+                >
+                  취소
+                </Button>
+                <Button 
+                  size="sm" 
+                  onClick={handleSaveMemo}
+                  className="h-7 px-2 text-xs bg-gray-800 hover:bg-gray-900 text-white"
+                >
+                  저장
+                </Button>
               </div>
-            </>
+            </div>
           ) : (
-            <>
-              <div className="text-sm min-h-[2em]">{memo || <span className="text-gray-400">메모 없음</span>}</div>
-              <div className="flex gap-2 mt-1 justify-end">
-                <button onClick={() => setEditMode(true)} className="px-3 py-1 bg-gray-200 rounded">수정</button>
+            <div className="p-3">
+              <div
+                className="text-sm text-gray-700 whitespace-pre-wrap min-h-[20px]"
+                dangerouslySetInnerHTML={{
+                  __html: memo ? DOMPurify.sanitize(marked.parse(memo || '', { renderer: new marked.Renderer(), async: false })) : '<span class="text-gray-400">메모 없음</span>',
+                }}
+              />
               </div>
-            </>
           )}
         </div>
       </div>
@@ -565,13 +592,13 @@ export default function WrongNoteReviewQuizPage() {
   const FilterBar = () => {
     return (
       <div className="mb-6 space-y-3">
-        <div className="flex flex-wrap gap-4 items-center">
-          <div className="flex items-center">
-            <span className="text-sm font-medium mr-2">정렬:</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="flex flex-col">
+            <label className="text-sm font-medium mb-1.5 text-gray-700">정렬</label>
             <select 
               value={filters.sortBy} 
               onChange={e => handleFilterChange({...filters, sortBy: e.target.value})}
-              className="px-2 py-1 border rounded text-sm"
+              className="px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="wrongCount">오답 횟수 (많은순)</option>
               <option value="wrongCountAsc">오답 횟수 (적은순)</option>
@@ -580,24 +607,22 @@ export default function WrongNoteReviewQuizPage() {
             </select>
           </div>
           
-          <div className="flex items-center">
-            <span className="text-sm font-medium mr-2">복습상태:</span>
+          <div className="flex flex-col">
+            <label className="text-sm font-medium mb-1.5 text-gray-700">복습상태</label>
             <select 
               value={filters.filterType} 
               onChange={e => handleFilterChange({...filters, filterType: e.target.value})}
-              className="px-2 py-1 border rounded text-sm"
+              className="px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">전체 보기</option>
               <option value="not-reviewed">미복습</option>
               <option value="reviewing">복습 중</option>
               <option value="completed">복습 완료</option>
             </select>
-          </div>
         </div>
         
-        <div className="flex flex-wrap gap-4 items-center">
-          <div className="flex items-center">
-            <span className="text-sm font-medium mr-2">시험유형:</span>
+          <div className="flex flex-col">
+            <label className="text-sm font-medium mb-1.5 text-gray-700">시험유형</label>
             <select 
               value={examType} 
               onChange={e => {
@@ -605,7 +630,7 @@ export default function WrongNoteReviewQuizPage() {
                 setExamType(e.target.value);
                 setTimeout(() => setIsFiltering(false), 300);
               }}
-              className="px-2 py-1 border rounded text-sm"
+              className="px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               {examTypeList.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -613,8 +638,8 @@ export default function WrongNoteReviewQuizPage() {
             </select>
           </div>
           
-          <div className="flex items-center">
-            <span className="text-sm font-medium mr-2">태그:</span>
+          <div className="flex flex-col">
+            <label className="text-sm font-medium mb-1.5 text-gray-700">태그</label>
             <select 
               value={tag} 
               onChange={e => {
@@ -622,7 +647,7 @@ export default function WrongNoteReviewQuizPage() {
                 setTag(e.target.value);
                 setTimeout(() => setIsFiltering(false), 300);
               }}
-              className="px-2 py-1 border rounded text-sm"
+              className="px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               {tagList.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -631,42 +656,8 @@ export default function WrongNoteReviewQuizPage() {
           </div>
         </div>
         
-        <div className="flex flex-wrap gap-2 items-center">
-          <Button
-            variant={filters.showBookmarked ? "default" : "outline"}
-            size="sm"
-            onClick={() => handleFilterChange({...filters, showBookmarked: !filters.showBookmarked})}
-            className={`flex items-center gap-1 h-8 transition-colors duration-150 ${
-              filters.showBookmarked ? 'bg-blue-100 hover:bg-blue-200 border-blue-300' : ''
-            }`}
-          >
-            {filters.showBookmarked ? (
-              <BookmarkMinus className="h-4 w-4 text-blue-600" />
-            ) : (
-              <BookmarkPlus className="h-4 w-4" />
-            )}
-            <span>북마크{filters.showBookmarked ? ' 해제' : '만'}</span>
-          </Button>
-          
-          <Button
-            variant={filters.showImportant ? "default" : "outline"}
-            size="sm"
-            onClick={() => handleFilterChange({...filters, showImportant: !filters.showImportant})}
-            className={`flex items-center gap-1 h-8 transition-colors duration-150 ${
-              filters.showImportant ? 'bg-yellow-100 hover:bg-yellow-200 border-yellow-300' : ''
-            }`}
-          >
-            {filters.showImportant ? (
-              <StarOff className="h-4 w-4 text-yellow-600" />
-            ) : (
-              <Star className="h-4 w-4" />
-            )}
-            <span>중요 문제{filters.showImportant ? ' 해제' : '만'}</span>
-          </Button>
-        </div>
-        
         {(filters.showBookmarked || filters.showImportant || filters.filterType !== 'all' || examType || tag) && (
-          <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-2 rounded">
+          <div className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 p-3 rounded-md border border-gray-200">
             <span>
               필터 적용 중: 
               {filters.showBookmarked ? ' 북마크' : ''}
@@ -693,7 +684,7 @@ export default function WrongNoteReviewQuizPage() {
                 setTag("");
                 setTimeout(() => setIsFiltering(false), 300);
               }}
-              className="h-6 px-2 ml-auto text-xs hover:bg-blue-100 transition-colors duration-150"
+              className="h-6 px-2 ml-auto text-xs hover:bg-gray-200 transition-colors duration-150"
             >
               필터 초기화
             </Button>
@@ -839,12 +830,44 @@ export default function WrongNoteReviewQuizPage() {
         
         <TabsContent value="problems">
           {/* 한 문제씩 보기 토글 */}
-          <div className="mb-4">
+          <div className="mb-4 flex flex-wrap gap-2 items-center">
             <Button 
               onClick={() => setSingleView(v => !v)}
-              className="transition-all duration-150 hover:shadow-md"
+              className="transition-all duration-150 hover:shadow-md bg-gray-800 text-white"
             >
               {singleView ? '전체 문제 보기' : '한 문제씩 보기'}
+            </Button>
+            
+            <Button
+              variant={filters.showBookmarked ? "default" : "outline"}
+              size="sm"
+              onClick={() => handleFilterChange({...filters, showBookmarked: !filters.showBookmarked})}
+              className={`flex items-center gap-1.5 h-9 transition-colors duration-150 ${
+                filters.showBookmarked ? 'bg-gray-100 hover:bg-gray-200 border-gray-300 text-gray-700' : ''
+              }`}
+            >
+              {filters.showBookmarked ? (
+                <BookmarkMinus className="h-4 w-4" />
+              ) : (
+                <BookmarkPlus className="h-4 w-4" />
+              )}
+              <span>북마크{filters.showBookmarked ? ' 해제' : '만'}</span>
+            </Button>
+            
+            <Button
+              variant={filters.showImportant ? "default" : "outline"}
+              size="sm"
+              onClick={() => handleFilterChange({...filters, showImportant: !filters.showImportant})}
+              className={`flex items-center gap-1.5 h-9 transition-colors duration-150 ${
+                filters.showImportant ? 'bg-gray-100 hover:bg-gray-200 border-gray-300 text-gray-700' : ''
+              }`}
+            >
+              {filters.showImportant ? (
+                <StarOff className="h-4 w-4" />
+              ) : (
+                <Star className="h-4 w-4" />
+              )}
+              <span>중요 문제{filters.showImportant ? ' 해제' : '만'}</span>
             </Button>
           </div>
           
@@ -852,15 +875,15 @@ export default function WrongNoteReviewQuizPage() {
           <FilterBar />
           
           {/* 정렬 탭 */}
-          <div className="flex mb-4 border-b">
+          <div className="flex mb-4 border rounded-md overflow-hidden shadow-sm">
             <button 
-              className={`flex-1 py-2 transition-all duration-150 ${sortByTab === 'wrongCount' ? 'font-bold border-b-2 border-blue-500' : 'hover:bg-gray-50'}`} 
+              className={`flex-1 py-3 px-2 transition-all duration-150 ${sortByTab === 'wrongCount' ? 'bg-gray-100 font-bold text-gray-800' : 'hover:bg-gray-50'}`} 
               onClick={() => setSortByTab('wrongCount')}
             >
               누적 오답순
             </button>
             <button 
-              className={`flex-1 py-2 transition-all duration-150 ${sortByTab === 'recent' ? 'font-bold border-b-2 border-blue-500' : 'hover:bg-gray-50'}`} 
+              className={`flex-1 py-3 px-2 transition-all duration-150 ${sortByTab === 'recent' ? 'bg-gray-100 font-bold text-gray-800' : 'hover:bg-gray-50'}`} 
               onClick={() => setSortByTab('recent')}
             >
               최신 오답순
