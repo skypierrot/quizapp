@@ -68,30 +68,16 @@ export default function StatisticsPage() {
         // 학습 시간
         dailyStudyMinutes: dailyStudyMinutes,
         cumulativeStudyMinutes: cumulativeStudyMinutes,
+        
+        // 전체 통계 관련 정보
+        isGlobal: d.isGlobal,
+        userCount: d.userCount,
       };
     });
   }, [daily]);
 
   const renderLoading = () => <div className="text-center py-4 text-gray-500">데이터를 불러오는 중...</div>;
   const renderError = (message: string = "데이터를 불러오는데 실패했습니다.") => <div className="text-center py-4 text-red-500">⚠️ {message}</div>;
-
-  // 로그인하지 않은 경우 로그인 안내 메시지 표시
-  if (!userId) {
-    return (
-      <div className="container mx-auto py-16 px-4 text-center">
-        <h1 className="text-3xl font-bold mb-6 text-gray-800">종합 학습 통계</h1>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 max-w-md mx-auto">
-          <p className="text-lg text-blue-800 mb-4">통계를 확인하려면 로그인이 필요합니다.</p>
-          <Link 
-            href="/login" 
-            className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium rounded px-5 py-2.5 transition-colors"
-          >
-            로그인하러 가기
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -101,9 +87,33 @@ export default function StatisticsPage() {
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          최근 30일간의 학습 데이터를 기반으로 합니다
+          {userId 
+            ? "최근 30일간의 개인 학습 데이터를 기반으로 합니다"
+            : "전체 사용자의 평균 학습 데이터를 보여줍니다"}
         </div>
       </div>
+
+      {!userId && (
+        <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200 flex justify-between items-center">
+          <div className="flex items-center">
+            <div className="p-2 bg-blue-100 rounded-full mr-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-blue-800 font-medium">지금 보고 계신 통계는 모든 사용자의 평균 데이터입니다.</p>
+              <p className="text-blue-600 text-sm mt-1">로그인하시면 개인 맞춤형 통계를 확인하실 수 있습니다.</p>
+            </div>
+          </div>
+          <Link
+            href="/login"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded transition-colors"
+          >
+            로그인하기
+          </Link>
+        </div>
+      )}
 
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         {summaryLoading ? <div className="col-span-full flex justify-center items-center h-24">{renderLoading()}</div> : summaryError ? <div className="col-span-full">{renderError("요약 정보를 불러올 수 없습니다. " + summaryError.message)}</div> : summary ? (
@@ -111,7 +121,7 @@ export default function StatisticsPage() {
             <SummaryCard 
               title="총 학습 시간" 
               value={formatStudyTime(summary.totalStudyTime)} 
-              subText={userId ? `연속 ${summary.streak}일 학습중` : '전체 사용자 평균'} 
+              subText={userId ? `연속 ${summary.streak}일 학습중` : `${summary.totalUsers || 0}명의 평균`} 
               icon={
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -135,7 +145,7 @@ export default function StatisticsPage() {
             <SummaryCard 
               title="평균 정답률" 
               value={`${Math.round(summary.correctRate * 100)}%`} 
-              subText="전체 학습 기간" 
+              subText={userId ? "전체 학습 기간" : "전체 사용자 평균"} 
               icon={
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -145,9 +155,9 @@ export default function StatisticsPage() {
               iconClass="text-amber-500"
             />
             <SummaryCard 
-              title="연속 학습일" 
-              value={userId ? `${summary.streak} 일` : '-'} 
-              subText={userId ? "최근 30일 기준" : "개인 기록"} 
+              title={userId ? "연속 학습일" : "평균 연속 학습일"} 
+              value={`${summary.streak} 일`} 
+              subText={userId ? "최근 30일 기준" : `${summary.totalUsers || 0}명의 평균`} 
               icon={
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -520,7 +530,20 @@ export default function StatisticsPage() {
             </span>
             과목별 학습 성취도
           </h2>
-          {subjectStatsLoading ? renderLoading() : subjectStatsError ? renderError("과목별 학습 데이터를 불러올 수 없습니다. " + subjectStatsError.message) : subjectStats && subjectStats.length > 0 ? (
+          {!userId ? (
+            <div className="py-16 text-center">
+              <div className="mb-4 inline-block p-3 bg-sky-50 text-sky-600 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-700 mb-2">개인 학습 데이터가 필요합니다</h3>
+              <p className="text-gray-500 mb-4">로그인하시면 과목별 성취도를 확인할 수 있습니다.</p>
+              <Link href="/login" className="inline-block px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors">
+                로그인하기
+              </Link>
+            </div>
+          ) : subjectStatsLoading ? renderLoading() : subjectStatsError ? renderError("과목별 학습 데이터를 불러올 수 없습니다. " + subjectStatsError.message) : subjectStats && subjectStats.length > 0 ? (
             <div className="overflow-y-auto pr-1" style={{ maxHeight: '350px', scrollbarWidth: 'thin' }}>
               <div className="space-y-5">
                 {subjectStats.map(stat => {
@@ -569,7 +592,20 @@ export default function StatisticsPage() {
             </span>
             최근 응시 시험
           </h2>
-          {recentExamsLoading ? renderLoading() : recentExamsError ? renderError("최근 시험 데이터를 불러올 수 없습니다. " + recentExamsError.message) : recentExams && recentExams.length > 0 ? (
+          {!userId ? (
+            <div className="py-16 text-center">
+              <div className="mb-4 inline-block p-3 bg-purple-50 text-purple-600 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-700 mb-2">개인 시험 결과가 필요합니다</h3>
+              <p className="text-gray-500 mb-4">로그인하시면 최근 응시한 시험 결과를 확인할 수 있습니다.</p>
+              <Link href="/login" className="inline-block px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                로그인하기
+              </Link>
+            </div>
+          ) : recentExamsLoading ? renderLoading() : recentExamsError ? renderError("최근 시험 데이터를 불러올 수 없습니다. " + recentExamsError.message) : recentExams && recentExams.length > 0 ? (
             <div className="overflow-y-auto pr-1" style={{ maxHeight: '350px', scrollbarWidth: 'thin' }}>
               <ul className="space-y-3">
                 {recentExams.map(exam => (
@@ -652,9 +688,18 @@ export default function StatisticsPage() {
           </div>
         </div>
         <div className="mt-6 text-center">
-          <button className="px-5 py-2 bg-teal-50 text-teal-600 rounded-lg font-medium hover:bg-teal-100 transition-colors">
-            기능 제안하기
-          </button>
+          {!userId ? (
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              <p className="text-gray-600 mb-4">더 많은 기능과 개인화된 통계를 이용하려면 로그인하세요.</p>
+              <Link href="/login" className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
+                로그인하고 시작하기
+              </Link>
+            </div>
+          ) : (
+            <button className="px-5 py-2 bg-teal-50 text-teal-600 rounded-lg font-medium hover:bg-teal-100 transition-colors">
+              기능 제안하기
+            </button>
+          )}
         </div>
       </div>
     </div>

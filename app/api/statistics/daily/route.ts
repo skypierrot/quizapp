@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { userDailyStats } from '@/db/schema/userDailyStats';
 import { examResults } from '@/db/schema/examResults';
-import { eq, desc, and, gte, lte, sql } from 'drizzle-orm';
+import { eq, desc, and, gte, lte, sql, avg } from 'drizzle-orm';
 import type { DailyStat } from '@/hooks/useDailyStats';
 
 // 데이터베이스에서 가져온 통계 타입 정의
@@ -23,6 +23,8 @@ interface DbExamStat {
 // 확장된 일별 통계 타입
 interface ExtendedDailyStat extends DailyStat {
   totalQuestions?: number; // 전체 문제 수 추가
+  isGlobal?: boolean; // 전체 사용자 통계 여부
+  userCount?: number; // 해당 날짜의 사용자 수
 }
 
 export async function GET(request: NextRequest) {
@@ -30,11 +32,6 @@ export async function GET(request: NextRequest) {
   const userId = searchParams.get('userId');
   const daysParam = searchParams.get('days');
   const days = daysParam ? parseInt(daysParam, 10) : 30; // 기본값 30일
-
-  if (!userId) {
-    // 전체 사용자 통계가 필요한 경우 (미구현)
-    return NextResponse.json({ error: 'userId is required' }, { status: 400 });
-  }
 
   try {
     // 현재 날짜를 기준으로 days일 전 날짜 계산
@@ -45,6 +42,92 @@ export async function GET(request: NextRequest) {
     // 날짜를 YYYY-MM-DD 형식의 문자열로 변환
     const startDateStr = startDate.toISOString().split('T')[0];
     
+    if (!userId) {
+      // 전체 사용자 일별 통계 계산
+      // userDailyStats에서 날짜별 평균 통계 가져오기
+      const globalDailyStats = await db
+        .select({
+          date: userDailyStats.date,
+          avgSolvedCount: sql<number>`AVG(${userDailyStats.solvedCount})`,
+          avgStudyTime: sql<number>`AVG(${userDailyStats.totalStudyTime})`,
+          avgCorrectCount: sql<number>`AVG(${userDailyStats.correctCount})`,
+          userCount: sql<number>`COUNT(DISTINCT ${userDailyStats.userId})`,
+        })
+        .from(userDailyStats)
+        .where(gte(userDailyStats.date, startDateStr))
+        .groupBy(userDailyStats.date)
+        .orderBy(desc(userDailyStats.date));
+
+      // examResults에서 날짜별 평균 통계 가져오기
+      const startDateIso = startDate.toISOString();
+      const globalExamStats = await db
+        .select({
+          date: sql<string>`cast(${examResults.createdAt} as date)`.as('date'),
+          avgSolvedCount: sql<number>`AVG(1)`.as('avg_solved_count'), // 응시한 시험 수의 평균
+          avgCorrectCount: sql<number>`AVG(${examResults.correctCount})`.as('avg_correct_count'),
+          avgTotalQuestions: sql<number>`AVG(${examResults.totalQuestions})`.as('avg_total_questions'),
+          userCount: sql<number>`COUNT(DISTINCT ${examResults.userId})`.as('user_count'),
+        })
+        .from(examResults)
+        .where(sql`${examResults.createdAt} >= ${startDateIso}`)
+        .groupBy(sql`cast(${examResults.createdAt} as date)`)
+        .orderBy(desc(sql`cast(${examResults.createdAt} as date)`));
+
+      // 결과 합치기
+      const statsMap = new Map<string, ExtendedDailyStat>();
+      
+      // userDailyStats 데이터 추가
+      globalDailyStats.forEach(stat => {
+        const dateStr = String(stat.date);
+        statsMap.set(dateStr, {
+          date: dateStr,
+          solvedCount: Math.round(Number(stat.avgSolvedCount || 0)),
+          totalStudyTime: Math.round(Number(stat.avgStudyTime || 0)),
+          correctCount: Math.round(Number(stat.avgCorrectCount || 0)),
+          totalQuestions: 0,
+          isGlobal: true,
+          userCount: Number(stat.userCount || 0),
+        });
+      });
+      
+      // examResults 데이터 추가 또는 합산
+      globalExamStats.forEach(stat => {
+        if (!stat.date) return;
+        
+        const dateStr = String(stat.date);
+        const avgCorrectCount = Math.round(Number(stat.avgCorrectCount || 0));
+        const avgTotalQuestions = Math.round(Number(stat.avgTotalQuestions || 0));
+        
+        if (statsMap.has(dateStr)) {
+          const existingStat = statsMap.get(dateStr)!;
+          statsMap.set(dateStr, {
+            ...existingStat,
+            solvedCount: existingStat.solvedCount + Math.round(Number(stat.avgSolvedCount || 0)),
+            correctCount: existingStat.correctCount + avgCorrectCount,
+            totalQuestions: (existingStat.totalQuestions || 0) + avgTotalQuestions,
+            userCount: Math.max(existingStat.userCount || 0, Number(stat.userCount || 0)),
+          });
+        } else {
+          statsMap.set(dateStr, {
+            date: dateStr,
+            solvedCount: Math.round(Number(stat.avgSolvedCount || 0)),
+            totalStudyTime: 0,
+            correctCount: avgCorrectCount,
+            totalQuestions: avgTotalQuestions,
+            isGlobal: true,
+            userCount: Number(stat.userCount || 0),
+          });
+        }
+      });
+      
+      // 결과를 배열로 변환하고 날짜순으로 정렬
+      const formattedResults: ExtendedDailyStat[] = Array.from(statsMap.values())
+        .sort((a, b) => a.date.localeCompare(b.date));
+      
+      return NextResponse.json(formattedResults, { status: 200 });
+    }
+
+    // 개별 사용자 통계 (기존 코드)
     // userDailyStats에서 최근 N일 데이터 가져오기
     let dailyStats: DbDailyStat[] = [];
     try {
@@ -123,6 +206,7 @@ export async function GET(request: NextRequest) {
         totalStudyTime: Number(stat.totalStudyTime || 0),
         correctCount: Number(stat.correctCount || 0),
         totalQuestions: 0, // 초기화
+        isGlobal: false,
       });
     });
     
@@ -153,6 +237,7 @@ export async function GET(request: NextRequest) {
           totalStudyTime: 0, // 시험 시간은 별도로 기록되지 않음
           correctCount: correctCount,
           totalQuestions: totalQuestions,
+          isGlobal: false,
         });
       }
     });

@@ -5,6 +5,8 @@ export interface SummaryStat {
   totalSolved: number;
   correctRate: number;
   streak: number;
+  isGlobal?: boolean;
+  totalUsers?: number;
 }
 
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => {
@@ -18,7 +20,7 @@ const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res
 export function useSummaryStats(userId?: string) {
   const url = userId
     ? `/api/statistics/summary?userId=${userId}`
-    : null;
+    : `/api/statistics/summary`;
   
   const { data, error, isLoading } = useSWR<SummaryStat | null>(url, fetcher);
 

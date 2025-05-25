@@ -6,6 +6,8 @@ export interface DailyStat {
   totalStudyTime: number;
   correctCount: number;
   totalQuestions?: number;
+  isGlobal?: boolean;
+  userCount?: number;
 }
 
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => {
@@ -19,7 +21,7 @@ const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res
 export function useDailyStats(userId?: string) {
   const url = userId
     ? `/api/statistics/daily?userId=${userId}`
-    : null;
+    : `/api/statistics/daily`;
   
   const { data, error, isLoading } = useSWR<DailyStat[] | null>(url, fetcher);
 

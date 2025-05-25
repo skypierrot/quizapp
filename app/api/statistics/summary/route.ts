@@ -2,25 +2,72 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { userStats } from '@/db/schema/userStats';
 import { userDailyStats } from '@/db/schema/userDailyStats';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql, avg, sum, count } from 'drizzle-orm';
 
 export interface SummaryStat {
   totalStudyTime: number;
   totalSolved: number;
   correctRate: number;
   streak: number;
+  isGlobal?: boolean;
+  totalUsers?: number;
 }
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-
-  if (!userId) {
-    // 전체 사용자 통계가 필요한 경우 (미구현)
-    return NextResponse.json({ error: 'userId is required' }, { status: 400 });
-  }
+  const userId = searchParams.get('userId');
 
   try {
+    if (!userId) {
+      // 전체 사용자 통계 제공
+      // 1. 전체 사용자의 평균 정보 계산
+      const globalStats = await db
+        .select({
+          avgCorrectRate: sql<number>`AVG(${userStats.totalCorrect}::float / NULLIF(${userStats.totalQuestions}, 0))`,
+          avgSolved: sql<number>`AVG(${userStats.totalQuestions})`,
+          totalUsers: count(userStats.userId),
+        })
+        .from(userStats);
+
+      // 2. 전체 사용자의 총 학습 시간 (최근 30일)
+      const studyTimeStats = await db
+        .select({
+          avgStudyTime: sql<number>`AVG(SUM(${userDailyStats.totalStudyTime}))`,
+          avgStreak: sql<number>`AVG(${userDailyStats.streak})`,
+        })
+        .from(userDailyStats)
+        .groupBy(userDailyStats.userId);
+
+      // 3. 통계 데이터 집계
+      const totalUsers = globalStats[0]?.totalUsers || 0;
+      const avgCorrectRate = globalStats[0]?.avgCorrectRate || 0;
+      const avgSolved = Math.round(globalStats[0]?.avgSolved || 0);
+      
+      // 평균 학습 시간과 연속 학습일 계산
+      let avgStudyTime = 0;
+      let avgStreak = 0;
+      
+      if (studyTimeStats.length > 0) {
+        const totalAvgStudyTime = studyTimeStats.reduce((acc, curr) => acc + (curr.avgStudyTime || 0), 0);
+        const totalAvgStreak = studyTimeStats.reduce((acc, curr) => acc + (curr.avgStreak || 0), 0);
+        
+        avgStudyTime = Math.round(totalAvgStudyTime / studyTimeStats.length);
+        avgStreak = Math.round(totalAvgStreak / studyTimeStats.length);
+      }
+
+      const globalSummaryData: SummaryStat = {
+        totalStudyTime: avgStudyTime,
+        totalSolved: avgSolved,
+        correctRate: avgCorrectRate,
+        streak: avgStreak,
+        isGlobal: true,
+        totalUsers: totalUsers,
+      };
+
+      return NextResponse.json(globalSummaryData, { status: 200 });
+    }
+
+    // 개별 사용자 통계 - 기존 코드 유지
     // 1. userStats에서 정보 가져오기
     const stats = await db
       .select({
@@ -66,13 +113,14 @@ export async function GET(request: NextRequest) {
     // 연속 학습일은 가장 최근 데이터의 streak 필드 사용
     if (dailyStatsData.length > 0) {
       streak = dailyStatsData[0].streak || 0;
-        }
+    }
 
     const summaryData: SummaryStat = {
       totalStudyTime,
       totalSolved,
       correctRate,
       streak,
+      isGlobal: false,
     };
 
     return NextResponse.json(summaryData, { status: 200 });
