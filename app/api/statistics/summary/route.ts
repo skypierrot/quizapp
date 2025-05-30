@@ -32,8 +32,9 @@ export async function GET(request: NextRequest) {
       // 2. 전체 사용자의 총 학습 시간 (최근 30일)
       const studyTimeStats = await db
         .select({
-          avgStudyTime: sql<number>`AVG(SUM(${userDailyStats.totalStudyTime}))`,
-          avgStreak: sql<number>`AVG(${userDailyStats.streak})`,
+          userId: userDailyStats.userId,
+          sumStudyTime: sum(userDailyStats.totalStudyTime).mapWith(Number),
+          avgStreak: avg(userDailyStats.streak).mapWith(Number),
         })
         .from(userDailyStats)
         .groupBy(userDailyStats.userId);
@@ -43,16 +44,15 @@ export async function GET(request: NextRequest) {
       const avgCorrectRate = globalStats[0]?.avgCorrectRate || 0;
       const avgSolved = Math.round(globalStats[0]?.avgSolved || 0);
       
-      // 평균 학습 시간과 연속 학습일 계산
       let avgStudyTime = 0;
       let avgStreak = 0;
       
       if (studyTimeStats.length > 0) {
-        const totalAvgStudyTime = studyTimeStats.reduce((acc, curr) => acc + (curr.avgStudyTime || 0), 0);
+        const totalSumStudyTime = studyTimeStats.reduce((acc, curr) => acc + (curr.sumStudyTime || 0), 0);
         const totalAvgStreak = studyTimeStats.reduce((acc, curr) => acc + (curr.avgStreak || 0), 0);
         
-        avgStudyTime = Math.round(totalAvgStudyTime / studyTimeStats.length);
-        avgStreak = Math.round(totalAvgStreak / studyTimeStats.length);
+        avgStudyTime = totalUsers > 0 ? Math.round(totalSumStudyTime / totalUsers) : 0;
+        avgStreak = totalUsers > 0 ? Math.round(totalAvgStreak / totalUsers) : 0;
       }
 
       const globalSummaryData: SummaryStat = {

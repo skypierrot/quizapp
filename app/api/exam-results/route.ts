@@ -102,6 +102,7 @@ export async function POST(req: NextRequest) {
       id: saved.id,
       examId: `${saved.examName}-${saved.examYear}-${saved.examSubject}`, // examId 조합
       score: saved.score, // 실제 점수 필드 사용
+      correctCount: saved.correctCount, // 실제 맞힌 문제 수 전달
       totalQuestions: saved.totalQuestions,
       elapsedTime: saved.elapsedTime,
       createdAt: saved.createdAt,

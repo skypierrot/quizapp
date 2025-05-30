@@ -11,6 +11,7 @@ export async function updateStatsOnExamResultSave(
     id: string;
     examId: string;
     score: number;
+    correctCount: number;
     totalQuestions: number;
     elapsedTime?: number;
     createdAt: Date;
@@ -22,7 +23,7 @@ export async function updateStatsOnExamResultSave(
       userId,
       examDate: examResult.createdAt,
       totalQuestions: examResult.totalQuestions,
-      correctAnswers: examResult.score,
+      correctAnswers: examResult.correctCount,
       elapsedTime: examResult.elapsedTime,
     });
     

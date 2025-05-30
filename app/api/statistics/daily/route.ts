@@ -31,15 +31,12 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get('userId');
   const daysParam = searchParams.get('days');
-  const days = daysParam ? parseInt(daysParam, 10) : 30; // 기본값 30일
+  const days = daysParam ? parseInt(daysParam, 10) : 30;
 
   try {
-    // 현재 날짜를 기준으로 days일 전 날짜 계산
     const today = new Date();
     const startDate = new Date();
     startDate.setDate(today.getDate() - days);
-    
-    // 날짜를 YYYY-MM-DD 형식의 문자열로 변환
     const startDateStr = startDate.toISOString().split('T')[0];
     
     if (!userId) {
@@ -127,140 +124,115 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(formattedResults, { status: 200 });
     }
 
-    // 개별 사용자 통계 (기존 코드)
-    // userDailyStats에서 최근 N일 데이터 가져오기
-    let dailyStats: DbDailyStat[] = [];
-    try {
-      dailyStats = await db
-        .select({
-          date: userDailyStats.date,
-          solvedCount: userDailyStats.solvedCount,
-          totalStudyTime: userDailyStats.totalStudyTime,
-          correctCount: userDailyStats.correctCount,
-        })
-        .from(userDailyStats)
-        .where(
-          and(
-            eq(userDailyStats.userId, userId),
-            gte(userDailyStats.date, startDateStr) // 문자열로 변환된 날짜 사용
-          )
-        )
-        .orderBy(desc(userDailyStats.date));
-    } catch (error) {
-      console.error('Error fetching from userDailyStats:', error);
-      dailyStats = [];
-    }
-
-    // examResults에서 최근 N일 데이터 가져오기
-    let examStats: DbExamStat[] = [];
-    try {
-      // 날짜를 ISO 문자열로 변환
-      const startDateIso = startDate.toISOString();
-      
-      console.log('[Statistics API] Querying exam results with correctCount field');
-      
-      examStats = await db
-        .select({
-          // PostgreSQL에서는 cast(createdAt as date)를 사용
-          date: sql<string>`cast(${examResults.createdAt} as date)`.as('date'),
-          // 각 날짜별 응시한 시험 문제 수를 합산
-          solvedCount: sql<number>`COUNT(*)`.as('solved_count'),
-          // 시험 점수가 아닌 정답 수 합산
-          correctCount: sql<number>`SUM(${examResults.correctCount})`.as('correct_count'),
-          // 전체 문제 수 합산 추가
-          totalQuestions: sql<number>`SUM(${examResults.totalQuestions})`.as('total_questions'),
-        })
-        .from(examResults)
-        .where(
-          and(
-            eq(examResults.userId, userId),
-            sql`${examResults.createdAt} >= ${startDateIso}` // Date 객체 대신 ISO 문자열 사용
-          )
-        )
-        .groupBy(sql`cast(${examResults.createdAt} as date)`)
-        .orderBy(desc(sql`cast(${examResults.createdAt} as date)`));
-      
-      // 디버깅을 위해 결과 로그 출력
-      console.log(`[Statistics API] Found ${examStats.length} exam stats entries with correctCount`);
-      examStats.forEach(stat => {
-        const correctCount = stat.correctCount || 0;
-        const totalQuestions = stat.totalQuestions || 1; // 0으로 나누기 방지
-        const accuracyRate = (correctCount / totalQuestions * 100).toFixed(2);
-        console.log(`[Statistics API] Exam date: ${stat.date}, solved: ${stat.solvedCount}, correct: ${correctCount}, total: ${totalQuestions}, 정답률: ${accuracyRate}%`);
-      });
-      
-    } catch (error) {
-      console.error('Error fetching from examResults:', error);
-      examStats = [];
-    }
-
-    // 날짜별로 데이터를 합치기 위한 맵 생성
+    // --- 개별 사용자 통계 로직 수정 시작 ---
     const statsMap = new Map<string, ExtendedDailyStat>();
     
-    // userDailyStats 데이터 먼저 맵에 추가
-    dailyStats.forEach(stat => {
+    // 1. userDailyStats에서 최근 N일 데이터 가져오기
+    const dailyStatsFromDb: DbDailyStat[] = await db
+      .select({
+        date: userDailyStats.date,
+        solvedCount: userDailyStats.solvedCount,
+        totalStudyTime: userDailyStats.totalStudyTime,
+        correctCount: userDailyStats.correctCount,
+      })
+      .from(userDailyStats)
+      .where(
+        and(
+          eq(userDailyStats.userId, userId),
+          gte(userDailyStats.date, startDateStr)
+        )
+      )
+      .orderBy(desc(userDailyStats.date));
+
+    console.log(`[API DEBUG] Fetched dailyStatsFromDb for userId: ${userId}`, JSON.stringify(dailyStatsFromDb));
+
+    dailyStatsFromDb.forEach(stat => {
       const dateStr = String(stat.date);
       statsMap.set(dateStr, {
         date: dateStr,
         solvedCount: Number(stat.solvedCount || 0),
         totalStudyTime: Number(stat.totalStudyTime || 0),
         correctCount: Number(stat.correctCount || 0),
-        totalQuestions: 0, // 초기화
-        isGlobal: false,
+        // totalQuestions는 userDailyStats의 solvedCount를 사용 (rebuild 스크립트가 이미 계산함)
+        totalQuestions: Number(stat.solvedCount || 0), 
       });
+      console.log(`[API DEBUG] Populated statsMap for date ${dateStr} from dailyStatsFromDb:`, JSON.stringify(statsMap.get(dateStr)));
     });
     
-    // examStats 데이터를 맵에 추가 또는 합산
+    // 2. examResults를 추가로 조회하여 합산하는 로직 제거 또는 수정
+    // rebuild-statistics.ts가 userDailyStats를 정확히 계산하므로,
+    // 여기서는 examResults를 다시 집계하여 더할 필요가 없습니다.
+    // 만약 userDailyStats에 없는 날짜에 대해 examResults를 보여주고 싶다면,
+    // 아래 로직은 statsMap에 해당 날짜가 없을 때만 실행되도록 변경해야 합니다.
+    // 지금은 가장 간단하게 userDailyStats만 사용하는 것으로 수정합니다.
+
+    /*  <-- 기존 examResults 조회 및 병합 로직 주석 처리 또는 삭제 시작 -->
+    let examStats: DbExamStat[] = [];
+    try {
+      const startDateIso = startDate.toISOString();
+      examStats = await db
+      .select({
+          date: sql<string>`cast(${examResults.createdAt} as date)`.as('date'),
+          solvedCount: sql<number>`COUNT(*)`.as('solved_count'),
+          correctCount: sql<number>`SUM(${examResults.correctCount})`.as('correct_count'),
+          totalQuestions: sql<number>`SUM(${examResults.totalQuestions})`.as('total_questions'),
+        })
+        .from(examResults)
+        .where(
+          and(
+            eq(examResults.userId, userId),
+            sql`${examResults.createdAt} >= ${startDateIso}`
+          )
+        )
+        .groupBy(sql`cast(${examResults.createdAt} as date)`)
+        .orderBy(desc(sql`cast(${examResults.createdAt} as date)`));
+      console.log(`[API DEBUG] Fetched examStats for userId: ${userId}`, JSON.stringify(examStats));
+    } catch (error) {
+      console.error('Error fetching from examResults (now optional):', error);
+      examStats = [];
+    }
+
     examStats.forEach(stat => {
-      if (!stat.date) {
-        return;
-      }
-      
-      const dateStr = String(stat.date);
-      const correctCount = Number(stat.correctCount || 0);
-      const totalQuestions = Number(stat.totalQuestions || 0);
-      
-      if (statsMap.has(dateStr)) {
-        // 기존 데이터가 있으면 합산
-        const existingStat = statsMap.get(dateStr)!;
-        statsMap.set(dateStr, {
-          ...existingStat,
-          solvedCount: existingStat.solvedCount + Number(stat.solvedCount || 0),
-          correctCount: existingStat.correctCount + correctCount,
-          totalQuestions: (existingStat.totalQuestions || 0) + totalQuestions,
-        });
-      } else {
-        // 기존 데이터가 없으면 새로 추가
-        statsMap.set(dateStr, {
-          date: dateStr,
-          solvedCount: Number(stat.solvedCount || 0),
-          totalStudyTime: 0, // 시험 시간은 별도로 기록되지 않음
-          correctCount: correctCount,
-          totalQuestions: totalQuestions,
-          isGlobal: false,
-        });
-      }
+      if (!stat.date) return;
+      const dateStr = String(stat.date); 
+      const examCorrectCount = Number(stat.correctCount || 0); 
+      const examTotalQuestionsFromDb = Number(stat.totalQuestions || 0);
+
+      // userDailyStats에 이미 해당 날짜 데이터가 있다면, examResults 값을 더하지 않음
+      // 만약 userDailyStats에 해당 날짜 데이터가 *없을 때만* examResults 데이터를 사용하고 싶다면,
+      // if (!statsMap.has(dateStr)) { ... } 와 같이 조건을 추가할 수 있음.
+      // 현재는 userDailyStats의 값을 최종으로 간주하므로 이 부분은 실행되지 않도록 함.
+
+      // 아래는 기존의 중복 합산 로직이 있던 부분입니다.
+      // if (statsMap.has(dateStr)) {
+      //   const existingStat = statsMap.get(dateStr)!;
+      //   statsMap.set(dateStr, {
+      //     ...existingStat,
+      //     solvedCount: existingStat.solvedCount + examTotalQuestionsFromDb, // 중복 합산
+      //     correctCount: existingStat.correctCount + examCorrectCount,     // 중복 합산
+      //     totalQuestions: (existingStat.totalQuestions || 0) + examTotalQuestionsFromDb, // 중복 합산
+      //   });
+      // } else {
+      //   statsMap.set(dateStr, {
+      //     date: dateStr,
+      //     solvedCount: examTotalQuestionsFromDb,
+      //     totalStudyTime: 0, 
+      //     correctCount: examCorrectCount, 
+      //     totalQuestions: examTotalQuestionsFromDb, 
+      //   });
+      // }
     });
+     <-- 기존 examResults 조회 및 병합 로직 주석 처리 또는 삭제 끝 -->
+    */
     
-    // 맵에서 배열로 변환하고 날짜 기준 오름차순으로 정렬
     const formattedResults: ExtendedDailyStat[] = Array.from(statsMap.values())
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    // 최종 결과 확인
-    console.log(`[Statistics API] Final results count: ${formattedResults.length}`);
+    console.log(`[API DEBUG] Final formattedResults for userId ${userId}:`, JSON.stringify(formattedResults));
     
-    // 5월 23일 데이터 확인
-    const may23Data = formattedResults.find(result => result.date.includes('2025-05-23'));
-    if (may23Data) {
-      console.log(`[Statistics API] May 23 final data:`, JSON.stringify(may23Data));
-      // 정답률 계산 (맞은 문제 수 / 전체 문제 수)
-      const accuracy = may23Data.totalQuestions ? 
-        (may23Data.correctCount / may23Data.totalQuestions * 100).toFixed(2) :
-        '계산 불가';
-      console.log(`[Statistics API] May 23 정답률(맞은 문제/전체 문제): ${accuracy}%`);
-    }
-
     return NextResponse.json(formattedResults, { status: 200 });
+    // --- 개별 사용자 통계 로직 수정 끝 ---
+
   } catch (error) {
     console.error('Error fetching daily stats:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';

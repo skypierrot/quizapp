@@ -79,7 +79,7 @@ export default function StatisticsPage() {
   const renderLoading = () => <div className="text-center py-4 text-gray-500">데이터를 불러오는 중...</div>;
   const renderError = (message: string = "데이터를 불러오는데 실패했습니다.") => <div className="text-center py-4 text-red-500">⚠️ {message}</div>;
 
-  return (
+    return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-800">종합 학습 통계</h1>
@@ -100,8 +100,8 @@ export default function StatisticsPage() {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-            </div>
-            <div>
+      </div>
+                        <div>
               <p className="text-blue-800 font-medium">지금 보고 계신 통계는 모든 사용자의 평균 데이터입니다.</p>
               <p className="text-blue-600 text-sm mt-1">로그인하시면 개인 맞춤형 통계를 확인하실 수 있습니다.</p>
             </div>
@@ -112,8 +112,8 @@ export default function StatisticsPage() {
           >
             로그인하기
           </Link>
-        </div>
-      )}
+                        </div>
+                      )}
 
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         {summaryLoading ? <div className="col-span-full flex justify-center items-center h-24">{renderLoading()}</div> : summaryError ? <div className="col-span-full">{renderError("요약 정보를 불러올 수 없습니다. " + summaryError.message)}</div> : summary ? (
@@ -179,7 +179,7 @@ export default function StatisticsPage() {
           일별 학습량
         </h2>
         {dailyLoading ? renderLoading() : dailyError ? renderError("일별 학습 데이터를 불러올 수 없습니다. " + dailyError.message) : processedDailyData.length > 0 ? (
-          <div>
+                        <div>
             <div className="flex items-center justify-between mb-4">
               <div className="text-sm text-gray-500">
                 일별 푼 문제와 맞춘 문제 수를 확인하세요
@@ -189,12 +189,12 @@ export default function StatisticsPage() {
                   <div className="w-3 h-3 bg-blue-500 rounded-sm mr-2"></div>
                   <span className="text-sm text-gray-600">총 문제</span>
                 </div>
-                <div className="flex items-center">
+                          <div className="flex items-center">
                   <div className="w-3 h-3 bg-emerald-500 rounded-sm mr-2"></div>
                   <span className="text-sm text-gray-600">맞은 문제</span>
                 </div>
-              </div>
-            </div>
+                          </div>
+                        </div>
 
             <div className="overflow-x-auto pb-2" style={{ scrollbarWidth: 'thin' }}>
               <div style={{ minWidth: Math.max(600, processedDailyData.length * 40) + 'px', height: '300px' }}>
@@ -273,17 +273,17 @@ export default function StatisticsPage() {
                     />
                   </BarChart>
                 </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
+                        </div>
+                        </div>
+                    </div>
         ) : (
           <div className="text-center py-16 bg-gray-50 rounded-lg">
             <svg className="w-12 h-12 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
             </svg>
             <p className="mt-4 text-gray-500">최근 30일간 학습 기록이 없습니다.</p>
-          </div>
-        )}
+                        </div>
+                      )}
       </section>
 
       {/* 정답률 추이 (꺾은선 그래프) */}
@@ -295,17 +295,17 @@ export default function StatisticsPage() {
           일별 정답률 추이
         </h2>
         {dailyLoading ? renderLoading() : dailyError ? renderError("일별 학습 데이터를 불러올 수 없습니다. " + dailyError.message) : processedDailyData.length > 0 ? (
-          <div>
+                        <div>
             <div className="flex items-center justify-between mb-4">
               <div className="text-sm text-gray-500">
                 일별 정답률 변화를 확인하세요
-              </div>
+                              </div>
               <div className="flex items-center space-x-4">
                 <div className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
                   평균: {Math.round(processedDailyData.reduce((sum, item) => sum + item.accuracyRate, 0) / processedDailyData.length)}%
-                </div>
-              </div>
-            </div>
+                            </div>
+                        </div>
+                    </div>
 
             <div className="overflow-x-auto pb-2" style={{ scrollbarWidth: 'thin' }}>
               <div style={{ minWidth: Math.max(600, processedDailyData.length * 40) + 'px', height: '300px' }}>
@@ -487,7 +487,7 @@ export default function StatisticsPage() {
                       animationEasing="ease-out"
                     />
                     <Line 
-                      yAxisId="right" 
+                      yAxisId="right"
                       type="monotone" 
                       dataKey="cumulativeStudyMinutes" 
                       name="누적 학습 시간" 
@@ -511,8 +511,8 @@ export default function StatisticsPage() {
                 </ResponsiveContainer>
               </div>
             </div>
-          </div>
-        ) : (
+                    </div>
+                  ) : (
           <div className="text-center py-16 bg-gray-50 rounded-lg">
             <svg className="w-12 h-12 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -576,7 +576,7 @@ export default function StatisticsPage() {
                   );
                 })}
               </div>
-            </div>
+                  </div>
           ) : <div className="text-center py-16 bg-gray-50 rounded-lg">
               <svg className="w-12 h-12 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -598,13 +598,13 @@ export default function StatisticsPage() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
-              </div>
+                          </div>
               <h3 className="text-lg font-medium text-gray-700 mb-2">개인 시험 결과가 필요합니다</h3>
               <p className="text-gray-500 mb-4">로그인하시면 최근 응시한 시험 결과를 확인할 수 있습니다.</p>
               <Link href="/login" className="inline-block px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
                 로그인하기
               </Link>
-            </div>
+                          </div>
           ) : recentExamsLoading ? renderLoading() : recentExamsError ? renderError("최근 시험 데이터를 불러올 수 없습니다. " + recentExamsError.message) : recentExams && recentExams.length > 0 ? (
             <div className="overflow-y-auto pr-1" style={{ maxHeight: '350px', scrollbarWidth: 'thin' }}>
               <ul className="space-y-3">
@@ -614,7 +614,7 @@ export default function StatisticsPage() {
                       href={`/results/${exam.resultId}/wrong-note`} 
                       className="flex justify-between items-center p-4 bg-gray-50 rounded-lg hover:bg-purple-50 transition-colors border border-transparent hover:border-purple-200"
                     >
-                      <div>
+                          <div>
                         <p className="font-medium text-gray-700 group-hover:text-purple-700 transition-colors">{exam.examName}</p>
                         <div className="flex flex-wrap items-center gap-2 mt-2">
                           <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-200 group-hover:border-purple-200 transition-colors">
@@ -633,7 +633,7 @@ export default function StatisticsPage() {
                       </div>
                     </Link>
                   </li>
-                ))}
+                    ))}
               </ul>
             </div>
           ) : <div className="text-center py-16 bg-gray-50 rounded-lg">
@@ -652,18 +652,18 @@ export default function StatisticsPage() {
           </span>
           향후 추가될 기능
         </h3>
-        <div className="space-y-4">
+                <div className="space-y-4">
           <div className="flex items-start bg-white p-4 rounded-lg shadow-sm border border-gray-100 transition-all duration-300 hover:shadow-md">
             <div className="flex-shrink-0 bg-teal-50 text-teal-500 p-2 rounded-lg mr-4">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
-            <div>
+                        <div>
               <h4 className="font-medium text-gray-800">학습 시간 패턴 분석</h4>
               <p className="text-sm text-gray-600 mt-1">요일별, 시간대별 학습 패턴을 분석하여 효율적인 학습 시간을 찾아드립니다.</p>
-            </div>
-          </div>
+                          </div>
+                        </div>
           <div className="flex items-start bg-white p-4 rounded-lg shadow-sm border border-gray-100 transition-all duration-300 hover:shadow-md">
             <div className="flex-shrink-0 bg-teal-50 text-teal-500 p-2 rounded-lg mr-4">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -673,8 +673,8 @@ export default function StatisticsPage() {
             <div>
               <h4 className="font-medium text-gray-800">목표 설정 및 달성률 추적</h4>
               <p className="text-sm text-gray-600 mt-1">개인 학습 목표를 설정하고 달성률을 실시간으로 확인할 수 있습니다.</p>
-            </div>
-          </div>
+                            </div>
+                          </div>
           <div className="flex items-start bg-white p-4 rounded-lg shadow-sm border border-gray-100 transition-all duration-300 hover:shadow-md">
             <div className="flex-shrink-0 bg-teal-50 text-teal-500 p-2 rounded-lg mr-4">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -684,9 +684,9 @@ export default function StatisticsPage() {
             <div>
               <h4 className="font-medium text-gray-800">오답 유형 심층 분석</h4>
               <p className="text-sm text-gray-600 mt-1">객관식 오선택 패턴 분석 등 오답 유형을 심층적으로 분석하여 취약점을 개선합니다.</p>
-            </div>
-          </div>
-        </div>
+                        </div>
+                      </div>
+                    </div>
         <div className="mt-6 text-center">
           {!userId ? (
             <div className="mt-8 pt-6 border-t border-gray-200">
@@ -694,7 +694,7 @@ export default function StatisticsPage() {
               <Link href="/login" className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
                 로그인하고 시작하기
               </Link>
-            </div>
+                </div>
           ) : (
             <button className="px-5 py-2 bg-teal-50 text-teal-600 rounded-lg font-medium hover:bg-teal-100 transition-colors">
               기능 제안하기
@@ -704,7 +704,7 @@ export default function StatisticsPage() {
       </div>
     </div>
   );
-} 
+}
 
 const SummaryCard = ({ 
   title, 
