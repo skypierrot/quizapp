@@ -40,91 +40,82 @@ export async function GET(request: NextRequest) {
     const startDateStr = startDate.toISOString().split('T')[0];
     
     if (!userId) {
-      // 전체 사용자 일별 통계 계산
-      // userDailyStats에서 날짜별 평균 통계 가져오기
-      const globalDailyStats = await db
+      // 비로그인 상태의 전체 사용자 통계 조회
+      console.log('전체 사용자 통계 조회: 로그인 사용자와 일관된 방식으로 계산');
+      
+      // 1. userDailyStats에서 사용자별 데이터 조회
+      const userDailyData = await db
         .select({
           date: userDailyStats.date,
-          avgSolvedCount: sql<number>`AVG(${userDailyStats.solvedCount})`,
-          avgStudyTime: sql<number>`AVG(${userDailyStats.totalStudyTime})`,
-          avgCorrectCount: sql<number>`AVG(${userDailyStats.correctCount})`,
-          userCount: sql<number>`COUNT(DISTINCT ${userDailyStats.userId})`,
+          userId: userDailyStats.userId,
+          solvedCount: userDailyStats.solvedCount,
+          correctCount: userDailyStats.correctCount,
+          totalStudyTime: userDailyStats.totalStudyTime,
         })
         .from(userDailyStats)
-        .where(gte(userDailyStats.date, startDateStr))
-        .groupBy(userDailyStats.date)
-        .orderBy(desc(userDailyStats.date));
-
-      // examResults에서 날짜별 평균 통계 가져오기
-      const startDateIso = startDate.toISOString();
-      const globalExamStats = await db
-        .select({
-          date: sql<string>`cast(${examResults.createdAt} as date)`.as('date'),
-          avgSolvedCount: sql<number>`AVG(1)`.as('avg_solved_count'), // 응시한 시험 수의 평균
-          avgCorrectCount: sql<number>`AVG(${examResults.correctCount})`.as('avg_correct_count'),
-          avgTotalQuestions: sql<number>`AVG(${examResults.totalQuestions})`.as('avg_total_questions'),
-          userCount: sql<number>`COUNT(DISTINCT ${examResults.userId})`.as('user_count'),
-        })
-        .from(examResults)
-        .where(sql`${examResults.createdAt} >= ${startDateIso}`)
-        .groupBy(sql`cast(${examResults.createdAt} as date)`)
-        .orderBy(desc(sql`cast(${examResults.createdAt} as date)`));
-
-      // 결과 합치기
-      const statsMap = new Map<string, ExtendedDailyStat>();
+        .where(
+          and(
+            gte(userDailyStats.date, startDateStr),
+            // ALL_USERS_STATS와 같은 특수 사용자 ID 제외
+            sql`${userDailyStats.userId} NOT LIKE 'ALL_USERS%'`
+          )
+        );
       
-      // userDailyStats 데이터 추가
-      globalDailyStats.forEach(stat => {
-        const dateStr = String(stat.date);
-        statsMap.set(dateStr, {
-          date: dateStr,
-          solvedCount: Math.round(Number(stat.avgSolvedCount || 0)),
-          totalStudyTime: Math.round(Number(stat.avgStudyTime || 0)),
-          correctCount: Math.round(Number(stat.avgCorrectCount || 0)),
-          totalQuestions: 0,
-          isGlobal: true,
-          userCount: Number(stat.userCount || 0),
-        });
-      });
+      // 2. 날짜별로 통계 집계
+      const dailyStatsMap = new Map<string, {
+        date: string,
+        userIds: Set<string>,
+        totalSolvedCount: number,
+        totalCorrectCount: number,
+        totalStudyTime: number,
+      }>();
       
-      // examResults 데이터 추가 또는 합산
-      globalExamStats.forEach(stat => {
-        if (!stat.date) return;
-        
+      // userDailyStats에서 날짜별 데이터 집계
+      userDailyData.forEach(stat => {
         const dateStr = String(stat.date);
-        const avgCorrectCount = Math.round(Number(stat.avgCorrectCount || 0));
-        const avgTotalQuestions = Math.round(Number(stat.avgTotalQuestions || 0));
-        
-        if (statsMap.has(dateStr)) {
-          const existingStat = statsMap.get(dateStr)!;
-          statsMap.set(dateStr, {
-            ...existingStat,
-            solvedCount: existingStat.solvedCount + Math.round(Number(stat.avgSolvedCount || 0)),
-            correctCount: existingStat.correctCount + avgCorrectCount,
-            totalQuestions: (existingStat.totalQuestions || 0) + avgTotalQuestions,
-            userCount: Math.max(existingStat.userCount || 0, Number(stat.userCount || 0)),
-          });
-        } else {
-          statsMap.set(dateStr, {
+        if (!dailyStatsMap.has(dateStr)) {
+          dailyStatsMap.set(dateStr, {
             date: dateStr,
-            solvedCount: Math.round(Number(stat.avgSolvedCount || 0)),
+            userIds: new Set(),
+            totalSolvedCount: 0,
+            totalCorrectCount: 0,
             totalStudyTime: 0,
-            correctCount: avgCorrectCount,
-            totalQuestions: avgTotalQuestions,
-            isGlobal: true,
-            userCount: Number(stat.userCount || 0),
           });
         }
+        
+        const entry = dailyStatsMap.get(dateStr)!;
+        if (stat.userId) entry.userIds.add(stat.userId);
+        entry.totalSolvedCount += stat.solvedCount || 0;
+        entry.totalCorrectCount += stat.correctCount || 0;
+        entry.totalStudyTime += stat.totalStudyTime || 0;
       });
       
-      // 결과를 배열로 변환하고 날짜순으로 정렬
-      const formattedResults: ExtendedDailyStat[] = Array.from(statsMap.values())
+      // 3. 평균 계산 및 결과 포맷팅
+      const formattedResults: ExtendedDailyStat[] = Array.from(dailyStatsMap.values())
+        .map(stat => {
+          const userCount = stat.userIds.size;
+          // 사용자 수로 나누어 평균 계산 (사용자가 없으면 0)
+          const avgSolvedCount = userCount > 0 ? Math.round(stat.totalSolvedCount / userCount) : 0;
+          const avgCorrectCount = userCount > 0 ? Math.round(stat.totalCorrectCount / userCount) : 0;
+          const avgStudyTime = userCount > 0 ? Math.round(stat.totalStudyTime / userCount) : 0;
+          
+          return {
+            date: stat.date,
+            solvedCount: avgSolvedCount,
+            correctCount: avgCorrectCount,
+            totalStudyTime: avgStudyTime,
+            // solvedCount를 totalQuestions로 사용 (개인 통계와 일관성 유지)
+            totalQuestions: avgSolvedCount,
+            isGlobal: true,
+            userCount: userCount,
+          };
+        })
         .sort((a, b) => a.date.localeCompare(b.date));
       
       return NextResponse.json(formattedResults, { status: 200 });
     }
 
-    // --- 개별 사용자 통계 로직 수정 시작 ---
+    // --- 개별 사용자 통계 로직 유지 ---
     const statsMap = new Map<string, ExtendedDailyStat>();
     
     // 1. userDailyStats에서 최근 N일 데이터 가져오기
