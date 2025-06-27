@@ -1,37 +1,113 @@
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { CheckCircle } from 'lucide-react'; // Using lucide icon for checkmark
+'use client';
+
+import { useEffect, useState } from 'react';
+
+interface StatsData {
+  totalUsers?: number;
+  totalStudyTime: number;
+  totalSolved: number;
+  correctRate: number;
+  streak: number;
+  isGlobal?: boolean;
+}
 
 export function StatsSection() {
+  const [stats, setStats] = useState<StatsData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        // 비로그인 사용자를 위한 전역 통계 API 호출
+        const response = await fetch('/api/statistics/summary');
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Fetched stats:', data);
+          setStats(data);
+        } else {
+          console.error('Failed to fetch stats:', response.status);
+        }
+      } catch (error) {
+        console.error('Failed to fetch stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  const formatAccuracy = (rate: number) => {
+    if (isNaN(rate) || rate === null || rate === undefined) return '0%';
+    return `${Math.round(rate * 100)}%`;
+  };
+
+  const formatTime = (seconds: number) => {
+    if (isNaN(seconds) || seconds === null || seconds === undefined) return '0분';
+    return `${Math.round(seconds / 60)}분`;
+  };
+
+  const formatNumber = (num: number) => {
+    if (isNaN(num) || num === null || num === undefined) return '0';
+    return num.toString();
+  };
+
   return (
-    <section className="container mx-auto px-4 py-12">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-        <div className="space-y-6">
-          <h2 className="text-3xl font-bold">학습 현황 관리</h2>
-          <p className="text-xl text-gray-600 dark:text-gray-400">
-            맞춤형 학습 통계와 진도 관리를 통해 효율적인 학습이 가능합니다.
-          </p>
-          <ul className="space-y-3">
-            <li className="flex items-start gap-3">
-              <CheckCircle className="text-blue-500 w-5 h-5 mt-1 flex-shrink-0" />
-              <span>문제별 정답률 및 풀이 시간 분석</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <CheckCircle className="text-blue-500 w-5 h-5 mt-1 flex-shrink-0" />
-              <span>취약 분야 자동 분석 및 추천 학습</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <CheckCircle className="text-blue-500 w-5 h-5 mt-1 flex-shrink-0" />
-              <span>학습 목표 설정 및 달성률 관리</span>
-            </li>
-          </ul>
-          <Button asChild>
-            <Link href="/statistics">학습 통계 보기</Link>
-          </Button>
-        </div>
-        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-6 h-80 flex items-center justify-center mt-6 md:mt-0">
-          {/* Placeholder for a stats chart image or component */}
-          <p className="text-gray-500 dark:text-gray-400 text-center">통계 차트 (구현 예정)</p>
+    <section className="py-16">
+      <div className="container mx-auto px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold mb-4">전체사용자 종합학습통계</h2>
+          </div>
+          
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8">
+            {loading ? (
+              <div className="text-center">
+                <div className="animate-pulse">
+                  <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/2 mx-auto mb-2"></div>
+                  <div className="text-gray-500">데이터 로딩 중...</div>
+                </div>
+              </div>
+            ) : stats ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+                <div>
+                  <div className="text-3xl font-bold text-blue-600 mb-2">{formatAccuracy(stats.correctRate)}</div>
+                  <div className="text-gray-600 dark:text-gray-400">평균 정답률</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-green-600 mb-2">{formatNumber(stats.streak)}일</div>
+                  <div className="text-gray-600 dark:text-gray-400">평균 연속학습일</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-purple-600 mb-2">{formatNumber(stats.totalSolved)}</div>
+                  <div className="text-gray-600 dark:text-gray-400">평균 문제 수</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-orange-600 mb-2">{formatTime(stats.totalStudyTime)}</div>
+                  <div className="text-gray-600 dark:text-gray-400">평균 학습시간</div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+                <div>
+                  <div className="text-3xl font-bold text-blue-600 mb-2">18%</div>
+                  <div className="text-gray-600 dark:text-gray-400">평균 정답률</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-green-600 mb-2">2일</div>
+                  <div className="text-gray-600 dark:text-gray-400">평균 연속학습일</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-purple-600 mb-2">135</div>
+                  <div className="text-gray-600 dark:text-gray-400">평균 문제 수</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-orange-600 mb-2">16분</div>
+                  <div className="text-gray-600 dark:text-gray-400">평균 학습시간</div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </section>

@@ -3,41 +3,58 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const features = [
   {
-    title: '문제 은행',
-    description: '다양한 기술 자격증 시험 문제를 체계적으로 관리하고 학습할 수 있습니다.',
+    title: '시험 문제 학습',
+    description: '다양한 기술 자격증 시험 문제를 체계적으로 학습할 수 있습니다.',
     href: '/learn/exams'
   },
   {
-    title: '모의고사',
-    description: '실제 시험과 동일한 환경에서 모의고사를 진행하고 결과를 분석할 수 있습니다.',
-    href: '/exams'
+    title: '학습 통계',
+    description: '학습 현황과 정답률을 분석하여 효율적인 학습을 도와드립니다.',
+    href: '/statistics'
   },
   {
-    title: '오답 노트',
-    description: '틀린 문제를 효과적으로 복습하고 취약점을 개선할 수 있는 오답 노트 기능을 제공합니다.',
-    href: '/wrong-answers'
+    title: '시험 결과',
+    description: '모든 시험 결과를 체계적으로 관리하고 확인할 수 있습니다.',
+    href: '/results'
   },
   {
     title: '문제 관리',
-    description: '등록된 문제를 확인하고 관리하세요.',
+    description: '새로운 문제를 등록하고 기존 문제를 관리할 수 있습니다.',
     href: '/manage/questions/list'
+  },
+  {
+    title: '학습 커뮤니티',
+    description: '다른 수험생들과 정보를 공유하고 소통할 수 있습니다.',
+    href: '/community/forum'
+  },
+  {
+    title: '개인 프로필',
+    description: '학습 기록과 개인 설정을 관리할 수 있습니다.',
+    href: '/profile'
   }
 ];
 
 export function FeaturesSection() {
   return (
-    <section className="bg-gray-50 dark:bg-gray-900 py-12">
+    <section className="bg-gray-50 dark:bg-gray-900 py-16">
       <div className="container mx-auto px-4">
-        <h2 className="text-3xl font-bold text-center mb-12">주요 기능</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold mb-4">주요 기능</h2>
+          <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+            학습에 필요한 모든 기능을 제공합니다
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
           {features.map((feature) => (
-            <Link key={feature.title} href={feature.href} className="block group h-full">
-              <Card className="shadow-sm hover:shadow-md transition-shadow h-full cursor-pointer flex flex-col p-6 dark:bg-gray-800">
-                <CardHeader className="flex flex-col items-center text-center p-0 mb-2">
-                  <CardTitle className="text-xl font-bold text-gray-900 dark:text-white mb-2">{feature.title}</CardTitle>
+            <Link key={feature.title} href={feature.href} className="block">
+              <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
+                <CardHeader>
+                  <CardTitle className="text-lg">{feature.title}</CardTitle>
                 </CardHeader>
-                <CardContent className="p-0 w-full flex-1 flex flex-col justify-start">
-                  <p className="text-base text-gray-500 dark:text-gray-400 text-left">{feature.description}</p>
+                <CardContent>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                    {feature.description}
+                  </p>
                 </CardContent>
               </Card>
             </Link>
