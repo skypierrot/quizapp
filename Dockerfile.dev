@@ -1,0 +1,21 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# curl 설치
+RUN apk add --no-cache curl
+
+# 패키지 설치를 위한 파일 복사
+COPY package*.json ./
+
+# 의존성 설치
+RUN npm install --legacy-peer-deps
+
+# Next.js를 실행할 수 있도록 경로 설정
+ENV PATH /app/node_modules/.bin:$PATH
+
+# Next.js 개발 서버 시작
+EXPOSE 3000
+CMD ["npm", "run", "dev"]
+
+# 소스 코드는 볼륨으로 마운트되므로 COPY 불필요 

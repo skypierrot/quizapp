@@ -1,0 +1,1 @@
+-- Questions 테이블의 user_id 컬럼 타입을 UUID에서 TEXT로 변경\nALTER TABLE "questions" ALTER COLUMN "user_id" TYPE TEXT;

@@ -1,0 +1,50 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Node dependencies
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor directories and files
+.vscode
+.idea
+
+# Build output
+.next/
+out/
+build/
+
+# Uploaded images (Temporary and Final)
+public/images/tmp/
+public/images/uploaded/
+
+# Drizzle migrations (Optional, depending on strategy)
+# drizzle/
+
+# Other
+*.tsbuildinfolegacy-backup-*.tar.gz
+
+# Ignore predata directory
+predata/
+
+quizapp_backup_20250518_173728.tar.gz
+
+
+# 대용량 결과 아카이브
+results.tar
+
+# PostgreSQL 개발용 데이터베이스
+db_data_dev/
+
+# Authentik 데이터베이스 및 Redis 데이터
+authentik_database/
+authentik_redis/
+
