@@ -1,0 +1,17 @@
+# Nginx Proxy 자동화 작업
+# 이 파일을 crontab에 추가하려면: crontab -e
+
+# DDNS 업데이트 (5분마다)
+*/5 * * * * /home/guri/develop/nginx/scripts/ddns-update.sh
+
+# SSL 인증서 갱신 (매일 새벽 3시)
+0 3 * * * /home/guri/develop/nginx/scripts/ssl-renew.sh
+
+# 로그 정리 (매주 일요일 새벽 2시)
+0 2 * * 0 find /home/guri/develop/nginx/logs -name "*.log" -mtime +30 -delete
+
+# 백업 정리 (매주 월요일 새벽 1시)
+0 1 * * 1 find /home/guri/develop/nginx/backups -name "*.pem" -mtime +7 -delete
+
+# nginx 상태 확인 (10분마다)
+*/10 * * * * /home/guri/develop/nginx/scripts/nginx-manager.sh status > /dev/null 2>&1
