@@ -57,6 +57,30 @@ npm install
 npm run dev
 ```
 
+## 백업 시스템
+
+QuizApp은 다양한 백업 방법을 통해 데이터를 안전하게 보호합니다.
+
+### 🚀 빠른 백업
+```bash
+# Predata 마이그레이션 백업
+./scripts/quick-backup-predata.sh
+
+# Docker 볼륨 백업
+./scripts/backup-restore-volume.sh backup
+```
+
+### 📚 상세 가이드
+- [백업 시스템 전체 개요](./docs/BACKUP_SYSTEM_OVERVIEW.md)
+- [Docker 볼륨 백업/복원 가이드](./docs/DOCKER_VOLUME_BACKUP_RESTORE.md)
+- [Predata 마이그레이션 백업 가이드](./docs/PREDATA_MIGRATION_BACKUP.md)
+
+### 📊 현재 데이터 현황
+- **총 문제 수**: 1,183,619개
+- **총 시험 수**: 24,387개
+- **총 이미지 수**: 220,387개
+- **마이그레이션 상태**: 완료 ✅
+
 ## 라이센스
 
 이 프로젝트는 MIT 라이센스를 따릅니다. 

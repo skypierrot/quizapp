@@ -1,6 +1,6 @@
-export const runtime = "nodejs";
+"use client";
 
-'use client';
+export const runtime = "nodejs";
 
 import React, { useState, useEffect } from 'react';
 import { redirect } from 'next/navigation';

@@ -2,13 +2,19 @@ import fs from 'fs/promises';
 import path from 'path';
 import { db } from '@/db'; // 데이터베이스 인스턴스
 import { exams, questions, images as imagesSchema } from '@/db/schema'; // Drizzle 스키마
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, inArray } from 'drizzle-orm';
 import { randomUUID, createHash } from 'crypto';
 import * as cheerio from 'cheerio'; // HTML 파싱용 (네임스페이스 임포트)
-// import { Element } from 'cheerio'; // 이전 시도
+
+// Node.js 전역 타입 정의
+declare global {
+  var process: any;
+}
 
 const PREDATA_DIR = path.join(process.cwd(), 'predata');
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'images', 'uploaded');
+const PROGRESS_FILE = path.join(process.cwd(), 'scripts', 'migration_progress.json');
+const ERROR_LOG_FILE = path.join(process.cwd(), 'scripts', 'migration_errors.log');
 
 interface ParsedOption {
   number: number;
@@ -28,10 +34,338 @@ interface ParsedQuestion {
 }
 
 interface MigrateOptions {
-  dryRun?: boolean;
   singleFile?: string; // 테스트할 단일 HTML 파일 경로 (PREDATA_DIR 기준 상대 경로 또는 절대 경로)
-  limit?: number; // 처리할 총 파일 수 제한 (테스트용)
   targetExamName?: string; // 특정 시험명 폴더를 대상으로 지정
+  runAll?: boolean; // 모든 파일을 처리하는 모드
+  dryRun?: boolean; // 실제 DB 작업 없이 파싱만 수행
+  limit?: number; // 처리할 총 파일 수 제한 (테스트용)
+  resume?: boolean; // 중단된 지점부터 재개
+  force?: boolean; // 강제로 모든 파일 재처리
+  skipProcessed?: boolean; // 이미 처리된 파일 스킵 (기본값: true)
+  retryFailed?: boolean; // 실패한 파일 재시도
+}
+
+interface MigrationProgress {
+  lastUpdated: number;
+  totalFiles: number;
+  processedFiles: number;
+  failedFiles: string[];
+  successfulFiles: string[];
+  currentFile?: string;
+  startTime?: number;
+  estimatedTimeRemaining?: string;
+  performanceMetrics: {
+    filesPerMinute: number;
+    averageProcessingTime: number;
+    totalProcessingTime: number;
+  };
+  databaseStats: {
+    totalQuestions: number;
+    totalExams: number;
+    lastProcessedExam?: string;
+  };
+}
+
+interface FileProcessingStatus {
+  filePath: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  lastAttempt?: string;
+  errorCount: number;
+  maxRetries: number;
+  lastError?: string;
+  retryAfter?: number; // 재시도 대기 시간 (밀리초)
+}
+
+// --- 데이터베이스 기반 진행상태 확인 함수들 ---
+async function getDatabaseStats(): Promise<{ totalQuestions: number; totalExams: number; lastProcessedExam?: string }> {
+  try {
+    const [questionsResult, examsResult] = await Promise.all([
+      db.select({ count: sql`count(*)` }).from(questions),
+      db.select({ count: sql`count(*)` }).from(exams)
+    ]);
+
+    const totalQuestions = Number(questionsResult[0]?.count || 0);
+    const totalExams = Number(examsResult[0]?.count || 0);
+
+    // 마지막으로 처리된 시험 확인
+    let lastProcessedExam: string | undefined;
+    if (totalQuestions > 0) {
+      const lastQuestion = await db
+        .select({ examName: exams.name })
+        .from(questions)
+        .leftJoin(exams, eq(questions.examId, exams.id))
+        .orderBy(sql`questions.created_at DESC`)
+        .limit(1);
+      
+      lastProcessedExam = lastQuestion[0]?.examName;
+    }
+
+    return { totalQuestions, totalExams, lastProcessedExam };
+  } catch (error) {
+    console.error('데이터베이스 통계 조회 실패:', error);
+    return { totalQuestions: 0, totalExams: 0 };
+  }
+}
+
+async function isFileAlreadyProcessed(filePath: string): Promise<boolean> {
+  try {
+    // 파일 경로에서 시험명과 날짜 추출
+    const fileName = path.basename(filePath);
+    const examDir = path.dirname(filePath).split(path.sep).pop();
+    
+    if (!examDir) return false;
+
+    // 해당 시험명으로 등록된 문제가 있는지 확인
+    const examQuestions = await db
+      .select({ count: sql`count(*)` })
+      .from(questions)
+      .leftJoin(exams, eq(questions.examId, exams.id))
+      .where(eq(exams.name, examDir));
+
+    return (Number(examQuestions[0]?.count) || 0) > 0;
+  } catch (error) {
+    console.error('파일 처리 상태 확인 실패:', error);
+    return false;
+  }
+}
+
+async function getProcessedFilesList(): Promise<string[]> {
+  try {
+    const stats = await getDatabaseStats();
+    if (stats.totalQuestions === 0) return [];
+
+    // 데이터베이스에 있는 시험명들을 기준으로 처리된 파일 목록 생성
+    const examNames = await db.select({ name: exams.name }).from(exams);
+    
+    const processedFiles: string[] = [];
+    for (const exam of examNames) {
+      const examDir = path.join(PREDATA_DIR, exam.name);
+      try {
+        const files = await fs.readdir(examDir);
+        for (const file of files) {
+          if (file.endsWith('_result.html') || file.endsWith('_results.html')) {
+            processedFiles.push(path.join(examDir, file));
+          }
+        }
+      } catch (error) {
+        // 디렉토리가 존재하지 않는 경우 무시
+        continue;
+      }
+    }
+
+    return processedFiles;
+  } catch (error) {
+    console.error('처리된 파일 목록 조회 실패:', error);
+    return [];
+  }
+}
+
+// Bulk 스킵을 위한 새로운 함수들
+async function bulkCheckExistingQuestions(
+  parsedQuestions: ParsedQuestion[], 
+  examId: string
+): Promise<Set<string>> {
+  try {
+    // 문제 내용을 기준으로 중복 체크
+    const questionContents = parsedQuestions.map((q: ParsedQuestion) => q.questionContent);
+    
+    const existingQuestions = await db
+      .select({ content: questions.content })
+      .from(questions)
+      .where(and(
+        eq(questions.examId, examId),
+        inArray(questions.content, questionContents)
+      ));
+    
+    return new Set(existingQuestions.map((q: { content: string }) => q.content));
+  } catch (error) {
+    console.error('Bulk 중복 체크 실패:', error);
+    return new Set();
+  }
+}
+
+async function getBulkExamStatus(): Promise<Map<string, { questionCount: number; isComplete: boolean }>> {
+  try {
+    const result = await db
+      .select({
+        examName: exams.name,
+        questionCount: sql`count(${questions.id})`,
+        examId: exams.id
+      })
+      .from(exams)
+      .leftJoin(questions, eq(exams.id, questions.examId))
+      .groupBy(exams.id, exams.name)
+      .orderBy(exams.name);
+
+    const examStatus = new Map<string, { questionCount: number; isComplete: boolean }>();
+    
+    for (const row of result) {
+      // exam 이름에서 파일명 추출 (예: "건설안전기사" -> "건설안전기사.html")
+      const fileName = `${row.examName}.html`;
+      examStatus.set(fileName, {
+        questionCount: Number(row.questionCount),
+        isComplete: row.questionCount > 0 // 문제가 있으면 완료된 것으로 간주
+      });
+    }
+    
+    return examStatus;
+  } catch (error) {
+    console.error('❌ Bulk exam status 조회 실패:', error);
+    return new Map();
+  }
+}
+
+async function shouldSkipFile(filePath: string, examStatus: Map<string, { questionCount: number; isComplete: boolean }>): Promise<boolean> {
+  try {
+    // 파일 경로에서 exam 디렉토리명 추출
+    const pathParts = filePath.split(path.sep);
+    const examDirIndex = pathParts.findIndex(part => part === 'predata') + 1;
+    const examDirName = pathParts[examDirIndex];
+    
+    if (!examDirName) return false;
+    
+    // exam 상태 확인
+    const status = examStatus.get(examDirName);
+    if (status && status.isComplete) {
+      console.log(`⏭️  ${examDirName}: 이미 완료됨 (${status.questionCount}개 문제)`);
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error(`❌ 파일 스킵 체크 실패 (${filePath}):`, error);
+    return false;
+  }
+}
+
+// --- 진행상태 관리 함수들 ---
+async function loadProgress(): Promise<MigrationProgress> {
+  try {
+    const data = await fs.readFile(PROGRESS_FILE, 'utf-8');
+    const progress = JSON.parse(data);
+    
+    // 데이터베이스 통계 업데이트
+    progress.databaseStats = await getDatabaseStats();
+    
+    return progress;
+  } catch (error) {
+    // 파일이 없거나 읽기 실패 시 기본값 반환
+    const databaseStats = await getDatabaseStats();
+    return {
+      lastUpdated: Date.now(),
+      totalFiles: 0,
+      processedFiles: 0,
+      failedFiles: [],
+      successfulFiles: [],
+      startTime: Date.now(),
+      performanceMetrics: {
+        filesPerMinute: 0,
+        averageProcessingTime: 0,
+        totalProcessingTime: 0
+      },
+      databaseStats
+    };
+  }
+}
+
+async function saveProgress(progress: MigrationProgress): Promise<void> {
+  try {
+    // 데이터베이스 통계 업데이트
+    progress.databaseStats = await getDatabaseStats();
+    progress.lastUpdated = Date.now();
+    
+    await fs.writeFile(PROGRESS_FILE, JSON.stringify(progress, null, 2));
+  } catch (error) {
+    console.error('진행상태 저장 실패:', error);
+  }
+}
+
+async function updateProgress(
+  progress: MigrationProgress,
+  filePath: string,
+  success: boolean,
+  totalFiles: number
+): Promise<MigrationProgress> {
+  if (success) {
+    progress.successfulFiles.push(filePath);
+    progress.processedFiles++;
+    
+    // 실패 목록에서 제거
+    progress.failedFiles = progress.failedFiles.filter(f => f !== filePath);
+  } else {
+    if (!progress.failedFiles.includes(filePath)) {
+      progress.failedFiles.push(filePath);
+    }
+  }
+
+  // 진행률 계산
+  const progressPercent = ((progress.processedFiles / totalFiles) * 100).toFixed(2);
+  console.log(`📊 진행률: ${progress.processedFiles}/${totalFiles} (${progressPercent}%)`);
+
+  // 예상 완료 시간 계산
+  if (progress.startTime && progress.processedFiles > 0) {
+    const startTime = new Date(progress.startTime);
+    const now = new Date();
+    const elapsed = now.getTime() - startTime.getTime();
+    const avgTimePerFile = elapsed / progress.processedFiles;
+    const remainingFiles = totalFiles - progress.processedFiles;
+    const estimatedTimeRemaining = new Date(now.getTime() + (avgTimePerFile * remainingFiles));
+    
+    progress.estimatedTimeRemaining = estimatedTimeRemaining.toISOString();
+    
+    const remainingHours = Math.floor(remainingFiles * avgTimePerFile / (1000 * 60 * 60));
+    const remainingMinutes = Math.floor((remainingFiles * avgTimePerFile % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (remainingHours > 0) {
+      console.log(`⏰ 예상 완료 시간: ${remainingHours}시간 ${remainingMinutes}분 후`);
+    } else {
+      console.log(`⏰ 예상 완료 시간: ${remainingMinutes}분 후`);
+    }
+  }
+
+  return progress;
+}
+
+// --- 에러 로깅 함수 ---
+async function logError(filePath: string, error: any, context?: string): Promise<void> {
+  try {
+    const timestamp = new Date().toISOString();
+    const errorMessage = `[${timestamp}] ${filePath}: ${error.message || error}\n${context || ''}\n${error.stack || ''}\n---\n`;
+    
+    await fs.appendFile(ERROR_LOG_FILE, errorMessage);
+  } catch (logError) {
+    console.error('에러 로깅 실패:', logError);
+  }
+}
+
+// --- 진행상태 표시 함수 ---
+function displayProgress(progress: MigrationProgress, currentFile?: string): void {
+  console.log('\n📋 마이그레이션 진행상황');
+  console.log(`   총 파일 수: ${progress.totalFiles}`);
+  console.log(`   처리 완료: ${progress.processedFiles}`);
+  console.log(`   성공: ${progress.successfulFiles.length}`);
+  console.log(`   실패: ${progress.failedFiles.length}`);
+  
+  if (progress.databaseStats) {
+    console.log(`   데이터베이스 문제 수: ${progress.databaseStats.totalQuestions.toLocaleString()}`);
+    console.log(`   등록된 시험 수: ${progress.databaseStats.totalExams}`);
+    if (progress.databaseStats.lastProcessedExam) {
+      console.log(`   마지막 처리 시험: ${progress.databaseStats.lastProcessedExam}`);
+    }
+  }
+  
+  if (progress.startTime) {
+    const startTime = new Date(progress.startTime);
+    const now = new Date();
+    const elapsed = now.getTime() - startTime.getTime();
+    const hours = Math.floor(elapsed / (1000 * 60 * 60));
+    const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
+    console.log(`   경과 시간: ${hours}시간 ${minutes}분`);
+  }
+  
+  if (currentFile) {
+    console.log(`   현재 처리 중: ${path.basename(currentFile)}`);
+  }
 }
 
 // --- 이미지 처리 함수 ---
@@ -238,182 +572,311 @@ async function parseHtmlFile(filePath: string, dryRun: boolean = false): Promise
 }
 
 // --- 메인 마이그레이션 함수 ---
-async function migrate(options: MigrateOptions = {}) {
-  const { dryRun = false, singleFile, limit, targetExamName } = options;
-  console.log(`Starting Predata migration... ${dryRun ? '(Dry Run)' : ''}`);
-  if (singleFile) {
-    console.log(`Targeting single file: ${singleFile}`);
-  } else if (targetExamName) {
-    console.log(`Targeting exam name directory: ${targetExamName}`);
-  }
-  if (limit) console.log(`Limiting to ${limit} files.`);
+export async function migrate(options: MigrateOptions = {}): Promise<void> {
+  const {
+    singleFile,
+    targetExamName,
+    runAll = false,
+    dryRun = false,
+    limit,
+    resume = false,
+    force = false,
+    skipProcessed = true,
+    retryFailed = false
+  } = options;
 
-  const allHtmlFiles: string[] = [];
+  console.log('🚀 마이그레이션 시작');
+  console.log(`📋 옵션: ${JSON.stringify({ singleFile, targetExamName, runAll, dryRun, limit, resume, force, skipProcessed, retryFailed })}`);
 
-  // findHtmlFiles 함수를 migrate 함수 내부로 이동시켜 allHtmlFiles에 직접 접근하도록 함
-  async function findHtmlFiles(dir: string) {
-    const entries = await fs.readdir(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (limit && allHtmlFiles.length >= limit) break; // 파일 수 제한
-      const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        await findHtmlFiles(fullPath);
-      } else if (entry.isFile() && (entry.name.endsWith('_result.html') || entry.name.endsWith('_results.html'))) {
-        allHtmlFiles.push(fullPath);
+  try {
+    // 진행상태 로드
+    let progress = await loadProgress();
+    
+    // 새로운 마이그레이션 시작 시 초기화
+    if (!resume) {
+      progress = {
+        totalFiles: 0,
+        processedFiles: 0,
+        successfulFiles: [],
+        failedFiles: [],
+        startTime: Date.now(),
+        lastUpdated: Date.now(),
+        performanceMetrics: {
+          filesPerMinute: 0,
+          averageProcessingTime: 0,
+          totalProcessingTime: 0
+        },
+        databaseStats: { totalQuestions: 0, totalExams: 0 }
+      };
+    }
+
+    // Bulk exam 상태 조회 (한 번만 실행)
+    console.log('📊 DB에서 exam 상태를 bulk로 조회 중...');
+    const examStatus = await getBulkExamStatus();
+    console.log(`✅ ${examStatus.size}개 exam 상태 조회 완료`);
+
+    // 파일 목록 생성
+    const allHtmlFiles: string[] = [];
+    
+    if (singleFile) {
+      const filePath = path.isAbsolute(singleFile) ? singleFile : path.join(PREDATA_DIR, singleFile);
+      if (await fs.stat(filePath).then((s: any) => s.isFile()).catch(() => false)) {
+        allHtmlFiles.push(filePath);
+      } else {
+        console.error(`❌ 파일을 찾을 수 없습니다: ${filePath}`);
+        return;
       }
-    }
-  }
-
-  if (singleFile) {
-    // 절대 경로 또는 PREDATA_DIR 기준 상대 경로일 수 있음
-    const filePath = path.isAbsolute(singleFile) ? singleFile : path.join(PREDATA_DIR, singleFile);
-    if (await fs.stat(filePath).then(s => s.isFile()).catch(() => false)) {
-      allHtmlFiles.push(filePath);
-    } else {
-      console.error(`[Migrate] Single file not found or is not a file: ${filePath}`);
-      return;
-    }
-  } else {
-    let dirToSearch = PREDATA_DIR;
-    if (targetExamName) {
-      dirToSearch = path.join(PREDATA_DIR, targetExamName);
+    } else if (targetExamName) {
+      const dirToSearch = path.join(PREDATA_DIR, targetExamName);
       try {
         const stats = await fs.stat(dirToSearch);
         if (!stats.isDirectory()) {
-          console.error(`[Migrate] Error: Target directory ${dirToSearch} for exam ${targetExamName} is not a valid directory.`);
+          console.error(`❌ 디렉토리가 아닙니다: ${dirToSearch}`);
           return;
         }
+        await findHtmlFiles(dirToSearch, allHtmlFiles, limit);
       } catch (error: any) {
-        if (error.code === 'ENOENT') {
-          console.error(`[Migrate] Error: Target directory ${dirToSearch} for exam ${targetExamName} does not exist.`);
-        } else {
-          console.error(`[Migrate] Error: Could not access target directory ${dirToSearch} for exam ${targetExamName}.`, error);
-        }
+        console.error(`❌ 디렉토리 접근 실패: ${dirToSearch}`, error);
         return;
       }
-    }
-    console.log(`[Migrate] Searching for HTML files in: ${dirToSearch}`);
-    await findHtmlFiles(dirToSearch);
-  }
-  
-  console.log(`Found ${allHtmlFiles.length} HTML file(s) to process.`);
-  let processedFileCount = 0;
-
-  for (const htmlFilePath of allHtmlFiles) {
-    if (limit && processedFileCount >= limit) {
-        console.log(`[Migrate] Reached file limit of ${limit}. Stopping.`);
-        break;
-    }
-    console.log(`\nProcessing file (${processedFileCount + 1}/${allHtmlFiles.length}): ${htmlFilePath}`);
-    const parsedQuestions = await parseHtmlFile(htmlFilePath, dryRun);
-
-    if (parsedQuestions.length === 0) {
-      console.log(`No questions parsed from ${htmlFilePath}. Skipping.`);
-      processedFileCount++;
-      continue;
-    }
-
-    if (dryRun) {
-      console.log(`[Migrate] (Dry Run) Would process ${parsedQuestions.length} questions from ${htmlFilePath}`);
-      parsedQuestions.forEach((q, idx) => {
-        console.log(`  [Dry Run] Question ${idx + 1}: ${q.questionContent.substring(0, 70)}...`);
-        console.log(`    Exam: ${q.examName}, Date: ${q.examDate}, Subject: ${q.subject}`);
-        console.log(`    Options: ${q.options.length}, Answer Index: ${q.answerIndex}`);
-        q.questionImages.forEach(img => console.log(`    Q_Image: ${img.url} (hash: ${img.hash})`));
-        q.options.forEach(opt => opt.images.forEach(img => console.log(`    Opt_Image (${opt.number}): ${img.url} (hash: ${img.hash})`)));
-         if (q.answerIndex === -1 && q.options.length > 0) {
-            console.warn(`    [Dry Run] WARN: Question has options but no answer index!`);
-        }
-      });
+    } else if (runAll) {
+      await findHtmlFiles(PREDATA_DIR, allHtmlFiles, limit);
     } else {
-      // 실제 DB 작업
-      await db.transaction(async (tx: any) => {
-        for (const q of parsedQuestions) {
-          if (q.answerIndex === -1 && q.options.length > 0) { // 선택지가 있는데 답이 없는 경우
-            console.warn(`[DB Insert] Skipping question with options but no answer: ${q.questionContent.substring(0,50)}... in ${htmlFilePath}`);
+      console.error('❌ 마이그레이션 대상이 지정되지 않았습니다. --singleFile, --targetExamName, 또는 --run-all을 사용하세요.');
+      return;
+    }
+
+    console.log(`📁 처리할 HTML 파일: ${allHtmlFiles.length}개`);
+    
+    // 진행상태 초기화
+    if (!resume || force) {
+      progress.totalFiles = allHtmlFiles.length;
+      progress.processedFiles = 0;
+      progress.successfulFiles = [];
+      progress.failedFiles = [];
+      progress.startTime = Date.now();
+      progress.lastUpdated = Date.now();
+      progress.performanceMetrics = {
+        filesPerMinute: 0,
+        averageProcessingTime: 0,
+        totalProcessingTime: 0
+      };
+      await saveProgress(progress);
+    }
+
+    let processedFileCount = 0;
+
+    // 파일 처리 로직
+    for (const filePath of allHtmlFiles) {
+      try {
+        // Bulk 스킵 체크 (기존 개별 체크 대신)
+        if (skipProcessed && await shouldSkipFile(filePath, examStatus)) {
+          progress.processedFiles++;
+          processedFileCount++;
+          console.log(`⏭️  스킵된 파일: ${path.basename(filePath)}`);
+          continue; // 다음 파일로
+        }
+
+        // resume 모드에서 이미 성공한 파일 스킵
+        if (resume && !force && progress.successfulFiles.includes(filePath)) {
+          console.log(`⏭️  이미 처리된 파일 스킵 (progress): ${path.basename(filePath)}`);
+          progress.processedFiles++;
+          processedFileCount++;
+          continue;
+        }
+
+        // 현재 처리 중인 파일 표시
+        progress.currentFile = filePath;
+        await saveProgress(progress);
+
+        console.log(`\n📝 파일 처리 중 (${processedFileCount + 1}/${allHtmlFiles.length}): ${path.basename(filePath)}`);
+        
+        try {
+          const parsedQuestions = await parseHtmlFile(filePath, dryRun);
+
+          if (parsedQuestions.length === 0) {
+            console.log(`⚠️  파싱된 문제가 없습니다: ${path.basename(filePath)}`);
+            await updateProgress(progress, filePath, true, allHtmlFiles.length);
+            await saveProgress(progress);
+            processedFileCount++;
             continue;
           }
-          if (q.options.length === 0 && q.answerIndex === -1) { // 선택지가 아예 없는 문제 (간혹 Predata에 있음)
-             // 이런 문제는 저장할 수도, 건너뛸 수도 있음. 일단 저장 시도.
-             console.log(`[DB Insert] Attempting to save question with no options: ${q.questionContent.substring(0,50)}...`);
-          }
 
-
-          let examRecord = await tx.select({ id: exams.id })
-            .from(exams)
-            .where(and(
-              eq(exams.name, q.examName),
-              eq(exams.date, q.examDate),
-              eq(exams.subject, q.subject)
-            ))
-            .limit(1)
-            .then((rows: { id: string }[]) => rows[0]);
-
-          let currentExamId: string;
-          if (!examRecord) {
-            const newExam = await tx.insert(exams)
-              .values({
-                name: q.examName,
-                date: q.examDate,
-                subject: q.subject,
-              })
-              .returning({ id: exams.id })
-              .then((rows: { id: string }[]) => rows[0]);
-            currentExamId = newExam.id;
-            console.log(`[DB Insert] New exam: ${q.examName}-${q.examDate}-${q.subject} (ID: ${currentExamId})`);
+          if (dryRun) {
+            console.log(`🔍 (Dry Run) ${parsedQuestions.length}개 문제 파싱됨: ${path.basename(filePath)}`);
+            await updateProgress(progress, filePath, true, allHtmlFiles.length);
+            await saveProgress(progress);
           } else {
-            currentExamId = examRecord.id;
-          }
+            // 실제 DB 작업
+            try {
+              await db.transaction(async (tx: any) => {
+                // 먼저 exam 정보 확인/생성
+                const firstQuestion = parsedQuestions[0];
+                let examRecord = await tx.select({ id: exams.id })
+                  .from(exams)
+                  .where(and(
+                    eq(exams.name, firstQuestion.examName),
+                    eq(exams.date, firstQuestion.examDate),
+                    eq(exams.subject, firstQuestion.subject)
+                  ))
+                  .limit(1)
+                  .then((rows: { id: string }[]) => rows[0]);
 
-          try {
-            // 중복 문제 방지: examId와 content가 같은 문제가 이미 있는지 확인
-            const existingQuestion = await tx.select({id: questions.id})
-                .from(questions)
-                .where(and(
-                    eq(questions.examId, currentExamId),
-                    eq(questions.content, q.questionContent) 
-                ))
-                .limit(1)
-                .then((rows: { id: string }[]) => rows[0]);
+                let currentExamId: string;
+                if (!examRecord) {
+                  const newExam = await tx.insert(exams)
+                    .values({
+                      name: firstQuestion.examName,
+                      date: firstQuestion.examDate,
+                      subject: firstQuestion.subject,
+                    })
+                    .returning({ id: exams.id })
+                    .then((rows: { id: string }[]) => rows[0]);
+                  currentExamId = newExam.id;
+                  console.log(`📝 새 시험 등록: ${firstQuestion.examName}-${firstQuestion.examDate}-${firstQuestion.subject} (ID: ${currentExamId})`);
+                } else {
+                  currentExamId = examRecord.id;
+                }
 
-            if (existingQuestion) {
-                console.log(`[DB Insert] Question already exists (ExamID: ${currentExamId}, Content: "${q.questionContent.substring(0,30)}..."). Skipping.`);
-                continue;
+                // Bulk 중복 체크
+                const existingQuestions = await bulkCheckExistingQuestions(parsedQuestions, currentExamId);
+                const questionsToInsert = parsedQuestions.filter(q => !existingQuestions.has(q.questionContent));
+                
+                if (questionsToInsert.length === 0) {
+                  console.log(`⏭️  모든 문제가 이미 존재함: ${path.basename(filePath)}`);
+                  return;
+                }
+
+                console.log(`📊 ${parsedQuestions.length}개 중 ${questionsToInsert.length}개 새 문제 추가`);
+
+                // 필터링된 문제들만 처리
+                for (const q of questionsToInsert) {
+                  if (q.answerIndex === -1 && q.options.length > 0) {
+                    console.warn(`⚠️  선택지가 있지만 답이 없는 문제 스킵: ${q.questionContent.substring(0,50)}...`);
+                    continue;
+                  }
+
+                  try {
+                    const newQuestion = await tx.insert(questions).values({
+                      examId: currentExamId,
+                      content: q.questionContent,
+                      questionNumber: q.questionNumber,
+                      options: q.options.map(opt => ({ 
+                        number: opt.number, 
+                        text: opt.text, 
+                        images: opt.images
+                      })),
+                      answer: q.answerIndex,
+                      explanation: null,
+                      images: q.questionImages,
+                      explanationImages: [],
+                      userId: 'system-migration',
+                    }).returning({ id: questions.id });
+                    console.log(`✅ 문제 저장 완료: ${q.questionContent.substring(0, 50)}...`);
+                  } catch (dbError) {
+                    console.error(`❌ 문제 저장 실패: ${q.questionContent.substring(0,50)}...`, dbError);
+                  }
+                }
+              });
+              
+              // 성공적으로 처리됨
+              await updateProgress(progress, filePath, true, allHtmlFiles.length);
+              await saveProgress(progress);
+              console.log(`✅ 파일 처리 완료: ${path.basename(filePath)}`);
+              
+            } catch (error) {
+              console.error(`❌ 파일 처리 실패: ${path.basename(filePath)}`, error);
+              await updateProgress(progress, filePath, false, allHtmlFiles.length);
+              await saveProgress(progress);
             }
-            
-            const newQuestion = await tx.insert(questions).values({
-              examId: currentExamId,
-              content: q.questionContent,
-              questionNumber: q.questionNumber,
-              options: q.options.map(opt => ({ 
-                number: opt.number, 
-                text: opt.text, 
-                images: opt.images
-              })),
-              answer: q.answerIndex,
-              explanation: null,
-              images: q.questionImages,
-              explanationImages: [],
-              userId: 'system-migration',
-            }).returning({ id: questions.id });
-            console.log(`[DB Insert] Question inserted for exam ID ${currentExamId}: ${q.questionContent.substring(0, 50)}...`);
-          } catch (dbError) {
-            console.error(`[DB Insert] Error inserting question (ExamID: ${currentExamId}, Content: "${q.questionContent.substring(0,50)}..."):`, dbError);
+          }
+        } catch (error) {
+          console.error(`❌ 파일 파싱 실패: ${path.basename(filePath)}`, error);
+          
+          // 에러 로깅
+          await logError(filePath, error, `파싱 실패: ${new Date().toISOString()}`);
+          
+          // 실패한 파일 처리
+          await updateProgress(progress, filePath, false, allHtmlFiles.length);
+          await saveProgress(progress);
+          
+          // 에러 발생 시 잠시 대기 (데이터베이스 부하 방지)
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        
+        processedFileCount++;
+        
+        // 진행상황 표시 (10개 파일마다 또는 마지막 파일)
+        if (processedFileCount % 10 === 0 || processedFileCount === allHtmlFiles.length) {
+          displayProgress(progress);
+          // 배치로 진행상태 저장 (매번 저장하지 않음)
+          if (processedFileCount % 10 === 0) {
+            await saveProgress(progress);
           }
         }
-      });
+              } catch (error) {
+          console.error(`❌ 파일 처리 중 오류 발생: ${path.basename(filePath)}`, error);
+          await updateProgress(progress, filePath, false, allHtmlFiles.length);
+          
+          // 에러 로깅
+          await logError(filePath, error, `파일 처리 실패: ${new Date().toISOString()}`);
+          
+          // 에러 발생 시 잠시 대기 (데이터베이스 부하 방지)
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
     }
-    processedFileCount++;
+    
+    // 최종 진행상황 표시
+    displayProgress(progress);
+    console.log(`\n🎉 마이그레이션 완료! ${processedFileCount}개 파일 처리됨`);
+    
+    if (progress.failedFiles.length > 0) {
+      console.log(`\n⚠️  실패한 파일이 있습니다. 다음 명령으로 재처리할 수 있습니다:`);
+      console.log(`   npx tsx scripts/migratePredata.ts --resume --targetExamName=${targetExamName || 'ALL'}`);
+    }
+  } catch (error) {
+    console.error("\n❌ 마이그레이션 실행 중 오류 발생:", error);
+    process.exit(1);
   }
-  console.log(`\nPredata migration finished. Processed ${processedFileCount} file(s).`);
+}
+
+// HTML 파일 찾기 함수
+async function findHtmlFiles(dir: string, allHtmlFiles: string[], limit?: number): Promise<void> {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (limit && allHtmlFiles.length >= limit) break;
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      await findHtmlFiles(fullPath, allHtmlFiles, limit);
+    } else if (entry.isFile() && (entry.name.endsWith('_result.html') || entry.name.endsWith('_results.html'))) {
+      allHtmlFiles.push(fullPath);
+    }
+  }
 }
 
 // --- 스크립트 실행 부분 ---
 async function main() {
   const args = process.argv.slice(2);
   const options: MigrateOptions = {};
+  
   if (args.includes('--dry-run')) {
     options.dryRun = true;
+  }
+  
+  if (args.includes('--resume')) {
+    options.resume = true;
+  }
+  
+  if (args.includes('--force')) {
+    options.force = true;
+  }
+
+  if (args.includes('--skip-processed')) {
+    options.skipProcessed = true;
+  }
+
+  if (args.includes('--retry-failed')) {
+    options.retryFailed = true;
   }
 
   // --singleFile 인자 처리 수정
@@ -436,26 +899,51 @@ async function main() {
     }
   }
 
-  const limitArgIndex = args.indexOf('--limit');
-  if (limitArgIndex !== -1 && args[limitArgIndex + 1]) {
-    options.limit = parseInt(args[limitArgIndex + 1], 10);
+  // --limit 인자 처리 (--limit=value 형태)
+  const limitArg = args.find((arg: string) => arg.startsWith('--limit='));
+  if (limitArg) {
+    const limitValue = limitArg.split('=')[1];
+    if (limitValue) {
+      options.limit = parseInt(limitValue, 10);
+    }
   }
-  const targetExamNameArgIndex = args.indexOf('--targetExamName');
-  if (targetExamNameArgIndex !== -1 && args[targetExamNameArgIndex + 1]) {
-    options.targetExamName = args[targetExamNameArgIndex + 1];
+  
+  // --targetExamName 인자 처리 (--targetExamName=value 형태)
+  const targetExamNameArg = args.find((arg: string) => arg.startsWith('--targetExamName='));
+  if (targetExamNameArg) {
+    const examNameValue = targetExamNameArg.split('=')[1];
+    if (examNameValue) {
+      options.targetExamName = examNameValue;
+    }
+  }
+
+  // --run-all 인자 처리
+  if (args.includes('--run-all')) {
+    options.runAll = true;
+  }
+
+  // --parse-only 인자 처리
+  if (args.includes('--parse-only')) {
+    options.dryRun = true; // parse-only는 dryRun과 동일한 효과
   }
 
   // 실행 모드 유효성 검사: singleFile 또는 targetExamName 중 하나는 지정되어야 함
-  if (!options.singleFile && !options.targetExamName && !args.includes('--run-all') && !(options.singleFile && args.includes('--parse-only'))) {
+  if (!options.singleFile && !options.targetExamName && !options.runAll && !(options.singleFile && args.includes('--parse-only'))) {
     console.error("Error: No target specified for migration. You must use either --singleFile, --targetExamName, or --run-all.");
     console.log("\nUsage examples:");
     console.log("  npx tsx scripts/migratePredata.ts --singleFile=path/to/your/file.html");
     console.log("  npx tsx scripts/migratePredata.ts --targetExamName=건설안전기사");
     console.log("  npx tsx scripts/migratePredata.ts --run-all");    
     console.log("  npx tsx scripts/migratePredata.ts --parse-only --singleFile=path/to/your/file.html");
+    console.log("  npx tsx scripts/migratePredata.ts --resume --targetExamName=건설안전기사"); // 중단된 지점부터 재개
+    console.log("  npx tsx scripts/migratePredata.ts --force --targetExamName=건설안전기사"); // 강제 재처리
     console.log("\nOptional flags:");
     console.log("  --dry-run          Simulate migration without writing to DB or files.");
     console.log("  --limit=<number>   Limit the number of files processed.");
+    console.log("  --resume           Resume from previous migration point.");
+    console.log("  --force            Force reprocessing of all files.");
+    console.log("  --skip-processed   Skip files that have already been processed in the database.");
+    console.log("  --retry-failed     Retry failed files.");
     process.exit(1);
   }
 
@@ -510,7 +998,7 @@ async function main() {
     } else if (options.targetExamName) { // --targetExamName (단독 또는 --run-all과 함께 올 수 있으나, 여기서 단독 처리)
       console.log(`Running migration for target exam directory: ${options.targetExamName}`);
       await migrate(options);
-    } else if (args.includes('--run-all')) { // --run-all 만 있고, targetExamName은 없는 경우 (PREDATA_DIR 전체)
+    } else if (options.runAll) { // --run-all 만 있고, targetExamName은 없는 경우 (PREDATA_DIR 전체)
       console.log('Running in FULL migration mode for all files in PREDATA_DIR.');
       await migrate(options);
     } else {

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/db';
@@ -6,10 +6,10 @@ import { examResults } from '@/db/schema/examResults';
 import { eq } from 'drizzle-orm';
 
 export async function GET(
-  request: NextRequest,
-  context: { params: { resultId: string } }
+  request: Request,
+  { params }: { params: { resultId: string } }
 ) {
-  const { resultId } = await context.params;
+  const { resultId } = params;
 
   const session = await getServerSession(authOptions);
   console.log('[exam-results API] session:', session);
@@ -43,10 +43,10 @@ export async function GET(
 }
 
 export async function DELETE(
-  request: NextRequest,
-  context: { params: { resultId: string } }
+  request: Request,
+  { params }: { params: { resultId: string } }
 ) {
-  const { resultId } = context.params;
+  const { resultId } = params;
 
   const session = await getServerSession(authOptions);
 
