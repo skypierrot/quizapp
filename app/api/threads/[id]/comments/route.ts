@@ -6,15 +6,15 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
 // 댓글 목록 조회
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const comments = await db.select().from(threadComments)
-    .where(eq(threadComments.threadId, params.id))
+    .where(eq(threadComments.threadId, await params.id))
     .orderBy(threadComments.createdAt);
   return NextResponse.json({ comments });
 }
 
 // 댓글 작성 (parentId 지원)
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ message: '로그인 필요' }, { status: 401 });
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   
   // 댓글 추가
   const [comment] = await db.insert(threadComments).values({
-    threadId: params.id,
+    threadId: await params.id,
     authorId: session.user.id,
     content,
     parentId: parentId || null,
@@ -36,19 +36,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const commentCountResult = await db
     .select({ count: count() })
     .from(threadComments)
-    .where(eq(threadComments.threadId, params.id));
+    .where(eq(threadComments.threadId, await params.id));
   
   const commentCount = commentCountResult[0]?.count || 0;
   
   await db.update(threads)
     .set({ commentCount })
-    .where(eq(threads.id, params.id));
+    .where(eq(threads.id, await params.id));
   
   return NextResponse.json({ comment });
 }
 
 // 댓글 수정
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ message: '로그인 필요' }, { status: 401 });
@@ -86,7 +86,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 }
 
 // 댓글 삭제
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ message: '로그인 필요' }, { status: 401 });
@@ -113,13 +113,13 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   const commentCountResult = await db
     .select({ count: count() })
     .from(threadComments)
-    .where(eq(threadComments.threadId, params.id));
+    .where(eq(threadComments.threadId, await params.id));
   
   const commentCount = commentCountResult[0]?.count || 0;
   
   await db.update(threads)
     .set({ commentCount })
-    .where(eq(threads.id, params.id));
+    .where(eq(threads.id, await params.id));
   
   return NextResponse.json({ message: '댓글이 삭제되었습니다.' });
 } 

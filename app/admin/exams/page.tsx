@@ -138,7 +138,7 @@ export default async function AdminExamsPage() {
             {exams.map((exam) => (
               <TableRow key={exam.id}>
                 <TableCell>{exam.name}</TableCell>
-                <TableCell>{exam.year}</TableCell>
+                <TableCell>{exam.date ? new Date(exam.date).getFullYear() : '-'}</TableCell>
                 <TableCell>{exam.round}</TableCell>
                 <TableCell className="text-xs text-gray-600">{exam.id}</TableCell>
                 <TableCell>{exam.createdAt ? new Date(exam.createdAt).toLocaleDateString() : '-'}</TableCell>
@@ -158,7 +158,7 @@ export default async function AdminExamsPage() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>정말 삭제하시겠습니까?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          '{exam.name} ({exam.year}년 {exam.round}회차)' 시험 정보를 삭제합니다. 이 작업은 되돌릴 수 없으며, 관련된 문제가 없을 경우에만 삭제됩니다.
+                          '{exam.name} ({exam.date ? new Date(exam.date).getFullYear() : 'N/A'}년 {exam.round}회차)' 시험 정보를 삭제합니다. 이 작업은 되돌릴 수 없으며, 관련된 문제가 없을 경우에만 삭제됩니다.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>

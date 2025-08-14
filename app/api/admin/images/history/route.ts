@@ -8,13 +8,12 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const imageIdParam = searchParams.get('imageId');
     
-    if (imageIdParam && !isNaN(parseInt(imageIdParam))) {
+    if (imageIdParam) {
       // 특정 이미지의 이력만 조회
-      const imageId = parseInt(imageIdParam);
       const records = await db
         .select()
         .from(imageHistory)
-        .where(eq(imageHistory.imageId, imageId))
+        .where(eq(imageHistory.imageId, imageIdParam))
         .orderBy(desc(imageHistory.createdAt));
       
       return NextResponse.json(records);

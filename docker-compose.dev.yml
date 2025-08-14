@@ -1,8 +1,7 @@
-version: '3.8'
-
 services:
   quizapp-web:
     container_name: quizapp-dev
+    restart: unless-stopped
     build:
       context: .
       dockerfile: Dockerfile.dev
@@ -21,16 +20,26 @@ services:
       - NEXT_WEBPACK_USEPOLLING=${NEXT_WEBPACK_USEPOLLING}
       - WATCHPACK_POLLING=${WATCHPACK_POLLING}
       - DEBUG=${DEBUG}
-    command: sh -c "DEBUG=openid-client npm run dev"
+      - AUTHENTIK_HOST=${AUTHENTIK_HOST}
+      - AUTHENTIK_CLIENT_ID=${AUTHENTIK_CLIENT_ID}
+      - AUTHENTIK_CLIENT_SECRET=${AUTHENTIK_CLIENT_SECRET}
+      - AUTHENTIK_ISSUER=${AUTHENTIK_ISSUER}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      # React Refresh 안정화를 위한 추가 설정
+      - FAST_REFRESH=true
+      - REACT_REFRESH_OVERLAY=false
+      - NEXT_TELEMETRY_DISABLED=1
+    command: sh -c "npm run dev"
     networks:
       - ngnet
     depends_on:
       - quizapp-db
-      - authentik-server
 
   quizapp-db:
     image: postgres:16-alpine
     container_name: quizapp-db-dev
+    restart: unless-stopped
     env_file:
       - .env
     environment:
@@ -44,106 +53,8 @@ services:
     networks:
       - ngnet
 
-  authentik-postgresql:
-    image: postgres:16-alpine
-    container_name: authentik-db
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      - POSTGRES_USER=${AUTHENTIK_DB_USER}
-      - POSTGRES_PASSWORD=${AUTHENTIK_DB_PASSWORD}
-      - POSTGRES_DB=${AUTHENTIK_DB_NAME}
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d $$POSTGRES_DB -U $$POSTGRES_USER"]
-      start_period: 20s
-      interval: 30s
-      retries: 5
-      timeout: 5s
-    volumes:
-      - authentik_database:/var/lib/postgresql/data
-    networks:
-      - ngnet
-
-  authentik-redis:
-    image: redis:alpine
-    container_name: authentik-redis
-    command: --save 60 1 --loglevel warning
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
-      start_period: 20s
-      interval: 30s
-      retries: 5
-      timeout: 3s
-    volumes:
-      - authentik_redis:/data
-    networks:
-      - ngnet
-
-  authentik-server:
-    image: ${AUTHENTIK_IMAGE}:${AUTHENTIK_TAG}
-    container_name: authentik-server
-    restart: unless-stopped
-    command: server
-    env_file:
-      - .env
-    environment:
-      - AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
-      - AUTHENTIK_REDIS__HOST=${AUTHENTIK_REDIS__HOST}
-      - AUTHENTIK_POSTGRESQL__HOST=${AUTHENTIK_POSTGRESQL__HOST}
-      - AUTHENTIK_POSTGRESQL__USER=${AUTHENTIK_POSTGRESQL__USER}
-      - AUTHENTIK_POSTGRESQL__NAME=${AUTHENTIK_POSTGRESQL__NAME}
-      - AUTHENTIK_POSTGRESQL__PASSWORD=${AUTHENTIK_POSTGRESQL__PASSWORD}
-      - AUTHENTIK_HOST=${AUTHENTIK_HOST}
-    volumes:
-      - ./authentik/media:/media
-      - ./authentik/custom-templates:/templates
-    ports:
-      - "9000:9000"
-    depends_on:
-      authentik-postgresql:
-        condition: service_healthy
-      authentik-redis:
-        condition: service_healthy
-    networks:
-      ngnet:
-        aliases:
-          - authentik
-
-  authentik-worker:
-    image: ${AUTHENTIK_IMAGE}:${AUTHENTIK_TAG}
-    container_name: authentik-worker
-    restart: unless-stopped
-    command: worker
-    env_file:
-      - .env
-    environment:
-      - AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
-      - AUTHENTIK_REDIS__HOST=${AUTHENTIK_REDIS__HOST}
-      - AUTHENTIK_POSTGRESQL__HOST=${AUTHENTIK_POSTGRESQL__HOST}
-      - AUTHENTIK_POSTGRESQL__USER=${AUTHENTIK_POSTGRESQL__USER}
-      - AUTHENTIK_POSTGRESQL__NAME=${AUTHENTIK_POSTGRESQL__NAME}
-      - AUTHENTIK_POSTGRESQL__PASSWORD=${AUTHENTIK_POSTGRESQL__PASSWORD}
-      - AUTHENTIK_HOST=${AUTHENTIK_HOST}
-    user: root
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./authentik/media:/media
-      - ./authentik/certs:/certs
-      - ./authentik/custom-templates:/templates
-    depends_on:
-      authentik-postgresql:
-        condition: service_healthy
-      authentik-redis:
-        condition: service_healthy
-    networks:
-      - ngnet
-
 volumes:
   db_data_dev:
-  authentik_database:
-  authentik_redis:
 
 networks:
   ngnet:

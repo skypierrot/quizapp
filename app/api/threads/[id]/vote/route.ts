@@ -5,7 +5,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { eq, and } from 'drizzle-orm';
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ message: '로그인 필요' }, { status: 401 });
@@ -16,14 +16,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
   // 기존 투표가 있으면 업데이트, 없으면 생성
   const existing = await db.select().from(threadVotes)
-    .where(and(eq(threadVotes.threadId, params.id), eq(threadVotes.userId, session.user.id)));
+    .where(and(eq(threadVotes.threadId, await params.id), eq(threadVotes.userId, session.user.id)));
   if (existing.length > 0) {
     await db.update(threadVotes)
       .set({ value })
       .where(eq(threadVotes.id, existing[0].id));
   } else {
     await db.insert(threadVotes).values({
-      threadId: params.id,
+      threadId: await params.id,
       userId: session.user.id,
       value,
     });

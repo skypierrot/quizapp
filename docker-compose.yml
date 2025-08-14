@@ -1,10 +1,15 @@
-version: '3.8'
 services:
   web:
     build: .
     container_name: quizapp
     environment:
       DATABASE_URL: ${DATABASE_URL}
+      AUTHENTIK_HOST: ${AUTHENTIK_HOST}
+      AUTHENTIK_CLIENT_ID: ${AUTHENTIK_CLIENT_ID}
+      AUTHENTIK_CLIENT_SECRET: ${AUTHENTIK_CLIENT_SECRET}
+      AUTHENTIK_ISSUER: ${AUTHENTIK_ISSUER}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     ports:
       - "3772:3000"
     volumes:

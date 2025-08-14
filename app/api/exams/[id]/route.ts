@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { exams, questions } from '@/db/schema';
 import { eq, count } from 'drizzle-orm';
@@ -6,8 +6,8 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
 export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 1. 인증 확인 (NextAuth 기반)
@@ -24,7 +24,7 @@ export async function DELETE(
     }
 
     // 3. 경로 파라미터에서 ID 추출 및 유효성 검사
-    const examId = params.id;
+    const { id: examId } = await params;
     if (!examId) {
       return NextResponse.json({ error: 'Exam ID is required' }, { status: 400 });
     }

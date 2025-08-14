@@ -6,7 +6,7 @@ import { examResults } from '@/db/schema/examResults';
 import { questions } from '@/db/schema/questions';
 import { eq, inArray } from 'drizzle-orm';
 
-export async function GET(req: NextRequest, { params }: { params: { examResultId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ examResultId: string }> }) {
   const session = await getServerSession(authOptions);
   console.log('[wrong-note API] session:', session);
   
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest, { params }: { params: { examResultId
 
   // 1. 내 시험 결과만 조회
   const result = await db.select().from(examResults)
-    .where(eq(examResults.id, params.examResultId));
+    .where(eq(examResults.id, await params.examResultId));
   if (!result[0] || result[0].userId !== session.user.id) {
     return NextResponse.json({ message: '결과 없음' }, { status: 404 });
   }

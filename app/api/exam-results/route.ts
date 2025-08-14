@@ -76,8 +76,11 @@ export async function POST(req: NextRequest) {
       .limit(1);
     
     if (existingResults.length > 0) {
-      console.log('[API] 중복 결과 감지:', existingResults[0].id);
-      return NextResponse.json(existingResults[0]);
+      const existingResult = existingResults[0];
+      if (existingResult) {
+        console.log('[API] 중복 결과 감지:', existingResult.id);
+        return NextResponse.json(existingResult);
+      }
     }
     
     const insertData: InsertExamResult = {
@@ -96,6 +99,10 @@ export async function POST(req: NextRequest) {
     };
     
     const [saved] = await db.insert(examResults).values(insertData).returning();
+    
+    if (!saved) {
+      return NextResponse.json({ message: '시험 결과 저장에 실패했습니다.' }, { status: 500 });
+    }
     
     // 시험 결과가 저장된 후 통계 업데이트
     await updateStatsOnExamResultSave(userId, {

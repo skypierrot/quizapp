@@ -81,7 +81,7 @@ async function findOrCreateExamId(examName: string, examDate: string, examSubjec
 
 // 단일 문제 조회
 export async function GET(
-  request: Request,
+  request: NextNextRequest,
   { params }: { params: Promise<{ questionId: string }> }
 ) {
   try {
@@ -234,7 +234,7 @@ export async function PUT(
 
 // 단일 문제 삭제
 export async function DELETE(
-  request: Request,
+  request: NextNextRequest,
   { params }: { params: Promise<{ questionId: string }> }
 ) {
   try {

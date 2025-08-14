@@ -6,13 +6,13 @@ import { authOptions } from '@/lib/auth';
 import { eq, and } from 'drizzle-orm';
 
 // 북마크 추가/제거
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ message: '로그인 필요' }, { status: 401 });
   }
 
-  const threadId = params.id;
+  const threadId = await params.id;
   const userId = session.user.id;
 
   try {
@@ -47,13 +47,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 }
 
 // 북마크 상태 확인
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ bookmarked: false });
   }
 
-  const threadId = params.id;
+  const threadId = await params.id;
   const userId = session.user.id;
 
   try {

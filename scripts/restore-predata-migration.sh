@@ -125,3 +125,4 @@ echo "   1. 애플리케이션 재시작: docker-compose -f docker-compose.dev.y
 echo "   2. 데이터베이스 연결 확인"
 echo "   3. 마이그레이션 상태 확인: npm run db:studio"
 echo "   4. 문제 수 확인: 데이터베이스에서 questions 테이블 카운트"
+

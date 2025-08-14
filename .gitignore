@@ -127,9 +127,7 @@ results.kextraction/
 # PostgreSQL development database
 db_data_dev/
 
-# Authentik database and Redis data
-authentik_database/
-authentik_redis/
+
 
 # Docker
 .dockerignore

@@ -93,3 +93,4 @@ echo "📝 다음 단계:"
 echo "   1. 애플리케이션 재시작: docker-compose -f docker-compose.dev.yml restart"
 echo "   2. 데이터베이스 연결 확인"
 echo "   3. 마이그레이션 상태 확인: npm run db:studio"
+

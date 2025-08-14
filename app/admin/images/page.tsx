@@ -362,7 +362,7 @@ export default function ImageManagementPage() {
           <DialogHeader>
             <DialogTitle>이미지 변경 이력</DialogTitle>
             <DialogDescription>
-              이미지 ID: {selectedHistory.length > 0 ? selectedHistory[0].imageId : ''}
+              이미지 ID: {selectedHistory.length > 0 && selectedHistory[0] ? selectedHistory[0].imageId : ''}
             </DialogDescription>
           </DialogHeader>
           

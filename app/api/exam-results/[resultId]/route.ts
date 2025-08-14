@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/db';
@@ -6,10 +6,10 @@ import { examResults } from '@/db/schema/examResults';
 import { eq } from 'drizzle-orm';
 
 export async function GET(
-  request: Request,
-  { params }: { params: { resultId: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ resultId: string }> }
 ) {
-  const { resultId } = params;
+  const { resultId } = await params;
 
   const session = await getServerSession(authOptions);
   console.log('[exam-results API] session:', session);
@@ -32,6 +32,9 @@ export async function GET(
       return NextResponse.json({ error: 'Result not found' }, { status: 404 });
     }
     const examResult = result[0];
+    if (!examResult) {
+      return NextResponse.json({ error: 'Result not found' }, { status: 404 });
+    }
     if (examResult.userId !== userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -43,10 +46,10 @@ export async function GET(
 }
 
 export async function DELETE(
-  request: Request,
-  { params }: { params: { resultId: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ resultId: string }> }
 ) {
-  const { resultId } = params;
+  const { resultId } = await params;
 
   const session = await getServerSession(authOptions);
 
@@ -69,6 +72,9 @@ export async function DELETE(
     }
     
     const examResult = result[0];
+    if (!examResult) {
+      return NextResponse.json({ error: 'Result not found' }, { status: 404 });
+    }
     if (examResult.userId !== userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

@@ -78,3 +78,4 @@ echo "📄 백업 정보: $BACKUP_DIR/backup_info.txt"
 
 # 백업 크기 표시
 du -sh "$BACKUP_DIR"
+

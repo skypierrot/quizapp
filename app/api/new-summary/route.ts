@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get('userId');
 
-  console.log(`[API /api/new-summary] Request received. userId: ${userId || 'N/A (Global)'}`);
+  console.log(`[API /api/new-summary] NextNextRequest received. userId: ${userId || 'N/A (Global)'}`);
 
   // 더미 데이터 생성
   const dummyData: NewSummaryStat = {

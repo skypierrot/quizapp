@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { images } from '@/db/schema/images';
-import { eq } from 'drizzle-orm';
 
 export async function GET() {
   try {
-    // 삭제 대기 중인 이미지 목록 조회
-    const pendingImages = await db.select().from(images).where(eq(images.status, 'pending_deletion'));
+    // 모든 이미지 목록 조회 (status 컬럼이 없으므로)
+    const allImages = await db.select().from(images);
     
-    return NextResponse.json(pendingImages);
+    return NextResponse.json(allImages);
   } catch (error) {
-    console.error('삭제 대기 이미지 조회 중 오류 발생:', error);
-    return NextResponse.json({ error: '삭제 대기 이미지 조회 중 오류가 발생했습니다.' }, { status: 500 });
+    console.error('이미지 조회 중 오류 발생:', error);
+    return NextResponse.json({ error: '이미지 조회 중 오류가 발생했습니다.' }, { status: 500 });
   }
 } 

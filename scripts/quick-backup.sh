@@ -50,3 +50,4 @@ EOF
 
 echo "✅ 빠른 백업 완료: backups/$BACKUP_NAME"
 du -sh "backups/$BACKUP_NAME"
+

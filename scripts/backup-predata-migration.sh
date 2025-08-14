@@ -125,3 +125,4 @@ echo "📚 시험: $(cat "$BACKUP_DIR/database_stats.txt" | grep exams | awk '{p
 echo "🖼️  이미지: $(cat "$BACKUP_DIR/database_stats.txt" | grep images | awk '{print $3}')개"
 echo "📁 백업 크기: $(du -sh "$BACKUP_DIR" | cut -f1)"
 echo "⏰ 백업 시간: $(date)"
+

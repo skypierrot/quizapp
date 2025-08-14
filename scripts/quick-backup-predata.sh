@@ -92,3 +92,4 @@ echo "📚 시험: $(cat "backups/predata_quick/$BACKUP_NAME/database_stats.txt"
 echo "🖼️  이미지: $(cat "backups/predata_quick/$BACKUP_NAME/database_stats.txt" | grep images | awk '{print $3}')개"
 echo "📁 백업 크기: $(du -sh "backups/predata_quick/$BACKUP_NAME" | cut -f1)"
 echo "⏰ 백업 시간: $(date)"
+
