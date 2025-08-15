@@ -6,11 +6,11 @@ import AuthentikProvider from "next-auth/providers/authentik";
 
 // 환경변수 검증
 const requiredEnvVars = {
-  NEXTAUTH_URL: process.env.NEXTAUTH_URL,
-  AUTHENTIK_CLIENT_ID: process.env.AUTHENTIK_CLIENT_ID,
-  AUTHENTIK_CLIENT_SECRET: process.env.AUTHENTIK_CLIENT_SECRET,
-  AUTHENTIK_ISSUER: process.env.AUTHENTIK_ISSUER,
-  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+  NEXTAUTH_URL: process.env.NEXTAUTH_URL!,
+  AUTHENTIK_CLIENT_ID: process.env.AUTHENTIK_CLIENT_ID!,
+  AUTHENTIK_CLIENT_SECRET: process.env.AUTHENTIK_CLIENT_SECRET!,
+  AUTHENTIK_ISSUER: process.env.AUTHENTIK_ISSUER!,
+  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET!,
 };
 
 // 필수 환경변수 확인
@@ -30,16 +30,19 @@ if (process.env.NODE_ENV === 'development') {
   console.log('================================');
 }
 
-// AuthentikProvider 설정
+// AuthentikProvider 설정 (외부 접속 유지)
 const authentikProviderConfig = {
   clientId: process.env.AUTHENTIK_CLIENT_ID!,
   clientSecret: process.env.AUTHENTIK_CLIENT_SECRET!,
   issuer: process.env.AUTHENTIK_ISSUER!,
+  // 외부 도메인 접근을 위한 HTTP 옵션 최적화
+  httpOptions: {
+    timeout: 30000, // 30초 타임아웃
+    agent: false, // 기본 HTTP 에이전트 사용
+  },
 };
 
 export const authOptions: NextAuthOptions = {
-  secret: process.env.NEXTAUTH_SECRET,
-  
   adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,

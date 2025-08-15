@@ -4,7 +4,6 @@ import { load } from 'cheerio'; // 올바른 cheerio 임포트
 import { db } from '../db'; // Drizzle DB 인스턴스 경로 (실제 프로젝트에 맞게 수정)
 import { exams, questions } from '../db/schema'; // Drizzle 스키마 (실제 프로젝트에 맞게 수정)
 import { eq, and } from 'drizzle-orm';
-import type { Element } from 'cheerio'; // 타입 임포트
 
 // 이미지 경로와 같은 데이터를 저장하기 위한 타입 (필요시 확장)
 interface ImageData {
@@ -24,10 +23,10 @@ async function main() {
     let examName = '';
     let examDateStr = ''; // YYYY-MM-DD
 
-    const titleMatch = examTitleText.match(/(.+?)\\s*\\(((\\d{4}-\\d{2}-\\d{2}).*?)\\)/);
+    const titleMatch = examTitleText.match(/(.+?)\s*\(((\d{4}-\d{2}-\d{2}).*?)\)/);
     if (titleMatch && titleMatch.length > 3) {
-      examName = titleMatch[1].trim();
-      examDateStr = titleMatch[3];
+      examName = titleMatch[1]?.trim() || '';
+      examDateStr = titleMatch[3] || '';
     } else {
       console.error('시험명 또는 날짜를 추출할 수 없습니다:', examTitleText);
       return;
@@ -58,11 +57,18 @@ async function main() {
         subject: subjectName,
       }).returning({ id: exams.id });
       
-      if (!newExamResult || newExamResult.length === 0 || !newExamResult[0].id) {
+      if (!newExamResult || newExamResult.length === 0) {
         console.error('새 시험 정보 생성 실패');
         return;
       }
-      examId = newExamResult[0].id;
+      
+      const newExam = newExamResult[0];
+      if (!newExam || !newExam.id) {
+        console.error('새 시험 정보에 ID가 없습니다.');
+        return;
+      }
+      
+      examId = newExam.id;
       examRecord = { id: examId, name: examName, date: examDateStr, subject: subjectName, createdAt: new Date(), updatedAt: new Date() }; // 스키마에 맞게 createdAt, updatedAt 추가 가정
       console.log(`새 시험 정보 생성 완료. ID: ${examId}`);
     } else {
@@ -75,7 +81,7 @@ async function main() {
     }
 
     // 3. 첫 번째 문제 데이터 추출
-    const firstH3 = $('h3').filter((i: number, el: Element) => $(el).text().trim() === '문제 1').first();
+    const firstH3 = $('h3').filter((i: number, el: any) => $(el).text().trim() === '문제 1').first();
     const questionP = firstH3.nextAll('p').first();
     const questionUl = firstH3.nextAll('ul').first();
 
@@ -84,7 +90,7 @@ async function main() {
          const options: { text: string; images?: ImageData[] }[] = [];
          let answerIndex = -1;
 
-         questionUl.find('li').each((i: number, liElem: Element) => {
+         questionUl.find('li').each((i: number, liElem: any) => {
             const optionText = $(liElem).clone().children('b').remove().end().text().trim();
             options.push({ text: optionText });
             if ($(liElem).find('b').length > 0 && $(liElem).find('b').text().includes('(정답)')) {
@@ -93,14 +99,14 @@ async function main() {
          });
 
          const questionImages: ImageData[] = [];
-         questionP.find('img').each((i: number, imgElem: Element) => {
+         questionP.find('img').each((i: number, imgElem: any) => {
             const imgSrc = $(imgElem).attr('src');
             if (imgSrc) {
                 questionImages.push({ path: imgSrc });
             }
          });
         
-        questionUl.find('li img').each((optIdx: number, imgElem: Element) => {
+        questionUl.find('li img').each((optIdx: number, imgElem: any) => {
             const imgSrc = $(imgElem).attr('src');
             if (imgSrc && options[optIdx]) {
                 if (!options[optIdx].images) {
@@ -122,15 +128,23 @@ async function main() {
          }
 
          // 4. questions 테이블에 문제 데이터 삽입
-         const newQuestionResult = await db.insert(questions).values({
-            examId: examId, 
+         const newQuestion = await db.insert(questions).values({
             content: questionContent,
-            options: options, 
+            questionNumber: 1,
+            options: options.map((opt, index) => ({ 
+              number: index + 1, 
+              text: opt.text, 
+              images: opt.images || []
+            })),
             answer: answerIndex,
-            images: questionImages.length > 0 ? questionImages : null,
-         }).returning();
+            explanation: null,
+            images: questionImages,
+            explanationImages: [],
+            userId: 'system-migration',
+            examId: examId,
+         } as any).returning({ id: questions.id });
 
-         console.log('\\\\n새 문제 삽입 결과:', newQuestionResult);
+         console.log('\\\\n새 문제 삽입 결과:', newQuestion);
          console.log('마이그레이션 성공: 첫 번째 문제');
 
     } else {

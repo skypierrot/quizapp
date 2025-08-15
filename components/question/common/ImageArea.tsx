@@ -34,8 +34,9 @@ export const ImageArea: React.FC<ImageAreaProps> = ({
     const items = e.clipboardData?.items
     if (!items) return
     for (let i = 0; i < items.length; i++) {
-      if (items[i].type.startsWith('image/')) {
-        const file = items[i].getAsFile()
+      const item = items[i];
+      if (item && item.type.startsWith('image/')) {
+        const file = item.getAsFile()
         if (file) onImageUpload(file)
         e.preventDefault()
         return

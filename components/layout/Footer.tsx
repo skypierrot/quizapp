@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { Separator } from '../ui/separator';
 
 const Footer = () => {
@@ -17,16 +16,16 @@ const Footer = () => {
             <h3 className="text-sm font-semibold">서비스</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/exams" className="text-sm text-gray-500 hover:text-gray-900">문제 은행</Link>
+                <a href="/exams" className="text-sm text-gray-500 hover:text-gray-900">문제 은행</a>
               </li>
               <li>
-                <Link href="/practice" className="text-sm text-gray-500 hover:text-gray-900">모의고사</Link>
+                <a href="/practice" className="text-sm text-gray-500 hover:text-gray-900">모의고사</a>
               </li>
               <li>
-                <Link href="/wrong-answers" className="text-sm text-gray-500 hover:text-gray-900">오답 노트</Link>
+                <a href="/wrong-answers" className="text-sm text-gray-500 hover:text-gray-900">오답 노트</a>
               </li>
               <li>
-                <Link href="/statistics" className="text-sm text-gray-500 hover:text-gray-900">학습 통계</Link>
+                <a href="/statistics" className="text-sm text-gray-500 hover:text-gray-900">학습 통계</a>
               </li>
             </ul>
           </div>
@@ -35,13 +34,13 @@ const Footer = () => {
             <h3 className="text-sm font-semibold">커뮤니티</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/community/notice" className="text-sm text-gray-500 hover:text-gray-900">공지사항</Link>
+                <a href="/community/notice" className="text-sm text-gray-500 hover:text-gray-900">공지사항</a>
               </li>
               <li>
-                <Link href="/community/forum" className="text-sm text-gray-500 hover:text-gray-900">학습 정보 공유</Link>
+                <a href="/community/forum" className="text-sm text-gray-500 hover:text-gray-900">학습 정보 공유</a>
               </li>
               <li>
-                <Link href="/guide" className="text-sm text-gray-500 hover:text-gray-900">이용 가이드</Link>
+                <a href="/guide" className="text-sm text-gray-500 hover:text-gray-900">이용 가이드</a>
               </li>
             </ul>
           </div>
@@ -50,16 +49,16 @@ const Footer = () => {
             <h3 className="text-sm font-semibold">고객지원</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/faq" className="text-sm text-gray-500 hover:text-gray-900">자주 묻는 질문</Link>
+                <a href="/faq" className="text-sm text-gray-500 hover:text-gray-900">자주 묻는 질문</a>
               </li>
               <li>
-                <Link href="/contact" className="text-sm text-gray-500 hover:text-gray-900">문의하기</Link>
+                <a href="/contact" className="text-sm text-gray-500 hover:text-gray-900">문의하기</a>
               </li>
               <li>
-                <Link href="/privacy" className="text-sm text-gray-500 hover:text-gray-900">개인정보처리방침</Link>
+                <a href="/privacy" className="text-sm text-gray-500 hover:text-gray-900">개인정보처리방침</a>
               </li>
               <li>
-                <Link href="/terms" className="text-sm text-gray-500 hover:text-gray-900">이용약관</Link>
+                <a href="/terms" className="text-sm text-gray-500 hover:text-gray-900">이용약관</a>
               </li>
             </ul>
           </div>
@@ -70,8 +69,8 @@ const Footer = () => {
         <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-gray-500">
           <p>&copy; 2025 기술자격시험 학습 플랫폼. All rights reserved.</p>
           <div className="mt-4 sm:mt-0">
-            <Link href="/privacy" className="hover:text-gray-900 mr-4">개인정보처리방침</Link>
-            <Link href="/terms" className="hover:text-gray-900">이용약관</Link>
+            <a href="/privacy" className="hover:text-gray-900 mr-4">개인정보처리방침</a>
+            <a href="/terms" className="hover:text-gray-900">이용약관</a>
           </div>
         </div>
       </div>

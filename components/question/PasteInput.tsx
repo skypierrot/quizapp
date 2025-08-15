@@ -64,7 +64,12 @@ export function PasteInput({ onParsed }: PasteInputProps) {
       questionBlocks.forEach((block, index) => {
         try {
           const lines = block.trim().split('\n');
-          const questionText = lines[0].trim();
+          const questionText = lines[0]?.trim() || '';
+          
+          if (!questionText) {
+            errors.push(`문제 ${index + 1}: 문제 내용이 비어있습니다.`);
+            return;
+          }
           
           // 선택지 파싱
           const choices: string[] = [];
@@ -86,13 +91,17 @@ export function PasteInput({ onParsed }: PasteInputProps) {
           
           parsedQuestions.push({
             id: `temp-${Date.now()}-${index}`,
-            text: questionText,
-            choices,
-            correctAnswer,
+            content: questionText,
+            options: choices.map((choice, choiceIndex) => ({
+              number: choiceIndex + 1,
+              text: choice,
+              images: []
+            })),
+            answer: correctAnswer - 1, // 0-based index로 변환
             explanation: '',
+            images: [],
+            explanationImages: [],
             tags: [],
-            difficulty: 'medium',
-            imageUrl: null,
           });
         } catch (err) {
           errors.push(`문제 ${index + 1}: 파싱 중 오류가 발생했습니다.`);

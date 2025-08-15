@@ -42,9 +42,9 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
   // Restore useEffect for decoding parameters
   useEffect(() => {
     try {
-      const examNameRaw = params.examName
-      const yearRaw = params.year
-      const sessionRaw = params.session
+      const examNameRaw = params?.examName
+      const yearRaw = params?.year
+      const sessionRaw = params?.session
 
       if (
         typeof examNameRaw !== 'string' ||
@@ -224,7 +224,7 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
     { label: '홈', href: '/' },
     { label: '문제 은행', href: '/bank' },
     // Ensure params.examName exists and is a string for the href
-    { label: decodedParams.examName, href: typeof params.examName === 'string' ? `/bank/${params.examName}` : '/bank' }, 
+    { label: decodedParams.examName, href: params?.examName ? `/bank/${params.examName}` : '/bank' }, 
     { label: `${decodedParams.year}년 ${decodedParams.session}`, href: '', isCurrent: true },
   ] : [];
 
@@ -238,7 +238,11 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
     const shuffled = [...array]; // 원본 배열 복사
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; // 요소 교환
+      if (shuffled[i] !== undefined && shuffled[j] !== undefined) {
+        const temp = shuffled[i]!;
+        shuffled[i] = shuffled[j]!;
+        shuffled[j] = temp;
+      }
     }
     return shuffled;
   }
@@ -285,17 +289,20 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
 
       {/* Pass new state and handlers to the header */}
       <StudyPageHeader
-        encodedExamName={params.examName as string} // Pass raw encoded params
-        encodedYear={params.year as string}
-        encodedSession={params.session as string}
-        isShowingAllAnswers={showAllAnswers}
-        isShowingAllExplanations={showAllExplanations}
-        isSingleViewMode={isSingleViewMode} // Pass single view state
+        title={`${decodedParams.examName} ${decodedParams.year}년 ${decodedParams.session}`}
+        showAllAnswers={showAllAnswers}
+        showAllExplanations={showAllExplanations}
+        isSingleViewMode={isSingleViewMode}
         onToggleShowAllAnswers={handleToggleShowAllAnswers}
         onToggleShowAllExplanations={handleToggleShowAllExplanations}
-        onToggleSingleViewMode={handleToggleSingleViewMode} // Pass single view toggle handler
-        isShufflingEnabled={isShuffled} // isShuffled 상태 전달
-        onToggleShuffle={handleToggleShuffle} // 핸들러 전달
+        onToggleSingleViewMode={handleToggleSingleViewMode}
+        isShuffled={isShuffled}
+        onToggleShuffle={handleToggleShuffle}
+        currentQuestionNumber={isSingleViewMode ? currentQuestionIndex + 1 : undefined}
+        totalQuestions={questions.length}
+        onPrev={isSingleViewMode ? handlePrevQuestion : undefined}
+        onNext={isSingleViewMode ? handleNextQuestion : undefined}
+        showControls={true}
       />
 
       {/* Question list rendering - Use questionsToDisplay */}
@@ -313,42 +320,46 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
             const questionNumber = isSingleViewMode ? currentQuestionIndex + 1 : displayIndex + 1;
             // 섞기 데이터 가져오기 (isShuffled가 true일 때만 사용)
             const currentShuffledData = shuffledQuestionsData ? shuffledQuestionsData[isSingleViewMode ? currentQuestionIndex : displayIndex] : null;
-            // 렌더링할 선택지와 정답 인덱스 결정
+            
+            // question이 undefined인 경우 처리
+            if (!question) {
+              return null;
+            }
+
+            // 선택지와 정답 인덱스 결정
             const optionsToRender = currentShuffledData ? currentShuffledData.shuffledOptions : question.options;
             const answerIndexToUse = currentShuffledData ? currentShuffledData.newAnswerIndex : question.answer;
-            // Add log to inspect the question object just before rendering the card
-            console.log(`[Render Debug] Rendering card for Question ${displayIndex}. Data:`, question);
+            
+            // 디버깅용 로그
             console.log(`[Render Debug] Images for Question ${displayIndex}:`, question.images);
-
+            
             return (
-              // Pass questionNumber to the card content
               <div key={question.id || displayIndex} className={`p-4 border border-gray-300 rounded shadow-md bg-white flex flex-col ${isSingleViewMode ? 'mb-6' : ''}`}>
-                {/* Use questionNumber for display */}
-                <p className="font-semibold mb-3">문제 {questionNumber}:</p>
+                {/* 문제 번호 */}
+                <div className="text-lg font-semibold mb-2 text-blue-600">
+                  문제 {questionNumber}
+                </div>
+                
+                {/* 문제 내용 */}
                 <div 
-                  className="mb-2 prose max-w-none font-bold text-lg" /* Removed flex-grow */
-                  dangerouslySetInnerHTML={{ __html: question.content }} 
+                  className="mb-4 text-gray-800"
+                  dangerouslySetInnerHTML={{ __html: question.content }}
                 />
-
-                {/* Question Images - Format src as data URL for base64 */}
+                
+                {/* 문제 이미지 */}
                 {question.images && question.images.length > 0 && (
-                  <div className="my-4 space-y-2">
+                  <div className="mb-4">
                     {question.images.map((img: any, imgIndex) => {
-                      const imageUrl = getImageUrl(img);
-                      if (imageUrl) {
-                        return (
-                          <CommonImage
-                            key={`q-${question.id}-img-${imgIndex}`}
-                            src={imageUrl}
-                            alt={`문제 ${questionNumber} 이미지 ${imgIndex + 1}`}
-                            className="block max-w-full h-auto object-contain mx-auto border rounded"
-                            containerClassName="max-w-[400px] max-h-[300px] flex items-center justify-center cursor-zoom-in"
-                            maintainAspectRatio={true}
-                            onClick={() => imageZoom.showZoom(imageUrl)}
+                      return (
+                        <div key={`q-${question.id}-img-${imgIndex}`} className="mb-2">
+                          <img 
+                            src={img.url} 
+                            alt={`문제 이미지 ${imgIndex + 1}`}
+                            className="max-w-full h-auto border rounded"
+                            onClick={() => imageZoom.showZoom(img.url)}
                           />
-                        );
-                      }
-                      return null;
+                        </div>
+                      );
                     })}
                   </div>
                 )}
@@ -488,7 +499,7 @@ export default function StudyPage() { // Rename component from SolvePage to Stud
       )}
 
       {/* 이미지 확대 모달 */}
-      <ImageZoomModal src={imageZoom.zoomedImage} onClose={imageZoom.closeZoom} />
+      <ImageZoomModal imageUrl={imageZoom.zoomedImage} onClose={imageZoom.closeZoom} />
 
     </div>
   )

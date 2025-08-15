@@ -105,24 +105,20 @@ export function ManualForm({
 
   const {
     examName,
+    setExamName,
     date,
+    setDate,
     subject,
+    setSubject,
+    isDateValid,
     examNameOptions,
     subjectOptions,
-    isLoadingExamNames,
-    isLoadingSubjects,
-    isDateValid,
-    isDateDisabled,
-    isSubjectDisabled,
-    handleExamNameChange,
-    handleDateChange,
-    handleSubjectChange,
     handleExamNameCreate,
     handleSubjectCreate,
   } = useCascadingTags({
-    initialExamName: initialData?.examName,
-    initialDate: initialData?.examDate,
-    initialSubject: initialData?.examSubject,
+    initialExamName: initialData?.examName || '',
+    initialDate: initialData?.examDate || '',
+    initialSubject: initialData?.examSubject || '',
   });
   
   const tagManager = useManualFormTag({
@@ -154,7 +150,9 @@ export function ManualForm({
       return;
     }
     
-    if (question.options.some((opt: { number: number; text: string; images: { url: string; hash: string }[]; }) => !opt.text && (!opt.images || opt.images.length === 0))) {
+    if (question.options.some((opt: { number: number; text: string; images: { url: string; hash: string }[] }) => 
+      !opt.text && (!opt.images || opt.images.length === 0)
+    )) {
       toast({
         title: "모든 선택지는 텍스트 또는 이미지를 1개 이상 입력해야 합니다.",
         variant: "error"
@@ -311,14 +309,14 @@ export function ManualForm({
         subject={subject}
         examNameOptions={examNameOptions}
         subjectOptions={subjectOptions}
-        isLoadingExamNames={isLoadingExamNames}
-        isLoadingSubjects={isLoadingSubjects}
-        isDateDisabled={isDateDisabled}
+        isLoadingExamNames={false}
+        isLoadingSubjects={false}
+        isDateDisabled={false}
         isDateValid={isDateValid}
-        isSubjectDisabled={isSubjectDisabled}
-        onExamNameChange={handleExamNameChange}
-        onDateChange={handleDateChange}
-        onSubjectChange={handleSubjectChange}
+        isSubjectDisabled={false}
+        onExamNameChange={setExamName}
+        onDateChange={setDate}
+        onSubjectChange={setSubject}
         onExamNameCreate={handleExamNameCreate}
         onSubjectCreate={handleSubjectCreate}
       />
@@ -386,7 +384,7 @@ export function ManualForm({
         type="explanation"
       />
       <SubmitSection isSubmitting={isSubmitting} isEditMode={isEditMode} />
-      <ImageZoomModal src={imageZoom.zoomedImage} onClose={imageZoom.closeZoom} />
+      <ImageZoomModal imageUrl={imageZoom.zoomedImage} onClose={imageZoom.closeZoom} />
     </form>
   );
 }

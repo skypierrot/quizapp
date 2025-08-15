@@ -11,10 +11,10 @@ async function getFileHash(file: File): Promise<string> {
 
 export function useManualFormImage({ question, setQuestion }: any) {
   // 이미지 관련 ref 및 상태
-  const contentRef = useRef<HTMLTextAreaElement>(null)
-  const explanationRef = useRef<HTMLTextAreaElement>(null)
-  const questionImageInputRef = useRef<HTMLInputElement>(null)
-  const explanationImageInputRef = useRef<HTMLInputElement>(null)
+  const contentRef = useRef<HTMLTextAreaElement | null>(null)
+  const explanationRef = useRef<HTMLTextAreaElement | null>(null)
+  const questionImageInputRef = useRef<HTMLInputElement | null>(null);
+  const explanationImageInputRef = useRef<HTMLInputElement | null>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null)
   const [activeImageType, setActiveImageType] = useState<'question' | 'explanation' | null>(null)
   const [isImageAreaActive, setIsImageAreaActive] = useState(false)
@@ -73,8 +73,9 @@ export function useManualFormImage({ question, setQuestion }: any) {
     const items = e.clipboardData?.items;
     if (!items) return;
     for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf('image') === 0) {
-        const blob = items[i].getAsFile();
+      const item = items[i];
+      if (item && item.type.indexOf('image') === 0) {
+        const blob = item.getAsFile();
         if (blob) await handleImageUpload(blob, activeImageType === 'explanation');
         e.preventDefault();
         return;

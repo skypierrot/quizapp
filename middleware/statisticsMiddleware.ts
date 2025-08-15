@@ -28,7 +28,7 @@ export async function updateStatsOnExamResultSave(
       examDate: examResult.createdAt,
       totalQuestions: examResult.totalQuestions,
       correctAnswers: examResult.correctCount,
-      elapsedTime: examResult.elapsedTime,
+      elapsedTime: examResult.elapsedTime || 0, // undefined일 경우 0으로 처리
     });
     
     // 2. userStats 전체 통계도 업데이트
@@ -84,9 +84,11 @@ async function updateUserStatsFromExamResults(userId: string) {
     // 과목별 평균 점수 계산
     for (const subject in subjectStatsMap) {
       const subjectStats = subjectStatsMap[subject];
-      subjectStats.averageScore = subjectStats.total > 0 
-        ? Math.round((subjectStats.correct / subjectStats.total) * 100) 
-        : 0;
+      if (subjectStats) {
+        subjectStats.averageScore = subjectStats.total > 0 
+          ? Math.round((subjectStats.correct / subjectStats.total) * 100) 
+          : 0;
+      }
     }
 
     // 마지막 시험 시간

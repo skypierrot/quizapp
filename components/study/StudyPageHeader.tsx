@@ -17,16 +17,16 @@ interface StudyPageHeaderProps {
   onToggleShuffle: () => void;
   isQuestionsShuffled?: boolean;
   onToggleQuestionsShuffle?: () => void;
-  currentQuestionNumber?: number;
+  currentQuestionNumber?: number | undefined;
   totalQuestions?: number;
-  onPrev?: () => void;
-  onNext?: () => void;
+  onPrev?: (() => void) | undefined;
+  onNext?: (() => void) | undefined;
   showControls?: boolean;
   isQuestionsShuffleDisabled?: boolean;
   questionCount?: number | null;
-  onQuestionCountChange?: (count: number | null) => void;
+  onQuestionCountChange?: ((count: number | null) => void) | undefined;
   isQuestionCountEnabled?: boolean;
-  onToggleQuestionCount?: () => void;
+  onToggleQuestionCount?: (() => void) | undefined;
 }
 
 const StudyPageHeader: React.FC<StudyPageHeaderProps> = ({

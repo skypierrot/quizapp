@@ -50,8 +50,10 @@ export function useUniversalImageUpload() {
     if (e instanceof File) {
       file = e;
     } else {
-      file = e.target.files?.[0] || null;
-      e.target.value = '';
+      if (e.target && e.target.files) {
+        file = e.target.files[0] || null;
+        e.target.value = '';
+      }
     }
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
@@ -77,8 +79,8 @@ export function useUniversalImageUpload() {
     const items = e.clipboardData?.items;
     if (!items) return;
     for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf('image') === 0) {
-        const blob = items[i].getAsFile();
+      if (items[i]?.type.indexOf('image') === 0) {
+        const blob = items[i]?.getAsFile();
         if (blob) await handleImageUpload(blob, images, onUpload);
         e.preventDefault();
         return;

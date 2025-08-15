@@ -81,7 +81,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .limit(1);
       
       // 중복된 결과가 존재하면 해당 결과를 반환
-      if (existingResults.length > 0) {
+      if (existingResults.length > 0 && existingResults[0]) {
         console.log('[API] 중복 결과 감지:', existingResults[0].id);
         return res.status(200).json(existingResults[0]);
       }
@@ -105,20 +105,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       const [saved] = await db.insert(examResults).values(insertData).returning();
       // 시험 결과가 저장된 후 통계 업데이트
-      try {
-        await updateStatsOnExamResultSave(userId, {
-          id: saved.id,
-          examId: `${saved.examName}-${saved.examYear}-${saved.examSubject}`,
-          score: saved.score,
-          correctCount: saved.correctCount,
-          totalQuestions: saved.totalQuestions,
-          elapsedTime: saved.elapsedTime,
-          createdAt: saved.createdAt,
-        });
-      } catch (err) {
-        console.error('Failed to update stats on exam result save:', err);
+      if (saved) {
+        try {
+          await updateStatsOnExamResultSave(userId, {
+            id: saved.id,
+            examId: `${saved.examName}-${saved.examYear}-${saved.examSubject}`,
+            score: saved.score,
+            correctCount: saved.correctCount,
+            totalQuestions: saved.totalQuestions,
+            elapsedTime: saved.elapsedTime,
+            createdAt: saved.createdAt,
+          });
+        } catch (err) {
+          console.error('Failed to update stats on exam result save:', err);
+        }
+        return res.status(201).json(saved);
+      } else {
+        return res.status(500).json({ message: '시험 결과 저장에 실패했습니다.' });
       }
-      return res.status(201).json(saved);
     } catch (error) {
       console.error('Error saving exam result:', error);
       return res.status(500).json({ message: '시험 결과를 저장하는 중 오류가 발생했습니다.' });

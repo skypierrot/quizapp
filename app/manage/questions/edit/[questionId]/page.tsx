@@ -46,7 +46,6 @@ export default function EditQuestionPage() {
   const convertToFormData = (data: IQuestion) => {
     return {
       id: data.id,
-      number: data.number || 1,
       content: data.content,
       options: data.options,
       answer: data.answer,
@@ -54,9 +53,9 @@ export default function EditQuestionPage() {
       images: data.images || [],
       explanationImages: data.explanationImages || [],
       tags: data.tags || [],
-      examName: data.examName || undefined,
-      examDate: data.examDate || undefined,
-      examSubject: data.examSubject || undefined,
+      examName: data.examName || '',
+      examDate: data.examDate || '',
+      examSubject: data.examSubject || '',
     };
   };
 
@@ -112,7 +111,7 @@ export default function EditQuestionPage() {
           <ManualForm
             initialData={convertToFormData(question)}
             isEditMode={true}
-            questionId={questionId}
+            questionId={questionId || ''}
             onSuccess={handleSubmitSuccess}
             apiMethod="PUT"
           />

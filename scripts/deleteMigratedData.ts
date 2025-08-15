@@ -2,8 +2,8 @@ import { db } from '@/db';
 import { exams, questions } from '@/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 
-async function deleteExamData(examName: string, examDate?: string) {
-  if (examDate) {
+async function deleteExamData(examName: string, examDate: string) {
+  if (examDate && examDate.trim() !== '') {
     console.log(`Attempting to delete data for exam: "${examName}", specific date: "${examDate}"`);
   } else {
     console.log(`Attempting to delete ALL data for exam: "${examName}"`);
@@ -11,7 +11,7 @@ async function deleteExamData(examName: string, examDate?: string) {
 
   try {
     let queryConditions = [eq(exams.name, examName)];
-    if (examDate) {
+    if (examDate && examDate.trim() !== '') {
       queryConditions.push(eq(exams.date, examDate));
     }
 
@@ -107,7 +107,7 @@ async function main() {
   //   process.exit(0);
   // }
 
-  await deleteExamData(examName, examDate);
+  await deleteExamData(examName, examDate || '');
   
   process.exit(0);
 }

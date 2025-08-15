@@ -33,6 +33,7 @@ export function parseQuestionsImproved(text: string): { questions: IQuestion[], 
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    if (!line) continue;
     
     // 새로운 문제 시작 (숫자. 으로 시작하는 줄)
     const questionStartMatch = line.match(/^(\d+)\.\s*(.+)/);
@@ -49,86 +50,55 @@ export function parseQuestionsImproved(text: string): { questions: IQuestion[], 
       }
       
       // 새 문제 시작
-      questionCounter = parseInt(questionStartMatch[1]);
-      currentQuestion = {
-        content: questionStartMatch[2],
-        options: [],
-        answer: -1, // 정답 미선택 상태로 초기화
-        created_at: new Date(),
-        updated_at: new Date(),
-      };
+      if (questionStartMatch && questionStartMatch[1]) {
+        questionCounter = parseInt(questionStartMatch[1]);
+        currentQuestion = {
+          content: questionStartMatch[2] || '',
+          options: [],
+          answer: -1, // 정답 미선택 상태로 초기화
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+      }
       continue;
     }
     
-    // 보기 섹션 시작 패턴
+    // 보기 섹션 시작 패턴 - examples 속성은 IQuestion에 없으므로 제거
     if (line.match(/^\s*<보기>|^\s*\[보기\]|^\s*\(보기\)|^\s*보\s*기/)) {
-      currentQuestion.examples = ['', '', '', '']; // ㄱ, ㄴ, ㄷ, ㄹ에 해당하는 보기 내용
+      // examples 속성은 사용하지 않음
       continue;
     }
     
-    // 보기 항목 처리
-    if (currentQuestion.examples) {
-      const exampleMatch = line.match(/^\s*(ㄱ|ㄴ|ㄷ|ㄹ)\s*[\.:]?\s*(.*)/);
+    // 보기 항목 처리 - examples 속성 사용 제거
+    // 선택지 확인 - 원형 숫자만 인식
+    const optionMatch = line.match(/^\s*([①-⑩])\s*(.*)/);
+    
+    if (optionMatch) {
+      const optionSymbol = optionMatch[1]; // ①, ②, ③ 등
+      const optionText = optionMatch[2]?.trim() || '';
       
-      if (exampleMatch) {
-        const exampleLabel = exampleMatch[1];
-        const exampleContent = exampleMatch[2].trim();
-        
-        let index = -1;
-        switch (exampleLabel) {
-          case 'ㄱ': index = 0; break;
-          case 'ㄴ': index = 1; break;
-          case 'ㄷ': index = 2; break;
-          case 'ㄹ': index = 3; break;
-        }
-        
-        if (index >= 0 && index < currentQuestion.examples.length) {
-          currentQuestion.examples[index] = exampleContent;
-        }
-        
-        continue;
-      }
-      
-      // 보기 라벨이 있으면 해당 보기 내용에 추가
-      let index = -1;
-      switch (currentQuestion.examples[0]) {
-        case 'ㄱ': index = 0; break;
-        case 'ㄴ': index = 1; break;
-        case 'ㄷ': index = 2; break;
-        case 'ㄹ': index = 3; break;
-      }
-      
-      if (index >= 0 && index < currentQuestion.examples.length) {
-        currentQuestion.examples[index] += ' ' + line;
-      } else if (index === -1) {
-        // 일반 문제 내용에 추가
-        currentQuestion.content = (currentQuestion.content || '') + ' ' + line;
-      }
-    } else {
-      // 선택지 확인 - 원형 숫자만 인식
-      const optionMatch = line.match(/^\s*([①-⑩])\s*(.*)/);
-      
-      if (optionMatch) {
-        const optionSymbol = optionMatch[1]; // ①, ②, ③ 등
-        const optionText = optionMatch[2].trim();
-        
-        currentQuestion.options = currentQuestion.options || [];
+      currentQuestion.options = currentQuestion.options || [];
+      if (optionSymbol) {
         currentQuestion.options.push({
           number: getOptionNumber(optionSymbol),
-          text: optionText
+          text: optionText,
+          images: []
         });
-        
-        continue;
       }
       
-      // 선택지가 이미 있으면 마지막 선택지에 내용 추가
-      if (currentQuestion.options && currentQuestion.options.length > 0) {
-        const lastOptionIndex = currentQuestion.options.length - 1;
-        currentQuestion.options[lastOptionIndex].text += ' ' + line;
-      } else {
-        // 문제 내용에 추가
-        currentQuestion.content = (currentQuestion.content || '') + ' ' + line;
+      continue;
+    }
+    
+    // 선택지가 이미 있으면 마지막 선택지에 내용 추가
+    if (currentQuestion.options && currentQuestion.options.length > 0) {
+      const lastOptionIndex = currentQuestion.options.length - 1;
+      const lastOption = currentQuestion.options[lastOptionIndex];
+      if (lastOption) {
+        lastOption.text += ' ' + line;
       }
+    } else {
+      // 문제 내용에 추가
+      currentQuestion.content = (currentQuestion.content || '') + ' ' + line;
     }
   }
   
@@ -175,7 +145,7 @@ export function parseQuestionsWithKoreanOptions(text: string): { questions: IQue
   let currentExampleLabel = '';
   
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+    const line = lines[i]?.trim();
     if (!line) continue;
     
     // 문제 시작 여부 확인
@@ -188,14 +158,18 @@ export function parseQuestionsWithKoreanOptions(text: string): { questions: IQue
       }
       
       // 새 문제 시작
-      const questionNumber = parseInt(questionMatch[1]);
+      const questionNumber = parseInt(questionMatch[1] || '0');
       const questionContent = questionMatch[2];
       
       currentQuestion = {
-        id: Date.now() + questionNumber, // 임시 ID 생성
-        number: questionNumber,
-        content: questionContent.trim(),
+        id: (Date.now() + questionNumber).toString(), // 임시 ID 생성 - string으로 변환
+        questionNumber: questionNumber,
+        content: questionContent?.trim() || '',
         options: [],
+        answer: -1, // 기본값 설정
+        images: [], // 기본값 설정
+        explanationImages: [], // 기본값 설정
+        tags: [], // 기본값 설정
       };
       
       // 보기 섹션 초기화
@@ -219,7 +193,7 @@ export function parseQuestionsWithKoreanOptions(text: string): { questions: IQue
     if (isInExampleSection) {
       const exampleMatch = line.match(examplePattern);
       
-      if (exampleMatch) {
+      if (exampleMatch && exampleMatch[1] && exampleMatch[2]) {
         currentExampleLabel = exampleMatch[1];
         const exampleContent = exampleMatch[2].trim();
         
@@ -251,7 +225,9 @@ export function parseQuestionsWithKoreanOptions(text: string): { questions: IQue
         examples[index] += ' ' + line;
       } else if (index === -1) {
         // 일반 문제 내용에 추가
-        currentQuestion.content += ' ' + line;
+        if (currentQuestion.content) {
+          currentQuestion.content += ' ' + line;
+        }
       }
     } else {
       // 선택지 확인 - 원형 숫자만 인식
@@ -259,23 +235,31 @@ export function parseQuestionsWithKoreanOptions(text: string): { questions: IQue
       
       if (optionMatch) {
         const optionSymbol = optionMatch[1]; // ①, ②, ③ 등
-        const optionText = optionMatch[2].trim();
+        const optionText = optionMatch[2]?.trim() || '';
         
-        currentQuestion.options.push({
-          number: getOptionNumber(optionSymbol),
-          text: optionText
-        });
+        if (optionSymbol) {
+          currentQuestion.options.push({
+            number: getOptionNumber(optionSymbol),
+            text: optionText,
+            images: []
+          });
+        }
         
         continue;
       }
       
       // 선택지가 이미 있으면 마지막 선택지에 내용 추가
-      if (currentQuestion.options.length > 0) {
+      if (currentQuestion.options && currentQuestion.options.length > 0) {
         const lastOptionIndex = currentQuestion.options.length - 1;
-        currentQuestion.options[lastOptionIndex].text += ' ' + line;
+        const lastOption = currentQuestion.options[lastOptionIndex];
+        if (lastOption) {
+          lastOption.text += ' ' + line;
+        }
       } else {
         // 문제 내용에 추가
-        currentQuestion.content += ' ' + line;
+        if (currentQuestion.content) {
+          currentQuestion.content += ' ' + line;
+        }
       }
     }
   }
@@ -287,8 +271,8 @@ export function parseQuestionsWithKoreanOptions(text: string): { questions: IQue
   
   // 검증
   questions.forEach((q, i) => {
-    if (q.options.length === 0) {
-      errors.push(`문제 ${q.number}: 선택지가 없습니다.`);
+    if (q.options && q.options.length === 0) {
+      errors.push(`문제 ${q.questionNumber || i + 1}: 선택지가 없습니다.`);
     }
   });
   
@@ -308,14 +292,14 @@ function separateQuestionBlocks(text: string): string[] {
   const questionNumberPattern = /^\s*(\d+)[\.\:]?\s*(.*)/;
   
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+    const line = lines[i]?.trim();
     
     // 빈 줄 여러 개 건너뛰기
     if (!line && currentBlock.length === 0) {
       continue;
     }
     
-    const isNewQuestion = questionNumberPattern.test(line) && 
+    const isNewQuestion = line && questionNumberPattern.test(line) && 
                         // 숫자로 시작하지만 내용이 짧으면 문제로 간주하지 않음 (예: "1.")
                         line.replace(questionNumberPattern, '$2').length > 0;
     
@@ -325,7 +309,10 @@ function separateQuestionBlocks(text: string): string[] {
       currentBlock = [];
     }
     
-    currentBlock.push(lines[i]);
+        const currentLine = lines[i];
+        if (currentLine && typeof currentLine === 'string') {
+          currentBlock.push(currentLine);
+        }
   }
   
   // 마지막 블록 추가
@@ -349,15 +336,15 @@ function parseQuestionBlock(block: string, expectedNumber: number): {
   
   // 문제 번호와 내용 파싱
   const questionPattern = /^\s*(\d+)[\.\:]?\s*(.*)/;
-  const questionMatch = lines[0].trim().match(questionPattern);
+  const questionMatch = lines[0]?.trim().match(questionPattern);
   
   if (!questionMatch) {
     errors.push(`문제 ${expectedNumber}: 올바른 문제 형식이 아닙니다.`);
     return { question: null, errors };
   }
   
-  const questionNumber = parseInt(questionMatch[1]);
-  let questionContent = questionMatch[2];
+  const questionNumber = parseInt(questionMatch[1] || '0');
+  let questionContent = questionMatch[2] || '';
   
   // 선택지 패턴 - 원형 숫자만 인식
   const optionPattern = /^\s*([①-⑩])\s*(.*)/;
@@ -366,7 +353,7 @@ function parseQuestionBlock(block: string, expectedNumber: number): {
   
   // 문제 내용 수집 (선택지 전까지)
   while (currentLine < lines.length) {
-    const line = lines[currentLine].trim();
+    const line = lines[currentLine]?.trim();
     if (!line) {
       currentLine++;
       continue;
@@ -384,7 +371,7 @@ function parseQuestionBlock(block: string, expectedNumber: number): {
   let currentOption: IOption | null = null;
   
   while (currentLine < lines.length) {
-    const line = lines[currentLine].trim();
+    const line = lines[currentLine]?.trim();
     currentLine++;
     
     if (!line) continue;
@@ -396,12 +383,17 @@ function parseQuestionBlock(block: string, expectedNumber: number): {
       }
       
       const optionSymbol = optionMatch[1]; // ①, ②, ③ 등
-      const optionNumber = getOptionNumber(optionSymbol);
+      const optionText = optionMatch[2];
       
-      currentOption = {
-        number: optionNumber,
-        text: optionMatch[2]
-      };
+      if (optionSymbol && optionText) {
+        const optionNumber = getOptionNumber(optionSymbol);
+        
+        currentOption = {
+          number: optionNumber,
+          text: optionText,
+          images: []
+        };
+      }
     } else if (currentOption) {
       // 선택지 내용 추가
       currentOption.text += '\n' + line;
@@ -419,10 +411,14 @@ function parseQuestionBlock(block: string, expectedNumber: number): {
   }
   
   const question: IQuestion = {
-    id: Date.now() + expectedNumber,
-    number: questionNumber,
-    content: questionContent.trim(),
-    options
+    id: (Date.now() + expectedNumber).toString(),
+    questionNumber: questionNumber,
+    content: questionContent?.trim() || '',
+    options,
+    answer: -1, // 기본값 설정
+    images: [], // 기본값 설정
+    explanationImages: [], // 기본값 설정
+    tags: [], // 기본값 설정
   };
   
   return { question, errors };

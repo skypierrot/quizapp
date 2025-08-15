@@ -1,31 +1,31 @@
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
-export function HeroSection() {
+const HeroSection = () => {
   return (
-    <section className="py-12 md:py-16">
-      <div className="container mx-auto px-4">
-        <div className="text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">
-            기술자격학습플랫폼
-          </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
-            대한민국 기술 자격시험 대비를 위한 최적의 학습 환경을 제공합니다.
-            지금 시작하여 목표를 달성해보세요!
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button asChild size="lg" className="px-8 py-3 text-lg">
-              <Link href="/auth/sign-up">무료 회원가입</Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="px-8 py-3 text-lg">
-              <Link href="/auth/sign-in">로그인</Link>
-            </Button>
-          </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
-            이미 계정이 있으신가요? <Link href="/auth/sign-in" className="text-blue-600 hover:underline">로그인</Link>하세요
-          </p>
+    <section className="py-20 px-4 text-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="container mx-auto max-w-4xl">
+        <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
+          기술자격시험
+          <br />
+          <span className="text-blue-600">학습 플랫폼</span>
+        </h1>
+        <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-2xl mx-auto">
+          체계적인 학습과 실전 연습으로 기술자격시험을 준비하세요
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button asChild size="lg" className="text-lg px-8 py-4">
+            <a href="/auth/sign-up">무료 회원가입</a>
+          </Button>
+          <Button asChild variant="outline" size="lg" className="text-lg px-8 py-4">
+            <a href="/auth/sign-in">로그인</a>
+          </Button>
         </div>
+        <p className="mt-6 text-gray-500">
+          이미 계정이 있으신가요? <a href="/auth/sign-in" className="text-blue-600 hover:underline">로그인</a>하세요
+        </p>
       </div>
     </section>
   );
-} 
+};
+
+export default HeroSection; 

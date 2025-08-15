@@ -88,8 +88,17 @@ export async function saveQuestions(questionsArr: any[]) {
         },
       }).returning({ id: questions.id });
 
-      const savedQuestionId = insertedQuestions[0].id;
-      savedQuestionResults.push(insertedQuestions[0]);
+      if (!insertedQuestions || insertedQuestions.length === 0) {
+        throw new Error('Failed to insert question');
+      }
+
+      const insertedQuestion = insertedQuestions[0];
+      if (!insertedQuestion || !insertedQuestion.id) {
+        throw new Error('Failed to get inserted question ID');
+      }
+
+      const savedQuestionId = insertedQuestion.id;
+      savedQuestionResults.push(insertedQuestion);
 
       if (q.id) {
         await tx.delete(questionImageUsage).where(eq(questionImageUsage.questionId, savedQuestionId));

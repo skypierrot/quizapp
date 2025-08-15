@@ -124,12 +124,13 @@ export function useCascadingTags({
       if (type === 'name') {
         const dateForPayload = date && validateDate(date) ? date : new Date().toISOString().split('T')[0];
         const subjectForPayload = subject || '미지정';
-        payload = { name: value, date: dateForPayload, subject: subjectForPayload };
+        payload = { name: value, date: dateForPayload as string, subject: subjectForPayload };
         newLabel = value;
       } else {
         if (!examName) throw new Error("시험명을 먼저 선택해주세요.");
         if (!date || !validateDate(date)) throw new Error("유효한 날짜를 먼저 선택해주세요.");
-        payload = { name: examName, date: date, subject: value };
+        const dateForPayload = date || new Date().toISOString().split('T')[0];
+        payload = { name: examName, date: dateForPayload as string, subject: value };
         newLabel = value;
       }
 
@@ -151,17 +152,19 @@ export function useCascadingTags({
       const createdExam = responseData.exam || responseData;
       
       if (type === 'name') {
-        const newOption: Option = { value: createdExam.name, label: createdExam.name };
+        const examNameValue = createdExam.name || value;
+        const newOption: Option = { value: examNameValue, label: examNameValue };
         setExamNameOptions(prev => [...prev, newOption].sort((a,b) => a.label.localeCompare(b.label)));
-        setExamName(createdExam.name);
+        setExamName(examNameValue);
         setDate("");
         setSubject("");
         setIsDateValid(true);
         setSubjectOptions([]);
       } else {
-        const newOption: Option = { value: createdExam.subject, label: createdExam.subject };
+        const subjectValue = createdExam.subject || value;
+        const newOption: Option = { value: subjectValue, label: subjectValue };
         setSubjectOptions(prev => [...prev, newOption].sort((a,b) => a.label.localeCompare(b.label)));
-        setSubject(createdExam.subject);
+        setSubject(subjectValue);
       }
 
       toast({ title: "성공", description: `${newLabel} 정보가 생성/연결되었습니다.`, variant: "success" });

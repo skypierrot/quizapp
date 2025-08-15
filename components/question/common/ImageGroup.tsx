@@ -15,8 +15,8 @@ interface ImageGroupProps {
   onImageAreaClick: (type: 'question' | 'explanation') => void;
   onImageAreaMouseEnter: (type: 'question' | 'explanation') => void;
   onImageAreaMouseLeave: () => void;
-  questionImageInputRef: React.RefObject<HTMLInputElement>;
-  explanationImageInputRef: React.RefObject<HTMLInputElement>;
+  questionImageInputRef: React.RefObject<HTMLInputElement | null>;
+  explanationImageInputRef: React.RefObject<HTMLInputElement | null>;
   activeImageType: 'question' | 'explanation' | null | undefined;
   isImageAreaActive: boolean;
   handleImageUpload?: (file: File, isExplanation?: boolean) => void;

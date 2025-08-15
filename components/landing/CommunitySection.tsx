@@ -1,33 +1,33 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
-export function CommunitySection() {
+const CommunitySection = () => {
   return (
-    <section className="bg-gray-50 dark:bg-gray-900 py-16">
-      <div className="container mx-auto px-4 text-center">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold mb-4">학습 커뮤니티</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-8">
-            전국의 수험생들과 정보를 공유하고 함께 성장하세요
-          </p>
-          
-          <div className="space-y-4 mb-8">
-            <p className="text-gray-700 dark:text-gray-300">• 시험 정보와 학습 팁 공유</p>
-            <p className="text-gray-700 dark:text-gray-300">• 스터디 그룹 및 동료 찾기</p>
-            <p className="text-gray-700 dark:text-gray-300">• 학습 방법 및 노하우 교환</p>
-            <p className="text-gray-700 dark:text-gray-300">• 서로 격려하며 동기부여</p>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild>
-              <Link href="/community/forum">커뮤니티 참여하기</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/community/notice">공지사항 보기</Link>
-            </Button>
-          </div>
+    <section className="py-20 px-4 bg-gray-50">
+      <div className="container mx-auto max-w-4xl text-center">
+        <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+          학습 커뮤니티
+        </h2>
+        <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+          다른 학습자들과 정보를 공유하고 함께 성장하세요
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <a 
+            href="/community/forum" 
+            className="inline-block px-8 py-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors text-lg"
+          >
+            커뮤니티 참여하기
+          </a>
+          <a 
+            href="/community/notice" 
+            className="inline-block px-8 py-4 border-2 border-blue-600 text-blue-600 font-semibold rounded-lg hover:bg-blue-600 hover:text-white transition-colors text-lg"
+          >
+            공지사항 보기
+          </a>
         </div>
       </div>
     </section>
   );
-} 
+};
+
+export default CommunitySection; 

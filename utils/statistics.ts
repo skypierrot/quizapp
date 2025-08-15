@@ -36,12 +36,12 @@ export async function updateUserDailyStats({
     const existingStats = await db
       .select()
       .from(userDailyStats)
-      .where(
-        and(
-          eq(userDailyStats.userId, userId),
-          eq(userDailyStats.date, dateString)
+              .where(
+          and(
+            eq(userDailyStats.userId, userId),
+            eq(userDailyStats.date, dateString || '')
+          )
         )
-      )
       .limit(1);
 
     let isNewRecord = false;
@@ -51,39 +51,47 @@ export async function updateUserDailyStats({
     if (existingStats.length > 0) {
       // 기존 통계가 있으면 업데이트
       const currentStats = existingStats[0];
-      oldStreak = currentStats.streak || 0;
-      
-      await db
-        .update(userDailyStats)
-        .set({
-          solvedCount: (currentStats.solvedCount || 0) + solvedCount,
-          correctCount: (currentStats.correctCount || 0) + correctCount,
-          totalStudyTime: (currentStats.totalStudyTime || 0) + studyTime,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(userDailyStats.userId, userId),
-            eq(userDailyStats.date, dateString)
-          )
-        );
+      if (currentStats) {
+        oldStreak = currentStats.streak || 0;
+        
+        await db
+          .update(userDailyStats)
+          .set({
+            solvedCount: (currentStats.solvedCount || 0) + solvedCount,
+            correctCount: (currentStats.correctCount || 0) + correctCount,
+            totalStudyTime: (currentStats.totalStudyTime || 0) + studyTime,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(userDailyStats.userId, userId),
+              eq(userDailyStats.date, dateString || '')
+            )
+          );
+      }
     } else {
       // 기존 통계가 없으면 새로 생성
       isNewRecord = true;
+      const id = `${userId}_${dateString || new Date().toISOString().split('T')[0]}`;
+      const dateValue = dateString || new Date().toISOString().split('T')[0];
+      
       await db.insert(userDailyStats).values({
-        id: uuidv4(),
+        id,
         userId,
-        date: dateString,
+        date: dateValue,
         solvedCount,
         correctCount,
         totalStudyTime: studyTime,
         streak: 0, // 아래에서 계산하여 업데이트
         updatedAt: new Date(),
-      });
+      } as any); // 임시 타입 강제 캐스팅
     }
 
     // 연속학습일 계산 및 업데이트
-    newStreak = await calculateAndUpdateStreak(userId, dateString);
+    const dateValue = dateString || new Date().toISOString().split('T')[0];
+    if (dateValue) {
+      newStreak = await calculateAndUpdateStreak(userId, dateValue);
+    }
     
     // 전역 통계 업데이트 (연속학습일 변화가 있을 때만)
     if (isNewRecord || oldStreak !== newStreak) {
@@ -124,23 +132,26 @@ async function calculateAndUpdateStreak(userId: string, currentDate: string): Pr
 
     // 연속학습일 계산
     let streak = 0;
-    let prevDate = new Date(userStats[0].date);
+    let prevDate = new Date(userStats[0]?.date || '');
     
     // 첫 번째 날짜부터 시작
-    if (userStats[0].solvedCount > 0) {
+    if (userStats[0]?.solvedCount && userStats[0].solvedCount > 0) {
       streak = 1;
     }
 
     // 나머지 날짜들 확인
     for (let i = 1; i < userStats.length; i++) {
-      const currDate = new Date(userStats[i].date);
-      const diffDays = Math.round((prevDate.getTime() - currDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (diffDays === 1 && userStats[i].solvedCount > 0) {
-        streak++;
-        prevDate = currDate;
-      } else {
-        break;
+      const currStat = userStats[i];
+      if (currStat) {
+        const currDate = new Date(currStat.date);
+        const diffDays = Math.round((prevDate.getTime() - currDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 1 && currStat.solvedCount && currStat.solvedCount > 0) {
+          streak++;
+          prevDate = currDate;
+        } else {
+          break;
+        }
       }
     }
 
@@ -212,11 +223,12 @@ async function updateGlobalStats({
     } else {
       // 기존 전역 통계 업데이트
       const current = currentGlobalStats[0];
-      const newTotalUsers = Math.max(current.totalUsers + userCount, 1);
-      const newTotalStudyTime = current.totalStudyTime + studyTime;
-      const newTotalSolvedCount = current.totalSolvedCount + solvedCount;
-      const newTotalCorrectCount = current.totalCorrectCount + correctCount;
-      const newTotalStreak = Math.max(current.totalStreak + streakChange, 0);
+      if (current) {
+        const newTotalUsers = Math.max(current.totalUsers + userCount, 1);
+        const newTotalStudyTime = current.totalStudyTime + studyTime;
+        const newTotalSolvedCount = current.totalSolvedCount + solvedCount;
+        const newTotalCorrectCount = current.totalCorrectCount + correctCount;
+        const newTotalStreak = Math.max(current.totalStreak + streakChange, 0);
 
       // 평균 계산
       const newAvgStudyTime = Math.round(newTotalStudyTime / newTotalUsers);
@@ -240,6 +252,7 @@ async function updateGlobalStats({
           version: current.version + 1,
         })
         .where(eq(globalStats.id, current.id));
+      }
     }
 
     console.log(`Global stats updated: userCount=${userCount}, studyTime=${studyTime}, solvedCount=${solvedCount}, correctCount=${correctCount}, streakChange=${streakChange}`);

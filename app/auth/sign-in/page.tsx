@@ -2,8 +2,46 @@
 import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { LogIn, UserPlus } from "lucide-react"
+import { useState, useEffect } from "react"
 
 export default function SignInPage() {
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const handleSignIn = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      await signIn("authentik")
+    } catch (err) {
+      console.error('Sign in error:', err)
+      setError('로그인 중 오류가 발생했습니다. 다시 시도해주세요.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Hydration 안전성
+  if (!mounted) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] px-4">
+        <div className="max-w-md w-full text-center">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded mb-6"></div>
+            <div className="h-4 bg-gray-200 rounded mb-8"></div>
+            <div className="h-12 bg-gray-200 rounded mb-4"></div>
+            <div className="h-12 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] px-4">
       <div className="max-w-md w-full text-center">
@@ -12,14 +50,30 @@ export default function SignInPage() {
           계속하려면 Authentik 계정으로 로그인하세요.
         </p>
         
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-red-600 text-sm">{error}</p>
+          </div>
+        )}
+        
         <div className="space-y-4 mb-8">
           <Button 
-            onClick={() => signIn("authentik")} 
+            onClick={handleSignIn}
+            disabled={isLoading}
             size="lg" 
             className="w-full"
           >
-            <LogIn className="mr-2 h-5 w-5" />
-            Authentik으로 로그인
+            {isLoading ? (
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                로그인 중...
+              </div>
+            ) : (
+              <>
+                <LogIn className="mr-2 h-5 w-5" />
+                Authentik으로 로그인
+              </>
+            )}
           </Button>
           
           <Button 

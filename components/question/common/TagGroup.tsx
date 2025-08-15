@@ -82,6 +82,11 @@ export function TagGroup({
           onExamNameCreate={onExamNameCreate}
           isLoadingExamNames={isLoadingExamNames}
           
+          date={year} // year를 date로 매핑
+          onDateChange={onYearChange} // onYearChange를 onDateChange로 매핑
+          isDateValid={isYearValid}
+          isDateDisabled={isYearDisabled}
+          
           year={year}
           yearOptions={yearOptions}
           onYearChange={onYearChange}

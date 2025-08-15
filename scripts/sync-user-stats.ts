@@ -65,12 +65,13 @@ async function updateUserStats(userId: string, results: any[]) {
     : 0;
 
   // 과목별 통계 집계
-  const subjectStatsMap = {};
+  const subjectStatsMap: Record<string, { total: number; correct: number; averageScore: number }> = {};
+  
   for (const result of results) {
     if (result.subjectStats) {
       for (const [subject, stats] of Object.entries(result.subjectStats)) {
         if (!subjectStatsMap[subject]) {
-          subjectStatsMap[subject] = { total: 0, correct: 0 };
+          subjectStatsMap[subject] = { total: 0, correct: 0, averageScore: 0 };
         }
         subjectStatsMap[subject].total += (stats as any).total || 0;
         subjectStatsMap[subject].correct += (stats as any).correct || 0;
@@ -81,9 +82,11 @@ async function updateUserStats(userId: string, results: any[]) {
   // 과목별 평균 점수 계산
   for (const subject in subjectStatsMap) {
     const subjectStats = subjectStatsMap[subject];
-    subjectStats.averageScore = subjectStats.total > 0 
-      ? Math.round((subjectStats.correct / subjectStats.total) * 100) 
-      : 0;
+    if (subjectStats) {
+      subjectStats.averageScore = subjectStats.total > 0 
+        ? Math.round((subjectStats.correct / subjectStats.total) * 100) 
+        : 0;
+    }
   }
 
   // 마지막 시험 시간
@@ -154,9 +157,9 @@ async function updateUserDailyStats(userId: string, results: any[]) {
 
   // 일별 통계 생성
   for (const [dateStr, dayResults] of dailyResultsMap.entries()) {
-    const solvedCount = dayResults.reduce((sum, r) => sum + (r.totalQuestions || 0), 0);
-    const correctCount = dayResults.reduce((sum, r) => sum + (r.correctCount || 0), 0);
-    const totalStudyTime = dayResults.reduce((sum, r) => sum + (r.elapsedTime || 0) * 60, 0); // 분을 초로 변환
+    const solvedCount = dayResults.reduce((sum: number, r: any) => sum + (r.totalQuestions || 0), 0);
+    const correctCount = dayResults.reduce((sum: number, r: any) => sum + (r.correctCount || 0), 0);
+    const totalStudyTime = dayResults.reduce((sum: number, r: any) => sum + (r.elapsedTime || 0) * 60, 0); // 분을 초로 변환
 
     // 연속 학습일 추가 로직 필요 (여기서는 생략, 모든 날짜 데이터가 없어서 계산 불가능)
     

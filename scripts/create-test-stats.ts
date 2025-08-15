@@ -77,7 +77,7 @@ async function createTestStats() {
         values.push({
           id: `${TEST_USER_ID}-${dateStr}`, // 사용자ID-날짜 형식의 고유 ID
           userId: TEST_USER_ID,
-          date: dateStr,
+          date: dateStr as string,
           totalStudyTime: studyTime,
           solvedCount,
           correctCount,

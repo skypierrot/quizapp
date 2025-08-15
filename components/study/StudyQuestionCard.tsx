@@ -10,37 +10,37 @@ import { getImageUrl } from "@/utils/image";
 interface StudyQuestionCardProps {
   question: IQuestion;
   index: number;
-  page?: number;
+  page?: number | undefined;
   // 선택지/정답/해설/이미지
-  showAnswer?: boolean;
-  showExplanation?: boolean;
-  onOptionSelect?: (optionIndex: number) => void;
-  userAnswer?: number | null;
-  shuffledOptions?: IOption[];
-  shuffledAnswerIndex?: number;
-  onImageZoom?: (url: string) => void;
+  showAnswer?: boolean | undefined;
+  showExplanation?: boolean | undefined;
+  onOptionSelect?: ((optionIndex: number) => void) | undefined;
+  userAnswer?: number | null | undefined;
+  shuffledOptions?: IOption[] | undefined;
+  shuffledAnswerIndex?: number | undefined;
+  onImageZoom?: ((url: string) => void) | undefined;
   // 북마크/중요/다시풀기
-  showBookmark?: boolean;
-  isBookmarked?: boolean;
-  onToggleBookmark?: () => void;
-  showImportant?: boolean;
-  isImportant?: boolean;
-  onToggleImportant?: () => void;
-  showRetry?: boolean;
-  retryMode?: boolean;
-  onRetryToggle?: () => void;
+  showBookmark?: boolean | undefined;
+  isBookmarked?: boolean | undefined;
+  onToggleBookmark?: (() => void) | undefined;
+  showImportant?: boolean | undefined;
+  isImportant?: boolean | undefined;
+  onToggleImportant?: (() => void) | undefined;
+  showRetry?: boolean | undefined;
+  retryMode?: boolean | undefined;
+  onRetryToggle?: (() => void) | undefined;
   // 문제별 메모
-  showMemo?: boolean;
-  memo?: string;
-  editMode?: boolean;
-  localEditMemo?: string;
-  onEditMemo?: (value: string) => void;
-  onSaveMemo?: () => void;
-  onCancelEditMemo?: () => void;
-  onStartEditMemo?: () => void;
+  showMemo?: boolean | undefined;
+  memo?: string | undefined;
+  editMode?: boolean | undefined;
+  localEditMemo?: string | undefined;
+  onEditMemo?: ((value: string) => void) | undefined;
+  onSaveMemo?: (() => void) | undefined;
+  onCancelEditMemo?: (() => void) | undefined;
+  onStartEditMemo?: (() => void) | undefined;
   // 선택지별 메모
-  showOptionMemo?: boolean;
-  onToggleAnswer?: () => void;
+  showOptionMemo?: boolean | undefined;
+  onToggleAnswer?: (() => void) | undefined;
 }
 
 export default function StudyQuestionCard({

@@ -7,10 +7,10 @@ import { cn } from "@/lib/utils";
 const Toast = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & {
-    title?: string;
-    description?: string;
-    variant?: "default" | "destructive" | "success" | "warning" | "info";
-    onClose?: () => void;
+    title?: string | undefined;
+    description?: string | undefined;
+    variant?: "default" | "destructive" | "success" | "warning" | "info" | undefined;
+    onClose?: (() => void) | undefined;
   }
 >(({ className, title, description, variant = "default", onClose, ...props }, ref) => {
   return (

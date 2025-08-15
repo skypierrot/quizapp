@@ -15,4 +15,8 @@ export const userDailyStats = pgTable(
   (table) => ({
     userDateIdx: index('user_date_idx').on(table.userId, table.date),
   })
-); 
+);
+
+// 명시적인 타입 정의
+export type UserDailyStats = typeof userDailyStats.$inferSelect;
+export type NewUserDailyStats = typeof userDailyStats.$inferInsert; 

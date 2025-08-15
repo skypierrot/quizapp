@@ -203,8 +203,8 @@ async function getBulkExamStatus(): Promise<Map<string, { questionCount: number;
       // exam 이름에서 파일명 추출 (예: "건설안전기사" -> "건설안전기사.html")
       const fileName = `${row.examName}.html`;
       examStatus.set(fileName, {
-        questionCount: Number(row.questionCount),
-        isComplete: row.questionCount > 0 // 문제가 있으면 완료된 것으로 간주
+        questionCount: Number(row.questionCount as string | number),
+        isComplete: Number(row.questionCount as string | number) > 0 // 문제가 있으면 완료된 것으로 간주
       });
     }
     
@@ -385,7 +385,7 @@ async function processImage(
     const existingImages = await db.select().from(imagesSchema).where(eq(imagesSchema.hash, hash)).limit(1);
     let fileUrl: string;
 
-    if (existingImages.length > 0) {
+    if (existingImages.length > 0 && existingImages[0]) {
       fileUrl = existingImages[0].path;
       console.log(`[ImageProcess] Hash ${dryRun ? '(Dry Run) ' : ''}found ${hash}, using existing path: ${fileUrl}`);
     } else {
@@ -554,7 +554,7 @@ async function parseHtmlFile(filePath: string, dryRun: boolean = false): Promise
           examName,
           examDate,
           subject: currentSubject,
-          questionNumber,
+          questionNumber: questionNumber || 0,
           questionContent: finalQuestionContent,
           options: parsedOptions,
           answerIndex: answerIdx,
@@ -891,10 +891,11 @@ async function main() {
     const singleFileArgIndex = args.indexOf('--singleFile');
     if (singleFileArgIndex !== -1 && args[singleFileArgIndex + 1]) {
       // 다음 인자가 다른 옵션이 아닌지 확인 (간단한 체크)
-      if (!args[singleFileArgIndex + 1].startsWith('--')) {
-        options.singleFile = args[singleFileArgIndex + 1];
+      const nextArg = args[singleFileArgIndex + 1];
+      if (nextArg && !nextArg.startsWith('--')) {
+        options.singleFile = nextArg;
       } else {
-        console.warn(`[ArgsParse] --singleFile option used but next argument '${args[singleFileArgIndex + 1]}' looks like another option. Ignoring --singleFile value.`);
+        console.warn(`[ArgsParse] --singleFile option used but next argument '${nextArg}' looks like another option. Ignoring --singleFile value.`);
       }
     }
   }

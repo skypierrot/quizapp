@@ -76,7 +76,10 @@ export function useManualFormOption({
       return;
     }
     const hash = await getFileHash(file);
-    const isDuplicate = question.options[optionIdx].images.some(img => img.hash === hash);
+    const option = question.options[optionIdx];
+    if (!option) return;
+    
+    const isDuplicate = option.images.some(img => img.hash === hash);
     if (isDuplicate) {
       alert('이미 등록된 이미지입니다.');
       return;

@@ -24,7 +24,7 @@ export default function ExamResultsPage() {
   const [results, setResults] = useState<IExamResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [resultToDelete, setResultToDelete] = useState<number | null>(null);
+  const [resultToDelete, setResultToDelete] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
@@ -64,7 +64,7 @@ export default function ExamResultsPage() {
       .finally(() => setLoading(false));
   };
 
-  const handleDeleteClick = (resultId: number) => {
+  const handleDeleteClick = (resultId: string) => {
     setResultToDelete(resultId);
     setDeleteDialogOpen(true);
   };
@@ -131,10 +131,12 @@ export default function ExamResultsPage() {
           {/* 모바일에서 카드 형식으로 표시 */}
           <div className="md:hidden space-y-4">
             {results.map(result => (
-              <Card key={`mobile-${result.id}`} className="w-full border shadow-sm">
+              <Card key={`mobile-${result.id || 'unknown'}`} className="w-full border shadow-sm">
                 <CardContent className="p-4">
                   <div className="font-bold text-lg">{result.examName}</div>
-                  <div className="text-xs text-gray-500 mb-3">{result.examDate ? result.examDate : result.examYear}</div>
+                  <div className="text-xs text-gray-500 mb-3">
+                    {result.examDate ? result.examDate : String(result.examYear)}
+                  </div>
                   
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     <div className="flex items-center gap-1 text-sm">
@@ -166,7 +168,7 @@ export default function ExamResultsPage() {
                           const subjectScore = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
                           const isFailScore = subjectScore < 60;
                           return (
-                            <div key={`mobile-${result.id}-${subject}`} className="flex justify-between items-center">
+                            <div key={`mobile-${result.id || 'unknown'}-${subject}`} className="flex justify-between items-center">
                               <span className="text-sm">{subject}</span>
                               <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
                                 isFailScore ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
@@ -181,7 +183,7 @@ export default function ExamResultsPage() {
                   
                   <div className="flex justify-between items-center mt-2">
                     <Button asChild size="sm" variant="outline" className="h-8 px-3 text-xs">
-                      <Link href={`/results/${result.id}`}>
+                      <Link href={`/results/${result.id || ''}`}>
                         <ExternalLink className="h-3 w-3 mr-1" /> 상세 보기
                       </Link>
                     </Button>
@@ -189,7 +191,7 @@ export default function ExamResultsPage() {
                       size="sm" 
                       variant="outline" 
                       className="h-8 px-3 text-xs border-gray-300 hover:bg-gray-50 hover:text-gray-800"
-                      onClick={() => handleDeleteClick(result.id)}
+                      onClick={() => result.id && handleDeleteClick(result.id)}
                     >
                       <Trash2 className="h-3 w-3 mr-1 text-gray-700" /> 삭제
                     </Button>
@@ -215,11 +217,13 @@ export default function ExamResultsPage() {
               </thead>
               <tbody>
                 {results.map(result => (
-                  <tr key={`desktop-${result.id}`} className="border-b hover:bg-gray-50">
+                  <tr key={`desktop-${result.id || 'unknown'}`} className="border-b hover:bg-gray-50">
                     <td className="py-2 px-2 align-middle text-center">{formatKoreanDateTime(result.createdAt)}</td>
                     <td className="py-2 px-2 align-middle text-center">
                       <div className="font-semibold">{result.examName}</div>
-                      <div className="text-xs text-gray-500">{result.examDate ? result.examDate : result.examYear}</div>
+                      <div className="text-xs text-gray-500">
+                        {result.examDate ? result.examDate : String(result.examYear)}
+                      </div>
                     </td>
                     <td className="py-2 px-2 align-middle text-center">
                       <span className={`font-bold ${result.score < 60 ? 'text-red-600' : 'text-blue-600'}`}>{result.score}점</span>
@@ -232,7 +236,7 @@ export default function ExamResultsPage() {
                             const subjectScore = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
                             const isFailScore = subjectScore < 60;
                             return (
-                              <div key={`desktop-${result.id}-${subject}`} className="flex items-center justify-between gap-2 w-full">
+                              <div key={`desktop-${result.id || 'unknown'}-${subject}`} className="flex items-center justify-between gap-2 w-full">
                                 <span className="text-xs text-left">{subject}</span>
                                 <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
                                   isFailScore ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
@@ -251,7 +255,7 @@ export default function ExamResultsPage() {
                     </td>
                     <td className="py-2 px-2 align-middle text-center">
                       <Button asChild size="sm" variant="outline" className="h-7 px-2 text-xs">
-                        <Link href={`/results/${result.id}`}>
+                        <Link href={`/results/${result.id || ''}`}>
                           <ExternalLink className="inline h-3 w-3 mr-1" /> 보기
                         </Link>
                       </Button>
@@ -261,7 +265,7 @@ export default function ExamResultsPage() {
                         size="sm" 
                         variant="outline" 
                         className="h-7 px-2 text-xs border-gray-300 hover:bg-gray-50 hover:text-gray-800"
-                        onClick={() => handleDeleteClick(result.id)}
+                        onClick={() => result.id && handleDeleteClick(result.id)}
                       >
                         <Trash2 className="inline h-3 w-3 mr-1 text-gray-700" /> 삭제
                       </Button>

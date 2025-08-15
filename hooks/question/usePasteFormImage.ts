@@ -1,16 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { convertToBase64 } from "@/utils/image"
-
-interface IParsedQuestion {
-  content: string;
-  options: string[];
-  answer: number;
-  images: string[];
-  explanation?: string;
-  explanationImages?: string[];
-  tags?: string[];
-  examples?: string[];
-}
+import { IParsedQuestion } from "@/types/question"
 
 type ImageAreaType = 'question' | 'explanation'
 
@@ -49,9 +39,9 @@ export function usePasteFormImage({ parsedQuestions, setParsedQuestions, safeToa
       const items = e.clipboardData?.items
       if (!items) return
       for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') === 0) {
-          const blob = items[i].getAsFile()
-          if (blob) {
+        if (items[i]?.type.indexOf('image') === 0) {
+          const blob = items[i]?.getAsFile()
+          if (blob && activeImageArea && typeof activeImageArea.index === 'number' && activeImageArea.type) {
             setProcessingCount(prev => prev + 1)
             setImageEventProcessing(true)
             handleImageBlob(blob, activeImageArea.index, activeImageArea.type === 'explanation')
@@ -108,18 +98,26 @@ export function usePasteFormImage({ parsedQuestions, setParsedQuestions, safeToa
           ? (currentQuestion.explanationImages || []) 
           : (currentQuestion.images || [])
         const newImageHash = generateImageHash(base64)
-        const isDuplicate = currentImages.some(img => generateImageHash(img) === newImageHash)
+        const isDuplicate = currentImages.some(img => img && generateImageHash(img.url) === newImageHash)
         if (isDuplicate) {
           safeToast("이미지 중복", "이 이미지는 이미 등록되었습니다.", "warning")
           return prevState
         }
         const updatedQuestions = [...prevState]
-        const updatedQuestion = {...updatedQuestions[questionIndex]}
+        const updatedQuestion: IParsedQuestion = {
+          ...currentQuestion,
+          content: currentQuestion.content,
+          options: currentQuestion.options,
+          answer: currentQuestion.answer,
+          tags: currentQuestion.tags || [],
+          images: currentQuestion.images || [],
+          explanationImages: currentQuestion.explanationImages || []
+        }
         if (isExplanation) {
-          updatedQuestion.explanationImages = [...(updatedQuestion.explanationImages || []), base64]
+          updatedQuestion.explanationImages = [...(updatedQuestion.explanationImages || []), { url: base64, hash: generateImageHash(base64) }]
           safeToast("이미지 추가 완료", "해설에 이미지가 추가되었습니다.", "success")
         } else {
-          updatedQuestion.images = [...(updatedQuestion.images || []), base64]
+          updatedQuestion.images = [...(updatedQuestion.images || []), { url: base64, hash: generateImageHash(base64) }]
           safeToast("이미지 추가 완료", "문제에 이미지가 추가되었습니다.", "success")
         }
         updatedQuestions[questionIndex] = updatedQuestion
@@ -154,7 +152,9 @@ export function usePasteFormImage({ parsedQuestions, setParsedQuestions, safeToa
     input.onchange = (event) => {
       if (event.target instanceof HTMLInputElement && event.target.files && event.target.files.length > 0) {
         const file = event.target.files[0]
-        handleImageUpload(file)
+        if (file) {
+          handleImageUpload(file)
+        }
       }
     }
   }
@@ -171,7 +171,9 @@ export function usePasteFormImage({ parsedQuestions, setParsedQuestions, safeToa
     input.onchange = (event) => {
       if (event.target instanceof HTMLInputElement && event.target.files && event.target.files.length > 0) {
         const file = event.target.files[0]
-        handleImageUpload(file)
+        if (file) {
+          handleImageUpload(file)
+        }
       }
     }
   }

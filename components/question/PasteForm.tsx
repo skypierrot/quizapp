@@ -308,9 +308,11 @@ export default function PasteForm() {
       let match;
       while ((match = imageUrlRegex.exec(q.content || '')) !== null) {
         const url = match[1];
-        const imageInfo = pastedImageMap.get(url);
-        if (imageInfo) {
-          finalImages.push(imageInfo);
+        if (url) {
+          const imageInfo = pastedImageMap.get(url);
+          if (imageInfo) {
+            finalImages.push(imageInfo);
+          }
         }
       }
 
@@ -318,9 +320,11 @@ export default function PasteForm() {
       imageUrlRegex.lastIndex = 0; // Reset regex index
       while ((match = imageUrlRegex.exec(q.explanation || '')) !== null) {
         const url = match[1];
-        const imageInfo = pastedImageMap.get(url);
-        if (imageInfo) {
-          finalExplanationImages.push(imageInfo);
+        if (url) {
+          const imageInfo = pastedImageMap.get(url);
+          if (imageInfo) {
+            finalExplanationImages.push(imageInfo);
+          }
         }
       }
 
@@ -330,9 +334,11 @@ export default function PasteForm() {
         imageUrlRegex.lastIndex = 0; // Reset regex index
         while ((match = imageUrlRegex.exec(opt.text || '')) !== null) {
           const url = match[1];
-          const imageInfo = pastedImageMap.get(url);
-          if (imageInfo) {
-            optionImages.push(imageInfo);
+          if (url) {
+            const imageInfo = pastedImageMap.get(url);
+            if (imageInfo) {
+              optionImages.push(imageInfo);
+            }
           }
         }
         return {
@@ -344,14 +350,14 @@ export default function PasteForm() {
 
       // 최종 질문 객체 구성
       return {
-      id: q.id || `parsed-${Date.now()}-${Math.random()}`,
-      content: q.content,
+        id: q.id ? String(q.id) : `parsed-${Date.now()}-${Math.random()}`,
+        content: q.content || '',
         options: finalOptions,
-      answer: typeof q.answer === 'number' ? q.answer - 1 : -1,
-      explanation: q.explanation ?? "",
+        answer: typeof q.answer === 'number' ? q.answer - 1 : -1,
+        explanation: q.explanation ?? "",
         images: finalImages, // 연결된 이미지 정보 사용
         explanationImages: finalExplanationImages, // 연결된 이미지 정보 사용
-      tags: [], 
+        tags: [], 
         // examId는 BasicTagSettings에서 관리되므로 여기서는 설정 안 함
       };
     });
@@ -371,6 +377,8 @@ export default function PasteForm() {
 
     for (let i = 0; i < questionsToValidate.length; i++) {
       const q = questionsToValidate[i];
+      if (!q) continue;
+      
       if (!q.content.trim()) {
         return { valid: false, message: `문제 ${i + 1}: 본문을 입력하세요.`, focusIdx: i };
       }
@@ -379,6 +387,8 @@ export default function PasteForm() {
       }
       for (let j = 0; j < q.options.length; j++) {
         const opt = q.options[j];
+        if (!opt) continue;
+        
         if (!opt.text.trim() && (!opt.images || opt.images.length === 0)) {
           return { valid: false, message: `문제 ${i + 1}, 선택지 ${j + 1}: 내용 또는 이미지를 입력하세요.`, focusIdx: i };
         }
@@ -702,7 +712,7 @@ export default function PasteForm() {
           <SubmitSection isSubmitting={isSubmitting} buttonText="모든 문제 저장" />
         </form>
       )}
-      <ImageZoomModal src={imageZoom.zoomedImage} onClose={imageZoom.closeZoom} />
+      <ImageZoomModal imageUrl={imageZoom.zoomedImage} onClose={imageZoom.closeZoom} />
     </div>
   );
 }

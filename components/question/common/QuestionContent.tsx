@@ -6,7 +6,7 @@ interface QuestionContentProps {
   value: string
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
   onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void
-  inputRef?: React.RefObject<HTMLTextAreaElement>
+  inputRef?: React.RefObject<HTMLTextAreaElement | null>
 }
 
 export function QuestionContent({ value, onChange, onPaste, inputRef }: QuestionContentProps) {

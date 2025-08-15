@@ -1,66 +1,76 @@
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-const features = [
-  {
-    title: '시험 문제 학습',
-    description: '다양한 기술 자격증 시험 문제를 체계적으로 학습할 수 있습니다.',
-    href: '/learn/exams'
-  },
-  {
-    title: '학습 통계',
-    description: '학습 현황과 정답률을 분석하여 효율적인 학습을 도와드립니다.',
-    href: '/statistics'
-  },
-  {
-    title: '시험 결과',
-    description: '모든 시험 결과를 체계적으로 관리하고 확인할 수 있습니다.',
-    href: '/results'
-  },
-  {
-    title: '문제 관리',
-    description: '새로운 문제를 등록하고 기존 문제를 관리할 수 있습니다.',
-    href: '/manage/questions/list'
-  },
-  {
-    title: '학습 커뮤니티',
-    description: '다른 수험생들과 정보를 공유하고 소통할 수 있습니다.',
-    href: '/community/forum'
-  },
-  {
-    title: '개인 프로필',
-    description: '학습 기록과 개인 설정을 관리할 수 있습니다.',
-    href: '/profile'
-  }
-];
+const FeaturesSection = () => {
+  const features = [
+    {
+      title: "문제은행",
+      description: "다양한 기술자격시험 문제를 체계적으로 학습할 수 있습니다.",
+      icon: "📚",
+      href: "/learn/exams"
+    },
+    {
+      title: "모의고사",
+      description: "실제 시험과 동일한 환경에서 실전 연습을 할 수 있습니다.",
+      icon: "✍️",
+      href: "/practice"
+    },
+    {
+      title: "오답노트",
+      description: "틀린 문제를 체계적으로 정리하고 복습할 수 있습니다.",
+      icon: "📝",
+      href: "/wrong-answers"
+    },
+    {
+      title: "학습통계",
+      description: "학습 진행 상황과 성취도를 한눈에 확인할 수 있습니다.",
+      icon: "📊",
+      href: "/statistics"
+    },
+    {
+      title: "커뮤니티",
+      description: "다른 학습자들과 정보를 공유하고 소통할 수 있습니다.",
+      icon: "💬",
+      href: "/community/forum"
+    },
+    {
+      title: "맞춤학습",
+      description: "개인별 학습 패턴에 맞춘 맞춤형 학습을 제공합니다.",
+      icon: "🎯",
+      href: "/personalized"
+    }
+  ];
 
-export function FeaturesSection() {
   return (
-    <section className="bg-gray-50 dark:bg-gray-900 py-16">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-4">주요 기능</h2>
-          <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            학습에 필요한 모든 기능을 제공합니다
+    <section className="py-20 px-4 bg-white">
+      <div className="container mx-auto max-w-6xl">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            강력한 학습 기능
+          </h2>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            기술자격시험 준비에 필요한 모든 기능을 제공합니다
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {features.map((feature) => (
-            <Link key={feature.title} href={feature.href} className="block">
-              <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
-                <CardHeader>
-                  <CardTitle className="text-lg">{feature.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-                    {feature.description}
-                  </p>
-                </CardContent>
-              </Card>
-            </Link>
+            <a key={feature.title} href={feature.href} className="block">
+              <div className="bg-gray-50 rounded-lg p-6 hover:bg-gray-100 transition-colors duration-200 h-full">
+                <div className="text-4xl mb-4">{feature.icon}</div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                  {feature.title}
+                </h3>
+                <p className="text-gray-600 leading-relaxed">
+                  {feature.description}
+                </p>
+              </div>
+            </a>
           ))}
         </div>
       </div>
     </section>
   );
-} 
+};
+
+export default FeaturesSection; 

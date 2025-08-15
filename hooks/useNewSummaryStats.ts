@@ -41,7 +41,7 @@ export function useNewSummaryStats(userId?: string, sessionStatus?: SessionStatu
     url, // url이 null이면 SWR은 요청을 보내지 않음 
     fetcher, 
     {
-      fallbackData: url === null ? undefined : null, // url이 null이면 fallbackData도 undefined로 설정하여 초기 상태를 명확히 합니다.
+      fallbackData: url === null ? null : null, // url이 null이면 fallbackData도 null로 설정
       revalidateOnFocus: false, // 포커스 시 자동 재검증 비활성화 (테스트 단순화를 위해)
       // errorRetryCount: 2 // 필요시 에러 재시도 횟수 설정
     }

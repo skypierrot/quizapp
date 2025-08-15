@@ -18,10 +18,10 @@ export interface IExam {
   updatedAt?: Date | string;
 }
 
-// 문제 인터페이스
+// 문제 인터페이스 - 스키마와 일치하도록 수정
 export interface IQuestion {
-  id?: string;
-  content: string;
+  id: string; // 필수 필드로 변경
+  content: string; // text -> content로 통일
   options: IOption[];
   answer: number;
   explanation?: string | null;
@@ -31,7 +31,7 @@ export interface IQuestion {
   userId?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
-  examId?: string | null;
+  examId?: string | null; // uuid 타입을 string으로 통일
   examName?: string | null;
   examDate?: string | null;
   examSubject?: string | null;
@@ -47,7 +47,7 @@ export interface IOption {
 export interface IManualQuestion {
   id?: string;
   number?: number;
-  content: string;
+  content: string; // text -> content로 통일
   options: IOption[];
   answer: number;
   images: { url: string; hash: string }[];

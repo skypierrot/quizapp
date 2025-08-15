@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Toaster } from "@/components/ui/toaster";
 import ClientLayout from "@/components/layout/ClientLayout";
 import { Suspense } from "react";
-import ErrorBoundary from "@/components/layout/ErrorBoundary";
+import SimpleErrorBoundary from "@/components/layout/SimpleErrorBoundary";
 
 // 개발 모드 스크립트 임시 비활성화 (디버깅을 위해)
 
@@ -30,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="font-sans antialiased">
-        <ErrorBoundary>
+        <SimpleErrorBoundary>
           <ClientLayout>
             <Suspense fallback={<div>Loading...</div>}>
               <div className="flex flex-col min-h-screen">
@@ -44,7 +44,7 @@ export default function RootLayout({
             </Suspense>
           </ClientLayout>
           <Toaster />
-        </ErrorBoundary>
+        </SimpleErrorBoundary>
       </body>
     </html>
   );

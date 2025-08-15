@@ -57,18 +57,24 @@ async function initializeGlobalStats() {
 
       let userStreak = 0;
       if (userStreakStats.length > 0) {
-        let prevDate = new Date(userStreakStats[0].date);
-        userStreak = userStreakStats[0].solvedCount > 0 ? 1 : 0;
-        
-        for (let i = 1; i < userStreakStats.length; i++) {
-          const currDate = new Date(userStreakStats[i].date);
-          const diffDays = Math.round((prevDate.getTime() - currDate.getTime()) / (1000 * 60 * 60 * 24));
+        const firstStat = userStreakStats[0];
+        if (firstStat) {
+          let prevDate = new Date(firstStat.date);
+          userStreak = firstStat.solvedCount > 0 ? 1 : 0;
           
-          if (diffDays === 1 && userStreakStats[i].solvedCount > 0) {
-            userStreak++;
-            prevDate = currDate;
-          } else {
-            break;
+          for (let i = 1; i < userStreakStats.length; i++) {
+            const currStat = userStreakStats[i];
+            if (currStat) {
+              const currDate = new Date(currStat.date);
+              const diffDays = Math.round((prevDate.getTime() - currDate.getTime()) / (1000 * 60 * 60 * 24));
+              
+              if (diffDays === 1 && currStat.solvedCount > 0) {
+                userStreak++;
+                prevDate = currDate;
+              } else {
+                break;
+              }
+            }
           }
         }
       }

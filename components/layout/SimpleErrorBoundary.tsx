@@ -1,8 +1,7 @@
 'use client';
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { Button } from '@/components/ui/button';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { FiAlertTriangle, FiRefreshCw, FiHome } from 'react-icons/fi';
 
 interface Props {
   children: ReactNode;
@@ -11,22 +10,22 @@ interface Props {
 
 interface State {
   hasError: boolean;
-  error?: Error;
-  errorInfo?: ErrorInfo;
+  error: Error | null;
+  errorInfo: ErrorInfo | null;
 }
 
-class ErrorBoundary extends Component<Props, State> {
+class SimpleErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+    return { hasError: true, error, errorInfo: null };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    console.error('SimpleErrorBoundary caught an error:', error, errorInfo);
     this.setState({
       error,
       errorInfo,
@@ -34,7 +33,7 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false, error: undefined, errorInfo: undefined });
+    this.setState({ hasError: false, error: null, errorInfo: null });
     window.location.reload();
   };
 
@@ -48,7 +47,7 @@ class ErrorBoundary extends Component<Props, State> {
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-              <AlertTriangle className="h-6 w-6 text-red-600" />
+              <FiAlertTriangle className="h-6 w-6 text-red-600" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               문제가 발생했습니다
@@ -57,20 +56,20 @@ class ErrorBoundary extends Component<Props, State> {
               페이지를 새로고침하거나 다시 시도해주세요.
             </p>
             <div className="space-y-3">
-              <Button
+              <button
                 onClick={this.handleRetry}
-                className="w-full flex items-center justify-center space-x-2"
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
               >
-                <RefreshCw className="h-4 w-4" />
+                <FiRefreshCw className="h-4 w-4" />
                 <span>다시 시도</span>
-              </Button>
-              <Button
-                variant="outline"
+              </button>
+              <button
                 onClick={() => window.location.href = '/'}
-                className="w-full"
+                className="w-full bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 transition-colors flex items-center justify-center space-x-2"
               >
-                홈으로 돌아가기
-              </Button>
+                <FiHome className="h-4 w-4" />
+                <span>홈으로 돌아가기</span>
+              </button>
             </div>
             {process.env.NODE_ENV === 'development' && this.state.error && (
               <details className="mt-4 text-left">
@@ -97,4 +96,4 @@ class ErrorBoundary extends Component<Props, State> {
   }
 }
 
-export default ErrorBoundary;
+export default SimpleErrorBoundary;

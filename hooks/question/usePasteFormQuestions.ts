@@ -72,9 +72,9 @@ export function usePasteFormQuestions(initialData?: IQuestion) {
         options: q.options.map(opt => typeof opt === 'string' ? opt : (opt as any).text || ""),
         answer: -1,
         images: [],
-        explanation: undefined,
+        explanation: "",
         explanationImages: [],
-        tags: [...globalTags],
+        tags: globalTags,
       }));
       setParsedQuestions(parsedDataQuestions)
     } catch (error) {
@@ -158,10 +158,10 @@ export function usePasteFormQuestions(initialData?: IQuestion) {
     const newTags = globalTags.filter(tag => tag !== tagToRemove);
     setGlobalTags(newTags);
     if (parsedQuestions.length > 0) {
-      setParsedQuestions(prev => prev.map(q => ({
-        ...q,
-        tags: (q.tags || []).filter(tag => tag !== tagToRemove)
-      })));
+              setParsedQuestions(prev => prev.map(q => ({
+          ...q,
+          tags: (q.tags || []).filter(tag => tag !== tagToRemove)
+        })));
     }
   };
   const addQuestionTag = (questionIndex: number) => {
@@ -170,8 +170,11 @@ export function usePasteFormQuestions(initialData?: IQuestion) {
       prevQuestions.map((q, idx) => {
         if (idx !== questionIndex) return q;
         const currentTags = q.tags || [];
-        if (!currentTags.includes(questionTagInput.trim())) {
-          return { ...q, tags: [...currentTags, questionTagInput.trim()] };
+        if (!currentTags.some(tag => tag === questionTagInput.trim())) {
+          return { 
+            ...q, 
+            tags: [...currentTags, questionTagInput.trim()]
+          };
         }
         return q;
       })
@@ -224,7 +227,7 @@ export function usePasteFormQuestions(initialData?: IQuestion) {
     const items = e.clipboardData?.items;
     if (!items) return;
     for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf('image') === 0) {
+      if (items[i]?.type.indexOf('image') === 0) {
         e.preventDefault();
         return;
       }

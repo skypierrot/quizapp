@@ -3,18 +3,18 @@ import { IImageUploadResult, ImageType } from "@/types/question";
 import { ToastType } from "@/types/toast";
 
 /**
- * 파일을 base64 문자열로 변환합니다. (현재 사용 안 함)
+ * 파일을 base64 문자열로 변환합니다.
  * @param file 변환할 파일 객체
  * @returns Promise<string> base64 문자열
  */
-// export const convertToBase64 = (file: File): Promise<string> => {
-//   return new Promise((resolve, reject) => {
-//     const reader = new FileReader();
-//     reader.readAsDataURL(file);
-//     reader.onload = () => resolve(reader.result as string);
-//     reader.onerror = error => reject(error);
-//   });
-// };
+export const convertToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+  });
+};
 
 /**
  * 이미지 파일을 처리하고 base64 문자열로 변환합니다. (현재 사용 안 함)
@@ -83,8 +83,9 @@ export const handlePasteImage = async (
   let imageFile: File | null = null;
 
   for (let i = 0; i < items.length; i++) {
-    if (items[i].type.indexOf("image") !== -1) {
-      imageFile = items[i].getAsFile();
+    const item = items[i];
+    if (item && item.type.indexOf("image") !== -1) {
+      imageFile = item.getAsFile();
       break;
     }
   }

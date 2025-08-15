@@ -41,9 +41,9 @@ export interface IQuestionImage {
  * 문제 붙여넣기 기능에서 사용
  */
 export interface IParsedQuestion {
-  id: string;
-  number: number;
-  content: string;
+  id?: string; // 선택적 필드로 변경
+  number?: number; // 선택적 필드로 변경
+  content: string; // text -> content로 통일
   options: IOption[];
   answer: number | null;
   tags: ITag[];

@@ -5,20 +5,26 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     env_file:
       - .env
     ports:
       - "3772:3000"
     volumes:
       - ./:/app
-      - /app/node_modules
+      # - /app/node_modules  # 컨테이너 내부 node_modules 유지
       - ./public/images:/app/public/images
       - ./public/uploads:/app/public/uploads
     environment:
       - NODE_ENV=${NODE_ENV}
       - HOSTNAME=${HOSTNAME}
-      - NEXT_WEBPACK_USEPOLLING=${NEXT_WEBPACK_USEPOLLING}
-      - WATCHPACK_POLLING=${WATCHPACK_POLLING}
+      - NEXT_WEBPACK_USEPOLLING=false
+      - WATCHPACK_POLLING=false
       - DEBUG=${DEBUG}
       - AUTHENTIK_HOST=${AUTHENTIK_HOST}
       - AUTHENTIK_CLIENT_ID=${AUTHENTIK_CLIENT_ID}
@@ -27,12 +33,12 @@ services:
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       # React Refresh 안정화를 위한 추가 설정
-      - FAST_REFRESH=true
+      - FAST_REFRESH=false
       - REACT_REFRESH_OVERLAY=false
       - NEXT_TELEMETRY_DISABLED=1
       # Webpack HMR 안정성을 위한 추가 설정
-      - NEXT_WEBPACK_USEPOLLING=true
-      - WATCHPACK_POLLING=true
+      - NEXT_WEBPACK_USEPOLLING=false
+      - WATCHPACK_POLLING=false
       - WATCHPACK_AGGREGATE_TIMEOUT=500
       - NEXT_WEBPACK_IGNORED_WATCH_PATTERNS=node_modules,.git,.next,.env*
       # 모듈 로딩 안정성을 위한 설정
@@ -43,6 +49,15 @@ services:
       - ngnet
     depends_on:
       - quizapp-db
+    # DNS 설정 추가 (외부 도메인 접근용)
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    # 외부 네트워크 접근을 위한 추가 설정 (제거 - 외부 도메인 접근 방해)
+    # extra_hosts:
+    #   - "auth.geniduck.org:172.18.0.2"
+    #   - "quiz.geniduck.org:172.18.0.6"
 
   quizapp-db:
     image: postgres:16-alpine

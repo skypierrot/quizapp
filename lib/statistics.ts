@@ -34,13 +34,13 @@ export async function updateStatisticsForExam(userId: string, examResult: {
       .where(
         and(
           eq(statisticsSummary.userId, userId),
-          eq(statisticsSummary.date, dateStr)
+          eq(statisticsSummary.date, dateStr || '')
         )
       );
 
     // 과목별 통계 처리
     let subjectStatsObj: Record<string, { total: number; correct: number }> = {};
-    if (existingStats.length > 0 && existingStats[0].subjectStats) {
+    if (existingStats.length > 0 && existingStats[0]?.subjectStats) {
       try {
         subjectStatsObj = JSON.parse(existingStats[0].subjectStats);
       } catch (e) {
@@ -58,28 +58,29 @@ export async function updateStatisticsForExam(userId: string, examResult: {
       subjectStatsObj[subject].correct += stats.correct;
     });
 
-    if (existingStats.length > 0) {
+    if (existingStats.length > 0 && existingStats[0]) {
+      const existingStat = existingStats[0];
       // 2. 기존 데이터가 있으면 업데이트
       await db
         .update(statisticsSummary)
         .set({
-          examCount: existingStats[0].examCount + 1,
-          totalQuestions: existingStats[0].totalQuestions + examResult.totalQuestions,
-          correctQuestions: existingStats[0].correctQuestions + examResult.correctCount,
+          examCount: (existingStat.examCount || 0) + 1,
+          totalQuestions: (existingStat.totalQuestions || 0) + examResult.totalQuestions,
+          correctQuestions: (existingStat.correctQuestions || 0) + examResult.correctCount,
           subjectStats: JSON.stringify(subjectStatsObj),
           lastUpdated: new Date(),
         })
-        .where(eq(statisticsSummary.id, existingStats[0].id));
+        .where(eq(statisticsSummary.id, existingStat.id));
 
       console.log(`[Statistics] Updated existing stats for ${dateStr}`);
     } else {
       // 3. 기존 데이터가 없으면 새로 생성
       // 연속 학습일(streak) 계산
-      const streak = await calculateStreak(userId, dateStr);
+      const streak = await calculateStreak(userId, dateStr || '');
 
       await db.insert(statisticsSummary).values({
         userId,
-        date: dateStr,
+        date: dateStr || '',
         examCount: 1,
         totalQuestions: examResult.totalQuestions,
         correctQuestions: examResult.correctCount,
@@ -126,29 +127,30 @@ export async function updateStatisticsForStudyTime(
       .where(
         and(
           eq(statisticsSummary.userId, userId),
-          eq(statisticsSummary.date, dateStr)
+          eq(statisticsSummary.date, dateStr || '')
         )
       );
 
-    if (existingStats.length > 0) {
+    if (existingStats.length > 0 && existingStats[0]) {
+      const existingStat = existingStats[0];
       // 2. 기존 데이터가 있으면 업데이트
       await db
         .update(statisticsSummary)
         .set({
-          studyTimeSeconds: existingStats[0].studyTimeSeconds + studyTimeSeconds,
+          studyTimeSeconds: (existingStat.studyTimeSeconds || 0) + studyTimeSeconds,
           lastUpdated: new Date(),
         })
-        .where(eq(statisticsSummary.id, existingStats[0].id));
+        .where(eq(statisticsSummary.id, existingStat.id));
 
       console.log(`[Statistics] Updated study time for ${dateStr}`);
     } else {
       // 3. 기존 데이터가 없으면 새로 생성
       // 연속 학습일(streak) 계산
-      const streak = await calculateStreak(userId, dateStr);
+      const streak = await calculateStreak(userId, dateStr || '');
 
       await db.insert(statisticsSummary).values({
         userId,
-        date: dateStr,
+        date: dateStr || '',
         studyTimeSeconds,
         streak,
         lastUpdated: new Date(),
@@ -193,7 +195,7 @@ async function calculateStreak(userId: string, currentDateStr: string): Promise<
     }
     
     // 가장 최근 학습일
-    const lastStudyDate = new Date(previousStats[0].date);
+    const lastStudyDate = new Date(previousStats[0]?.date || '');
     
     // 어제 날짜
     const yesterday = new Date(currentDate);
@@ -214,12 +216,12 @@ async function calculateStreak(userId: string, currentDateStr: string): Promise<
         .where(
           and(
             eq(statisticsSummary.userId, userId),
-            eq(statisticsSummary.date, lastStudyDate.toISOString().split('T')[0])
+            eq(statisticsSummary.date, lastStudyDate.toISOString().split('T')[0] || '')
           )
         )
         .limit(1);
       
-      return lastStats.length > 0 ? (lastStats[0].streak || 0) + 1 : 1;
+      return lastStats.length > 0 ? (lastStats[0]?.streak || 0) + 1 : 1;
     } else if (
       lastStudyDate.getFullYear() === currentDate.getFullYear() &&
       lastStudyDate.getMonth() === currentDate.getMonth() &&
@@ -234,12 +236,12 @@ async function calculateStreak(userId: string, currentDateStr: string): Promise<
         .where(
           and(
             eq(statisticsSummary.userId, userId),
-            eq(statisticsSummary.date, currentDateStr)
+            eq(statisticsSummary.date, currentDateStr || '')
           )
         )
         .limit(1);
       
-      return lastStats.length > 0 ? lastStats[0].streak || 1 : 1;
+      return lastStats.length > 0 ? lastStats[0]?.streak || 1 : 1;
     } else {
       // 연속되지 않았다면 streak = 1로 리셋
       return 1;
@@ -271,7 +273,7 @@ async function updateUserStats(
 
     // 과목별 통계 처리
     let subjectStatsObj: Record<string, { total: number; correct: number; averageScore: number }> = {};
-    if (existingStats.length > 0 && existingStats[0].subjectStats) {
+    if (existingStats.length > 0 && existingStats[0]?.subjectStats) {
       try {
         // 기존 형식이 Record<string, { total: number; correct: number; averageScore: number }>임
         subjectStatsObj = existingStats[0].subjectStats;
@@ -303,9 +305,9 @@ async function updateUserStats(
 
     if (existingStats.length > 0) {
       // 기존 데이터가 있으면 업데이트
-      const totalExams = (existingStats[0].totalExams || 0) + data.examCount;
-      const totalQuestions = (existingStats[0].totalQuestions || 0) + data.totalQuestions;
-      const totalCorrect = (existingStats[0].totalCorrect || 0) + data.correctCount;
+      const totalExams = (existingStats[0]?.totalExams || 0) + data.examCount;
+      const totalQuestions = (existingStats[0]?.totalQuestions || 0) + data.totalQuestions;
+      const totalCorrect = (existingStats[0]?.totalCorrect || 0) + data.correctCount;
       
       // 평균 점수 계산 (백분율)
       const averageScore = totalQuestions > 0
@@ -323,7 +325,7 @@ async function updateUserStats(
           lastExamAt: new Date(),
           updatedAt: new Date(),
         })
-        .where(eq(userStats.id, existingStats[0].id));
+        .where(eq(userStats.id, existingStats[0]?.id || ''));
 
       console.log(`[Statistics] Updated user stats for ${userId}`);
     } else {
@@ -534,9 +536,10 @@ async function rebuildUserStats(userId: string) {
 
     // 평균 점수 계산
     Object.keys(subjectStats).forEach(subject => {
-      if (subjectStats[subject].total > 0) {
-        subjectStats[subject].averageScore = Math.round(
-          (subjectStats[subject].correct / subjectStats[subject].total) * 100
+      const subjectData = subjectStats[subject];
+      if (subjectData && subjectData.total > 0) {
+        subjectData.averageScore = Math.round(
+          (subjectData.correct / subjectData.total) * 100
         );
       }
     });

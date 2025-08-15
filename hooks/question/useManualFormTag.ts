@@ -31,13 +31,24 @@ export function useManualFormTag({
     setQuestion((prev) => ({ ...prev, tags: [...prev.tags, trimmedInput] }))
     setParsedQuestionsState((prev) => {
       if (prev.length === 0) return prev
+      const firstQuestion = prev[0]
+      if (!firstQuestion) return prev
+      
       const newTagObject = {
         id: Math.random().toString(36).slice(2),
         name: trimmedInput,
         color: 'gray'
       }
       return [
-        { ...prev[0], tags: [...prev[0].tags, newTagObject] },
+        { 
+          ...firstQuestion, 
+          content: firstQuestion.content,
+          options: firstQuestion.options,
+          answer: firstQuestion.answer,
+          tags: [...(firstQuestion.tags || []), newTagObject],
+          images: firstQuestion.images || [],
+          explanationImages: firstQuestion.explanationImages || []
+        },
         ...prev.slice(1)
       ]
     })
@@ -49,8 +60,19 @@ export function useManualFormTag({
     setQuestion((prev) => ({ ...prev, tags: prev.tags.filter(tag => tag !== tagToRemove) }))
     setParsedQuestionsState((prev) => {
       if (prev.length === 0) return prev
+      const firstQuestion = prev[0]
+      if (!firstQuestion) return prev
+      
       return [
-        { ...prev[0], tags: prev[0].tags.filter((tag: { id: string; name: string; color: string }) => tag.name !== tagToRemove) },
+        { 
+          ...firstQuestion,
+          content: firstQuestion.content,
+          options: firstQuestion.options,
+          answer: firstQuestion.answer,
+          tags: firstQuestion.tags.filter((tag: { id: string; name: string; color: string }) => tag.name !== tagToRemove),
+          images: firstQuestion.images || [],
+          explanationImages: firstQuestion.explanationImages || []
+        },
         ...prev.slice(1)
       ]
     })

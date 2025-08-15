@@ -25,7 +25,10 @@ async function main() {
   let failCount = 0;
   
   for (let i = 0; i < users.length; i++) {
-    const userId = users[i].userId;
+    const user = users[i];
+    if (!user) continue;
+    
+    const userId = user.userId;
     console.log(`[${i+1}/${users.length}] 사용자 ${userId} 통계 재구축 중...`);
     
     try {

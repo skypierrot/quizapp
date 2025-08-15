@@ -59,14 +59,20 @@ export default function LearnExamsPage() {
           if (!acc[instance.examName]) {
             acc[instance.examName] = { instances: [], uniqueDateCount: 0 }; // 새 구조로 초기화
           }
-          acc[instance.examName].instances.push(instance);
+          const examGroup = acc[instance.examName];
+          if (examGroup) {
+            examGroup.instances.push(instance);
+          }
           return acc;
         }, {} as GroupedExams);
 
         // Calculate unique date count for each examName
         for (const examName in grouped) {
-          const uniqueDates = new Set(grouped[examName].instances.map(inst => inst.date));
-          grouped[examName].uniqueDateCount = uniqueDates.size;
+          const examGroup = grouped[examName];
+          if (examGroup && examGroup.instances) {
+            const uniqueDates = new Set(examGroup.instances.map(inst => inst.date));
+            examGroup.uniqueDateCount = uniqueDates.size;
+          }
         }
         // console.log('[/learn/exams/page.tsx] Grouped exams with unique date counts:', JSON.stringify(grouped, null, 2));
 
@@ -115,7 +121,7 @@ export default function LearnExamsPage() {
 
       {/* 공통 컴포넌트 사용 */}
       <ExamListDisplay
-        groupedExams={groupedExams}
+        groupedExams={groupedExams || {}}
         basePath="/learn/exams" // 학습 경로 전달
         title="문제 은행"
       />

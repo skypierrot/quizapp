@@ -24,6 +24,17 @@ export default function WrongNotePage() {
         ? params.resultId[0] 
         : '') 
     : '';
+  
+  // resultId가 없으면 에러 처리
+  if (!resultId) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 md:px-0 py-8 text-center">
+        <div className="bg-red-50 text-red-600 p-4 rounded-md">
+          결과 ID를 찾을 수 없습니다.
+        </div>
+      </div>
+    );
+  }
   const { data, isLoading, error, mutate: mutateWrongNote } = useSWR(`/api/wrong-note/${resultId}`, fetcher);
   const imageZoom = useImageZoom();
   const [activeTab, setActiveTab] = useState("problems");

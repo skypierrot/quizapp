@@ -52,13 +52,21 @@ const useIsMobile = () => {
 };
 
 // 학습용 카드 컴포넌트 (기존과 동일)
-const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, showExplanation, onOptionSelect, userAnswer, shuffledOptions, shuffledAnswerIndex, onToggleAnswer }: {
+const StudyQuestionCard = ({ 
+  question, 
+  index, 
+  page, 
+  onImageZoom, 
+  onOptionSelect, 
+  userAnswer, 
+  shuffledOptions, 
+  shuffledAnswerIndex, 
+  onToggleAnswer
+}: {
   question: IQuestion;
   index: number;
   page?: number;
   onImageZoom: (url: string) => void;
-  showAnswer?: boolean;
-  showExplanation?: boolean;
   onOptionSelect?: (optionIndex: number) => void;
   userAnswer?: number | null;
   shuffledOptions?: IOption[];
@@ -88,8 +96,8 @@ const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, sho
             onClick={onToggleAnswer}
             className="flex items-center gap-1 text-xs"
           >
-            {showAnswer ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-            <span className="hidden sm:inline">{showAnswer ? '정답 숨기기' : '정답 보기'}</span>
+            <Eye className="w-3 h-3" />
+            <span className="hidden sm:inline">정답 보기</span>
           </Button>
         )}
       </div>
@@ -110,23 +118,19 @@ const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, sho
         const isSelected = userAnswer === i;
         const isCorrect = correctAnswerIndex === i;
         let optionStyle = "cursor-pointer hover:bg-blue-50 border-gray-300";
-        if (showAnswer && isCorrect) {
+        if (isCorrect) {
           optionStyle = "ring-2 ring-green-500 border-green-500 bg-green-50";
         }
         if (isSelected) {
-          if (showAnswer) {
-            optionStyle = isCorrect ? "bg-green-100 border-green-500 text-green-800 font-semibold"
+          optionStyle = isCorrect ? "bg-green-100 border-green-500 text-green-800 font-semibold"
                                   : "bg-red-100 border-red-500 text-red-800 font-semibold";
-          } else {
-            optionStyle = "bg-blue-100 border-blue-500 text-blue-800 font-semibold";
-          }
         }
         const displayOptionNumber = isDisplayingShuffled
                                   ? i + 1
                                   : (opt.number !== undefined ? opt.number + 1 : i + 1);
         return (
           <React.Fragment key={`q${question.id}-opt-${i}`}>
-            <div className={`p-3 pr-10 my-2 border rounded-md transition-all duration-150 ${optionStyle} relative`} onClick={() => onOptionSelect && onOptionSelect(i)}>
+            <div className={`p-3 pr-10 my-2 border rounded-md transition-all duration-150 ${optionStyle} relative`} onClick={() => onOptionSelect?.(i)}>
               {optionMemo && <OptionMemoButton optionIndex={i} {...optionMemo} />}
               <span className="ml-2 mr-2 font-medium">{displayOptionNumber}.</span>
               <span
@@ -150,7 +154,7 @@ const StudyQuestionCard = ({ question, index, page, onImageZoom, showAnswer, sho
         );
       })}
 
-      {showExplanation && (
+      {question.explanation && (
         <div className="mt-4 p-3 bg-gray-50 rounded-md border border-gray-200">
           <p className="font-semibold text-gray-700 mb-1">해설</p>
           {question.explanation ? (
@@ -331,7 +335,8 @@ export default function StudyPage() {
       const data: { questions: IQuestion[], totalQuestions: number, totalPages: number, page: number, limit: number } = await response.json();
       console.log("[fetchQuestionsForPage] API Data Received (count):", data.questions?.length, "for", { examName, mode, paramValue, pageToFetch });
       
-      let processedNewQuestionsPage = (data.questions || []).map((q: IQuestion) => ({ 
+      const questions = data.questions || [];
+      const processedNewQuestionsPage = questions.map((q: IQuestion) => ({ 
         ...q, 
         images: normalizeImages(q.images), 
         explanationImages: normalizeImages(q.explanationImages), 
@@ -360,7 +365,7 @@ export default function StudyPage() {
       
       if (mode === 'date') {
         // 첫 페이지의 첫 문제 과목으로 설정 (만약 과목 정보가 있다면)
-        if (pageToFetch === 1 && processedNewQuestionsPage.length > 0 && processedNewQuestionsPage[0].examSubject) {
+        if (pageToFetch === 1 && processedNewQuestionsPage.length > 0 && processedNewQuestionsPage[0]?.examSubject) {
           setCurrentExamSubject(processedNewQuestionsPage[0].examSubject);
         } else if (pageToFetch === 1) {
            setCurrentExamSubject(paramValue); // Fallback to paramValue if no subject in question
@@ -660,10 +665,10 @@ export default function StudyPage() {
         isQuestionsShuffled={isShuffleModeActive} // 문제 목록 섞기 상태 전달
         onToggleQuestionsShuffle={handleToggleQuestionsShuffle} // 문제 목록 섞기 핸들러 전달
         isQuestionsShuffleDisabled={isApiRandomized} // API 랜덤 시 버튼 비활성화
-        currentQuestionNumber={isSingleViewMode ? currentQuestionIndex + 1 : undefined}
-        totalQuestions={isSingleViewMode ? shuffledQuestionsList.length : undefined}
-        onPrev={isSingleViewMode ? handlePrevQuestion : undefined}
-        onNext={isSingleViewMode ? handleNextQuestion : undefined}
+        currentQuestionNumber={isSingleViewMode ? (currentQuestionIndex + 1) : 0}
+        totalQuestions={isSingleViewMode ? shuffledQuestionsList.length : 0}
+        onPrev={isSingleViewMode ? handlePrevQuestion : () => {}}
+        onNext={isSingleViewMode ? handleNextQuestion : () => {}}
         showControls={shuffledQuestionsList.length > 0}
       />
 
@@ -683,24 +688,23 @@ export default function StudyPage() {
                   </h2>
                 </div>
               )}
-              {displayedQuestions.map((question: IQuestion) => (
+              {displayedQuestions.filter((question): question is IQuestion => question !== undefined).map((question: IQuestion) => (
                 <StudyQuestionCard
                   key={question.id}
                   question={question}
                   index={currentQuestionIndex}
+                  page={currentQuestionIndex}
                   onImageZoom={handleImageZoom}
-                  showAnswer={showAllAnswers || (question.id ? !!showIndividualAnswer[question.id] : false)}
-                  showExplanation={showAllExplanations || (question.id ? !!showExplanation[question.id] : false)}
                   onOptionSelect={(optionIndex) => question.id && handleOptionSelect(question.id, optionIndex)}
-                  userAnswer={question.id ? userAnswers[question.id] : null}
-                  shuffledOptions={shuffledOptionsData ? shuffledOptionsData.find((d: IShuffledOptionItem) => d.questionId === question.id)?.shuffledOptions : undefined}
-                  shuffledAnswerIndex={shuffledOptionsData ? shuffledOptionsData.find((d: IShuffledOptionItem) => d.questionId === question.id)?.newAnswerIndex : undefined}
+                  userAnswer={question.id ? (userAnswers[question.id] ?? null) : null}
+                  shuffledOptions={shuffledOptionsData ? shuffledOptionsData.find((d: IShuffledOptionItem) => d.questionId === question.id)?.shuffledOptions ?? question.options : question.options}
+                  shuffledAnswerIndex={shuffledOptionsData ? shuffledOptionsData.find((d: IShuffledOptionItem) => d.questionId === question.id)?.newAnswerIndex ?? -1 : -1}
                   onToggleAnswer={() => question.id && toggleIndividualAnswerHandler(question.id)}
                 />
               ))}
             </>
           ) : (
-            displayedQuestions.map((question: IQuestion, idx: number) => {
+            displayedQuestions.filter((question): question is IQuestion => question !== undefined).map((question: IQuestion, idx: number) => {
               const prevQuestion = idx > 0 ? displayedQuestions[idx - 1] : null;
               const showSubjectHeader = !prevQuestion || (question.examSubject !== prevQuestion.examSubject);
 
@@ -725,14 +729,13 @@ export default function StudyPage() {
                   <StudyQuestionCard
                     question={question}
                     index={idx}
+                    page={idx}
                     onImageZoom={handleImageZoom}
-                    showAnswer={answerToUse !== undefined && individualShowAnswer}
-                    showExplanation={individualShowExplanation}
-                    onOptionSelect={(optionIndex) => question.id && handleOptionSelect(question.id, optionIndex)}
-                    userAnswer={question.id ? userAnswers[question.id || ''] : null}
+                    {...(question.id ? { onOptionSelect: (optionIndex: number) => handleOptionSelect(question.id, optionIndex) } : {})}
+                    {...(question.id ? { userAnswer: userAnswers[question.id || ''] } : {})}
                     shuffledOptions={optionsToRender}
-                    shuffledAnswerIndex={answerToUse}
-                    onToggleAnswer={() => question.id && toggleIndividualAnswerHandler(question.id)}
+                    shuffledAnswerIndex={answerToUse ?? -1}
+                    {...(question.id ? { onToggleAnswer: () => toggleIndividualAnswerHandler(question.id) } : {})}
                   />
                 </React.Fragment>
               );

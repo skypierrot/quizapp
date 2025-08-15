@@ -11,7 +11,7 @@ interface CommonImageProps {
   className?: string;
   style?: React.CSSProperties;
   maintainAspectRatio?: boolean;
-  onClick?: React.MouseEventHandler<HTMLDivElement>;
+  onClick?: React.MouseEventHandler<HTMLDivElement> | undefined;
   loading?: "eager" | "lazy";
 }
 

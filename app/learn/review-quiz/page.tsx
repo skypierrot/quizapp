@@ -25,6 +25,7 @@ import { useOptionMemo } from '@/hooks/useOptionMemo';
 import { OptionMemoButton, OptionMemoContent } from '@/components/common/OptionMemoUI';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import { IQuestion } from '@/types';
 
 // 내부 개발 서버 기준 BASE_URL
 const BASE_URL = "https://quizapp-dev";
@@ -228,11 +229,16 @@ export default function WrongNoteReviewQuizPage() {
   }, [wrongCountData, recentData]);
 
   // 메모이제이션된 이미지 컴포넌트
-  const MemoImage = React.memo(({ src, alt, className, onClick }: { 
+  const MemoizedImage = React.memo(({ 
+    src, 
+    alt, 
+    className, 
+    onClick 
+  }: { 
     src: string; 
     alt: string; 
     className: string; 
-    onClick?: () => void;
+    onClick?: (() => void) | undefined; 
   }) => {
     // useEffect 프리로딩 로직 제거
     return (
@@ -240,7 +246,7 @@ export default function WrongNoteReviewQuizPage() {
         src={src} 
         alt={alt} 
         className={className} 
-        onClick={onClick} 
+        onClick={onClick ? (e) => onClick() : undefined} 
         loading="lazy"
       />
     );
@@ -249,7 +255,7 @@ export default function WrongNoteReviewQuizPage() {
   });
 
   // 문제 카드 컴포넌트
-  function WrongNoteCard({ q, idx, imageZoom }: { q: any; idx: number; imageZoom: any }) {
+  function WrongNoteCard({ q, idx, imageZoom }: { q: IQuestion & { questionId: string; isBookmarked?: boolean; isImportant?: boolean; memo?: string; userAnswer?: number | null; correctAnswer?: number | null }; idx: number; imageZoom: any }) {
     // 카드별 로컬 상태
     const [isBookmarked, setIsBookmarked] = useState(q.isBookmarked ?? false);
     const [isImportant, setIsImportant] = useState(q.isImportant ?? false);
@@ -296,7 +302,7 @@ export default function WrongNoteReviewQuizPage() {
     };
 
     // 다시풀기(재시도) 모드 토글
-    const toggleRetryMode = () => {
+    const toggleRetryMode = (): void => {
       setRetryMode((v) => !v);
       setSelectedAnswer(null);
       setShowRetryResult(false);
@@ -317,8 +323,8 @@ export default function WrongNoteReviewQuizPage() {
     };
 
     // 이미지 렌더링
-    const questionImages = useMemo(() => (q.images || []).map(getSafeImageUrl), [q.images]);
-    const explanationImages = useMemo(() => (q.explanationImages || []).map(getSafeImageUrl), [q.explanationImages]);
+    const questionImages = useMemo(() => (q.images || []).map((img: { url: string; hash: string }) => getSafeImageUrl(img.url)), [q.images]);
+    const explanationImages = useMemo(() => (q.explanationImages || []).map((img: { url: string; hash: string }) => getSafeImageUrl(img.url)), [q.explanationImages]);
 
     // 정답 번호 표시
     const getCorrectAnswerNumber = () => {
@@ -329,7 +335,7 @@ export default function WrongNoteReviewQuizPage() {
     return (
       <div className="p-4 border rounded bg-white mb-4">
         <div className="flex justify-between items-start mb-2">
-          <div className="font-bold">Q{idx+1}. <span dangerouslySetInnerHTML={{__html: q.question}} /></div>
+          <div className="font-bold">Q{idx+1}. <span dangerouslySetInnerHTML={{__html: q.content}} /></div>
           <div className="flex items-center gap-1 ml-2 flex-shrink-0">
             <button onClick={handleBookmark} className={isBookmarked ? 'text-blue-600' : 'text-gray-400'} title={isBookmarked ? '북마크 해제' : '북마크'}>
               {isBookmarked ? <BookmarkMinus className="w-5 h-5" /> : <BookmarkPlus className="w-5 h-5" />}
@@ -342,7 +348,7 @@ export default function WrongNoteReviewQuizPage() {
         {questionImages.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-2">
             {questionImages.map((imgUrl: string, i: number) => (
-              <MemoImage key={imgUrl} src={imgUrl} alt={`문제이미지${i+1}`} className="rounded border min-w-[150px] min-h-[150px] max-w-[300px] max-h-[250px] w-auto h-auto object-contain cursor-pointer" onClick={() => imageZoom.showZoom(imgUrl)} />
+              <MemoizedImage key={imgUrl} src={imgUrl} alt={`문제이미지${i+1}`} className="rounded border min-w-[150px] min-h-[150px] max-w-[300px] max-h-[250px] w-auto h-auto object-contain cursor-pointer" onClick={() => imageZoom.showZoom(imgUrl)} />
             ))}
           </div>
         )}
@@ -379,13 +385,12 @@ export default function WrongNoteReviewQuizPage() {
                     {opt?.images && Array.isArray(opt.images) && opt.images.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2">
                         {opt.images.map((img: any, imgIdx: number) => (
-                          <MemoImage 
+                          <MemoizedImage 
                             key={`opt-${i}-img-${imgIdx}`} 
                             src={getSafeImageUrl(img?.url || img)} 
                             alt={`선택지 ${i+1} 이미지 ${imgIdx+1}`} 
                             className="rounded border min-w-[120px] min-h-[120px] max-w-[250px] max-h-[200px] w-auto h-auto object-contain cursor-pointer" 
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onClick={() => {
                               imageZoom.showZoom(getSafeImageUrl(img?.url || img));
                             }} 
                           />
@@ -473,7 +478,7 @@ export default function WrongNoteReviewQuizPage() {
           {explanationImages.length > 0 && (
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
               {explanationImages.map((imgUrl: string, i: number) => (
-                <MemoImage
+                <MemoizedImage
                   key={imgUrl}
                   src={imgUrl}
                   alt={`해설이미지${i+1}`}

@@ -1,0 +1,59 @@
+services:
+  quizapp-web:
+    container_name: quizapp-prod
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env.production
+    ports:
+      - "${PROD_PORT:-3772}:3000"
+    volumes:
+      - ./public/images:/app/public/images
+      - ./public/uploads:/app/public/uploads
+    environment:
+      - NODE_ENV=production
+      - HOSTNAME=0.0.0.0
+      - NEXT_WEBPACK_USEPOLLING=false
+      - WATCHPACK_POLLING=false
+      - DEBUG=
+      - AUTHENTIK_HOST=${AUTHENTIK_HOST}
+      - AUTHENTIK_CLIENT_ID=${AUTHENTIK_CLIENT_ID}
+      - AUTHENTIK_CLIENT_SECRET=${AUTHENTIK_CLIENT_SECRET}
+      - AUTHENTIK_ISSUER=${AUTHENTIK_ISSUER}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      # 프로덕션 React 설정
+      - FAST_REFRESH=false
+      - REACT_REFRESH_OVERLAY=false
+      - NEXT_TELEMETRY_DISABLED=1
+    command: sh -c "npm run build && npm run start"
+    networks:
+      - ngnet
+    depends_on:
+      - quizapp-db
+
+  quizapp-db:
+    image: postgres:16-alpine
+    container_name: quizapp-db-prod
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      - POSTGRES_USER=${QUIZAPP_DB_USER}
+      - POSTGRES_PASSWORD=${QUIZAPP_DB_PASSWORD}
+      - POSTGRES_DB=${QUIZAPP_DB_NAME}
+    volumes:
+      - db_data_prod:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"  # 프로덕션 DB는 다른 포트 사용
+    networks:
+      - ngnet
+
+volumes:
+  db_data_prod:
+
+networks:
+  ngnet:
+    external: true

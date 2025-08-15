@@ -8,7 +8,7 @@ import {
   jsonb,
 } from "drizzle-orm/pg-core";
 import { relations } from 'drizzle-orm';
-import { users } from "./users";
+import { users } from "./auth";
 import { exams } from "./exams";
 
 // 문제 테이블 정의
