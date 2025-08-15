@@ -40,6 +40,13 @@ const authentikProviderConfig = {
     timeout: 30000, // 30초 타임아웃
     agent: false, // 기본 HTTP 에이전트 사용
   },
+  // 추가 설정으로 안정성 향상
+  authorization: {
+    params: {
+      scope: 'openid email profile',
+      response_type: 'code',
+    },
+  },
 };
 
 export const authOptions: NextAuthOptions = {
@@ -79,12 +86,27 @@ export const authOptions: NextAuthOptions = {
         return session;
       } catch (error) {
         console.error('[NextAuth][session callback][error]', error);
-        throw error;
+        // 에러 발생 시에도 세션은 유지
+        return session;
       }
     },
     
     async signIn({ user, account, profile, email, credentials }) {
-      return true;
+      try {
+        // 인증 성공 로깅
+        console.log('[NextAuth][signIn] User authenticated successfully:', user?.email);
+        return true;
+      } catch (error) {
+        console.error('[NextAuth][signIn callback][error]', error);
+        return false;
+      }
+    },
+
+    async redirect({ url, baseUrl }) {
+      // 리다이렉트 URL 검증
+      if (url.startsWith('/')) return `${baseUrl}${url}`;
+      else if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
     },
   },
   

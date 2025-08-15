@@ -17,7 +17,27 @@ export default function SignInPage() {
     try {
       setIsLoading(true)
       setError(null)
-      await signIn("authentik")
+      
+      const result = await signIn("authentik", { 
+        callbackUrl: "/",
+        redirect: false 
+      })
+      
+      if (result?.error) {
+        console.error('Sign in error:', result.error)
+        if (result.error === 'Configuration') {
+          setError('인증 서버 설정 오류입니다. 관리자에게 문의해주세요.')
+        } else if (result.error === 'AccessDenied') {
+          setError('접근이 거부되었습니다. 계정 권한을 확인해주세요.')
+        } else if (result.error === 'Verification') {
+          setError('인증 검증에 실패했습니다. 다시 시도해주세요.')
+        } else {
+          setError(`로그인 중 오류가 발생했습니다: ${result.error}`)
+        }
+      } else if (result?.ok) {
+        // 성공 시 리다이렉트
+        window.location.href = result.url || "/"
+      }
     } catch (err) {
       console.error('Sign in error:', err)
       setError('로그인 중 오류가 발생했습니다. 다시 시도해주세요.')
