@@ -62,23 +62,39 @@ export const authOptions: NextAuthOptions = {
   ],
   
   session: {
-    strategy: "database",
+    strategy: "database", // 데이터베이스 전략으로 되돌림
     maxAge: 60 * 60 * 24 * 7, // 7일
   },
   
   callbacks: {
     async session({ session, user, token }) {
       try {
-        if ((session.user as any)) {
+        // 세션 사용자 정보가 존재하는지 확인
+        if (session?.user) {
+          // 사용자 ID 설정
           (session.user as any).id = user?.id || token?.sub || token?.id || null;
           (session.user as any).role = (user as any)?.role || null;
           
           const userId = user?.id || token?.sub || token?.id || null;
           if (userId) {
-            const dbUser = await db.query.users.findFirst({ 
-              where: (u, { eq }) => eq(u.id, userId as string) 
-            });
-            (session.user as any).nickname = dbUser?.nickname || '';
+            try {
+              const dbUser = await db.query.users.findFirst({ 
+                where: (u, { eq }) => eq(u.id, userId as string) 
+              });
+              (session.user as any).nickname = dbUser?.nickname || '';
+              
+              // 디버깅을 위한 로깅
+              if (process.env.NODE_ENV === 'development') {
+                console.log('[NextAuth][session callback] User session updated:', {
+                  id: userId,
+                  nickname: dbUser?.nickname,
+                  email: session.user.email
+                });
+              }
+            } catch (dbError) {
+              console.error('[NextAuth][session callback][database error]', dbError);
+              (session.user as any).nickname = '';
+            }
           } else {
             (session.user as any).nickname = '';
           }
@@ -113,7 +129,7 @@ export const authOptions: NextAuthOptions = {
   // 프로덕션 환경에서는 디버그 모드 비활성화
   debug: process.env.NODE_ENV === 'development',
   
-  // 보안 설정 강화
+  // 보안 설정 강화 (개발 환경에서는 false로 설정)
   useSecureCookies: process.env.NODE_ENV === 'production',
   cookies: {
     sessionToken: {
@@ -123,6 +139,7 @@ export const authOptions: NextAuthOptions = {
         sameSite: 'lax',
         path: '/',
         secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24 * 7, // 7일
       },
     },
   },

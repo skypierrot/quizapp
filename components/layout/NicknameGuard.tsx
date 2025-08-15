@@ -1,10 +1,10 @@
 'use client'
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useTransition, useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useSession } from "next-auth/react";
 
 export default function NicknameGuard({ children }: { children: React.ReactNode }) {
-  const { session, authStatus, mounted } = useAuth();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
@@ -17,20 +17,20 @@ export default function NicknameGuard({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     if (
-      mounted &&
       isClient &&
-      authStatus === "authenticated" &&
-      !session?.user?.nickname &&
+      status === "authenticated" &&
+      session?.user &&
+      !session.user.nickname &&
       pathname !== "/profile/nickname"
     ) {
       startTransition(() => {
         router.replace("/profile/nickname");
       });
     }
-  }, [session, authStatus, pathname, router, mounted, isClient, startTransition]);
+  }, [session, status, pathname, router, isClient, startTransition]);
 
   // Hydration 안전성을 위한 조건부 렌더링
-  if (!mounted || !isClient) {
+  if (!isClient || status === "loading") {
     return <>{children}</>;
   }
 
