@@ -35,7 +35,7 @@ class ErrorBoundary extends Component<Props, State> {
     const errorMessage = error.message || '';
     const errorStack = error.stack || '';
     
-    // React Refresh 관련 에러 패턴들 (더 정확한 패턴 추가)
+    // React Refresh 관련 에러 패턴들 (Docker 환경에 최적화된 패턴)
     const reactRefreshPatterns = [
       'Cannot read properties of undefined (reading \'call\')',
       'options.factory',
@@ -47,7 +47,11 @@ class ErrorBoundary extends Component<Props, State> {
       'react-server-dom-webpack-client',
       '__webpack_require__',
       'module.hot',
-      '$RefreshHelpers$'
+      '$RefreshHelpers$',
+      'factory.call',
+      'Cannot read properties of undefined',
+      'undefined is not a function',
+      'TypeError: Cannot read properties'
     ];
     
     return reactRefreshPatterns.some(pattern => 

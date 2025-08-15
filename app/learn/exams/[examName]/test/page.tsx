@@ -36,7 +36,7 @@ function shuffleArray<T>(array: T[]): T[] {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
+    [arr[i], arr[j]] = [arr[j]!, arr[i]!];
   }
   return arr;
 }
@@ -173,6 +173,7 @@ export default function ExamStartPage() {
               if (q.id && q.options && q.options.length > 0 && q.answer < q.options.length) { // q.answer 유효성 검사 추가
                 const originalOptions = [...q.options];
                 const correctOriginalOption = originalOptions[q.answer]; // 원본 정답 옵션
+                if (!correctOriginalOption) return; // 안전성 체크
                 const shuffled = shuffleArray(originalOptions);
                 const newAnswerIndex = shuffled.findIndex(opt => 
                   opt.text === correctOriginalOption.text && 
@@ -361,9 +362,9 @@ export default function ExamStartPage() {
       if (dateValue) { 
           determinedExamYear = parseInt(dateValue.substring(0, 4)) || new Date().getFullYear();
           determinedExamDate = dateValue;
-          determinedExamSubject = representativeQuestion?.examSubject || representativeQuestion?.subject || "종합"; 
+          determinedExamSubject = representativeQuestion?.examSubject || "종합"; 
       } else if (subjectsValue) { 
-          determinedExamYear = representativeQuestion?.examYear || new Date().getFullYear(); 
+          determinedExamYear = representativeQuestion?.examDate ? parseInt(representativeQuestion.examDate.substring(0, 4)) : new Date().getFullYear(); 
           determinedExamSubject = subjectsValue;
       } else {
           determinedExamYear = new Date().getFullYear();
@@ -372,8 +373,8 @@ export default function ExamStartPage() {
       }
     } else {
       setError("시험 정보를 URL에서 완전히 로드할 수 없습니다. 페이지를 새로고침하거나 다시 시도해주세요.");
-      determinedExamYear = representativeQuestion?.examYear || new Date().getFullYear();
-      determinedExamSubject = representativeQuestion?.subject || "정보 없음";
+      determinedExamYear = representativeQuestion?.examDate ? parseInt(representativeQuestion.examDate.substring(0, 4)) : new Date().getFullYear();
+      determinedExamSubject = representativeQuestion?.examSubject || "정보 없음";
     }
 
     // examYear 최종 유효성 검사
@@ -568,7 +569,7 @@ export default function ExamStartPage() {
      return <div className="flex justify-center items-center h-screen"><div>문제를 표시할 수 없습니다. 설정 확인이 필요합니다.</div></div>; 
   }
   
-  if (!currentQuestion && examState !== 'loading' && examState !== 'error' && !questions.length) {
+  if (!currentQuestion && (examState === 'inProgress' || examState === 'submitted') && !questions.length) {
     // 로딩/에러도 아니고, 현재문제가 없으면 (예: questions가 빈 배열)
     const breadcrumbItems: BreadcrumbItem[] = [];
     if (decodedExamName && routeParams?.examName) {
@@ -707,7 +708,7 @@ export default function ExamStartPage() {
         {!currentQuestion && examState === 'inProgress' && (
              <div className="col-span-1 lg:col-span-2 flex justify-center items-center h-full"><div>문제를 표시할 수 없습니다. 설정 확인이 필요합니다.</div></div>
         )}
-        {!currentQuestion && examState !== 'loading' && examState !== 'error' && !questions.length && (
+        {!currentQuestion && (examState === 'inProgress' || examState === 'submitted') && !questions.length && (
             <div className="col-span-1 lg:col-span-2 flex flex-col justify-center items-center h-full text-gray-700 p-4">
                 <AlertCircle className="w-16 h-16 mb-4 text-yellow-500" />
                 <p className="text-xl font-semibold">문제가 없습니다.</p>
@@ -844,7 +845,12 @@ export default function ExamStartPage() {
           <DialogFooter className="flex justify-between sm:justify-between mt-4">
             <Button
               variant="outline"
-              onClick={() => goToUnansweredQuestion(unansweredQuestions[0])}
+              onClick={() => {
+                const firstUnanswered = unansweredQuestions[0];
+                if (firstUnanswered !== undefined) {
+                  goToUnansweredQuestion(firstUnanswered);
+                }
+              }}
             >
               첫 미응답 문제로 이동
             </Button>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { questions } from '@/db/schema/questions';
-import { sql } from 'drizzle-orm';
+import { exams } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -12,12 +12,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // date 전체를 distinct로 반환 (YYYY-MM-DD)
-    const datesResult = await db.execute(
-      sql`SELECT DISTINCT date FROM ${questions} WHERE exam_name = ${examName} AND date IS NOT NULL ORDER BY date ASC`
-    );
-    let rows: any[] = Array.isArray(datesResult) ? datesResult : (datesResult?.rows || []);
-    const dates = rows.map((row: any) => String(row.date)).filter(Boolean);
+    // exams 테이블에서 해당 시험명의 날짜들을 가져옴
+    const datesResult = await db
+      .selectDistinct({ date: exams.date })
+      .from(exams)
+      .where(eq(exams.name, examName))
+      .orderBy(exams.date);
+    
+    const dates = datesResult.map(row => row.date).filter(Boolean);
     return NextResponse.json({ dates });
   } catch (error: any) {
     console.error(`Error fetching years for exam_name ${examName}:`, error);

@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { createHash } from 'crypto';
 
 // 유효한 이미지 타입
 const validMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -16,7 +17,7 @@ export async function POST(
   { params }: { params: Promise<{ questionId: string }> }
 ) {
   try {
-    const { questionId } = params;
+    const { questionId } = await params;
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const type = formData.get('type') as string || 'question'; // 기본값은 'question'
@@ -61,26 +62,25 @@ export async function POST(
     const buffer = Buffer.from(bytes);
     await writeFile(filePath, buffer);
     
-    // DB에 이미지 메타데이터 저장
+    // 파일 해시 생성
+    const hash = createHash('sha256').update(buffer).digest('hex');
+    
+    // DB에 이미지 메타데이터 저장 (현재 스키마에 맞게)
     const [imageRecord] = await db.insert(images).values({
-      filename,
-      originalName: file.name,
-      path: relativePath,
-      type,
-      size: file.size,
-      mimeType: file.type,
-      questionId: parseInt(questionId),
-      status: 'active'
+      hash,
+      path: relativePath
     }).returning();
     
+    if (!imageRecord) {
+      return NextResponse.json({ error: '이미지 저장에 실패했습니다.' }, { status: 500 });
+    }
+
     return NextResponse.json({ 
       success: true, 
       image: {
         id: imageRecord.id,
         path: relativePath,
-        filename,
-        type,
-        status: 'active'
+        hash: imageRecord.hash
       }
     });
     

@@ -49,7 +49,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Thread not found' }, { status: 404 });
     }
 
-    if (thread.userId !== session.user.id) {
+    if (thread.authorId !== session.user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -82,7 +82,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       return NextResponse.json({ error: 'Thread not found' }, { status: 404 });
     }
 
-    if (thread.userId !== session.user.id) {
+    if (thread.authorId !== session.user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

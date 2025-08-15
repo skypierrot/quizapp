@@ -10,20 +10,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session?.user?.id) {
     return NextResponse.json({ message: '로그인 필요' }, { status: 401 });
   }
+  const { id: threadId } = await params;
   const { value } = await req.json(); // 1 또는 -1
   if (![1, -1].includes(value)) {
     return NextResponse.json({ message: '잘못된 값' }, { status: 400 });
   }
   // 기존 투표가 있으면 업데이트, 없으면 생성
   const existing = await db.select().from(threadVotes)
-    .where(and(eq(threadVotes.threadId, await params.id), eq(threadVotes.userId, session.user.id)));
+    .where(and(eq(threadVotes.threadId, threadId), eq(threadVotes.userId, session.user.id)));
   if (existing.length > 0) {
-    await db.update(threadVotes)
-      .set({ value })
-      .where(eq(threadVotes.id, existing[0].id));
+    const existingVote = existing[0];
+    if (existingVote?.id) {
+      await db.update(threadVotes)
+        .set({ value })
+        .where(eq(threadVotes.id, existingVote.id));
+    }
   } else {
     await db.insert(threadVotes).values({
-      threadId: await params.id,
+      threadId: threadId,
       userId: session.user.id,
       value,
     });

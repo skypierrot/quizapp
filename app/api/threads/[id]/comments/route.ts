@@ -7,8 +7,9 @@ import { authOptions } from '@/lib/auth';
 
 // 댓글 목록 조회
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id: threadId } = await params;
   const comments = await db.select().from(threadComments)
-    .where(eq(threadComments.threadId, await params.id))
+    .where(eq(threadComments.threadId, threadId))
     .orderBy(threadComments.createdAt);
   return NextResponse.json({ comments });
 }
@@ -19,6 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session?.user?.id) {
     return NextResponse.json({ message: '로그인 필요' }, { status: 401 });
   }
+  const { id: threadId } = await params;
   const { content, parentId } = await req.json();
   if (!content) {
     return NextResponse.json({ message: '내용을 입력하세요.' }, { status: 400 });
@@ -26,7 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   
   // 댓글 추가
   const [comment] = await db.insert(threadComments).values({
-    threadId: await params.id,
+    threadId: threadId,
     authorId: session.user.id,
     content,
     parentId: parentId || null,
@@ -36,13 +38,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const commentCountResult = await db
     .select({ count: count() })
     .from(threadComments)
-    .where(eq(threadComments.threadId, await params.id));
+    .where(eq(threadComments.threadId, threadId));
   
   const commentCount = commentCountResult[0]?.count || 0;
   
   await db.update(threads)
     .set({ commentCount })
-    .where(eq(threads.id, await params.id));
+    .where(eq(threads.id, threadId));
   
   return NextResponse.json({ comment });
 }
@@ -92,6 +94,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     return NextResponse.json({ message: '로그인 필요' }, { status: 401 });
   }
   
+  const { id: threadId } = await params;
   const url = new URL(req.url);
   const commentId = url.searchParams.get('commentId');
   if (!commentId) {
@@ -113,13 +116,13 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const commentCountResult = await db
     .select({ count: count() })
     .from(threadComments)
-    .where(eq(threadComments.threadId, await params.id));
+    .where(eq(threadComments.threadId, threadId));
   
   const commentCount = commentCountResult[0]?.count || 0;
   
   await db.update(threads)
     .set({ commentCount })
-    .where(eq(threads.id, await params.id));
+    .where(eq(threads.id, threadId));
   
   return NextResponse.json({ message: '댓글이 삭제되었습니다.' });
 } 

@@ -15,8 +15,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ exam
   }
 
   // 1. 내 시험 결과만 조회
+  const { examResultId } = await params;
   const result = await db.select().from(examResults)
-    .where(eq(examResults.id, await params.examResultId));
+    .where(eq(examResults.id, examResultId));
   if (!result[0] || result[0].userId !== session.user.id) {
     return NextResponse.json({ message: '결과 없음' }, { status: 404 });
   }

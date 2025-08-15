@@ -8,8 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
 import ClientLayout from "@/components/layout/ClientLayout";
 import ErrorBoundary from "@/components/layout/ErrorBoundary";
 
-// 개발 모드 스크립트 추가 (WebSocket 문제 해결)
-import './dev-mode';
+// 개발 모드 스크립트 임시 비활성화 (디버깅을 위해)
 
 const inter = Inter({ subsets: ["latin"] });
 

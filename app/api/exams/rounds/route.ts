@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { exams } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -22,14 +22,19 @@ export async function GET(request: NextRequest) {
 
   try {
     console.log(`Fetching distinct rounds for exam: ${name}, year: ${year}...`);
+    
+    // date 필드에서 해당 연도의 시험 날짜들을 가져와서 회차 계산
     const roundsResult = await db
-      .selectDistinct({ round: exams.round })
+      .select({ date: exams.date })
       .from(exams)
-      .where(and(eq(exams.name, name), eq(exams.year, year)))
-      .orderBy(exams.round); // 회차순 정렬 (선택 사항)
+      .where(and(
+        eq(exams.name, name), 
+        sql`EXTRACT(YEAR FROM ${exams.date}::date) = ${year}`
+      ))
+      .orderBy(exams.date);
 
-    // 회차를 문자열로 변환하여 반환 (Combobox에서 문자열 값을 주로 사용)
-    const rounds = roundsResult.map(item => String(item.round)); 
+    // 날짜 순서대로 회차 번호 생성 (1회차, 2회차, ...)
+    const rounds = roundsResult.map((_, index) => String(index + 1)); 
     console.log(`Found rounds for ${name} (${year}):`, rounds);
     
     return NextResponse.json({ rounds });

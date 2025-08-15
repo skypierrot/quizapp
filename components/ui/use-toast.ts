@@ -1,13 +1,13 @@
 // 간단한 토스트 기능 구현
 import { useState, useCallback } from "react";
 
-type ToastType = 'success' | 'error' | 'warning' | 'info';
+type ToastType = 'success' | 'error' | 'warning' | 'info' | 'destructive';
 
 interface ToastOptions {
-  title?: string;
-  description?: string;
-  duration?: number;
-  variant?: ToastType;
+  title?: string | undefined;
+  description?: string | undefined;
+  duration?: number | undefined;
+  variant?: ToastType | undefined;
 }
 
 interface Toast extends ToastOptions {

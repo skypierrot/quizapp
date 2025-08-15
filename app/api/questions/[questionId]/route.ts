@@ -61,7 +61,7 @@ async function findOrCreateExamId(examName: string, examDate: string, examSubjec
     )
     .limit(1);
 
-  if (existingExam && existingExam.length > 0 && existingExam[0].id) {
+  if (existingExam && existingExam.length > 0 && existingExam[0]?.id) {
     return existingExam[0].id;
   } else {
     const newExam = await db
@@ -72,7 +72,7 @@ async function findOrCreateExamId(examName: string, examDate: string, examSubjec
         subject: examSubject,
       })
       .returning({ id: exams.id });
-    if (!newExam || newExam.length === 0 || !newExam[0].id) {
+    if (!newExam || newExam.length === 0 || !newExam[0]?.id) {
       throw new Error("Failed to create or retrieve exam ID");
     }
     return newExam[0].id;
@@ -81,7 +81,7 @@ async function findOrCreateExamId(examName: string, examDate: string, examSubjec
 
 // 단일 문제 조회
 export async function GET(
-  request: NextNextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ questionId: string }> }
 ) {
   try {
@@ -150,6 +150,10 @@ export async function GET(
         return { url: '', hash: '' };
       }).filter(img => img.url);
     };
+
+    if (!question) {
+      return NextResponse.json({ error: '문제를 찾을 수 없습니다.' }, { status: 404 });
+    }
 
     // API 응답 형식에 맞게 데이터 가공
     const responseQuestion = {
@@ -234,7 +238,7 @@ export async function PUT(
 
 // 단일 문제 삭제
 export async function DELETE(
-  request: NextNextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ questionId: string }> }
 ) {
   try {

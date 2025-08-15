@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { exams } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -13,11 +13,15 @@ export async function GET(request: NextRequest) {
 
   try {
     console.log(`Fetching distinct years for exam name: ${name}...`);
+    
+    // date 필드에서 연도 추출
     const yearsResult = await db
-      .selectDistinct({ year: exams.year })
+      .selectDistinct({ 
+        year: sql<string>`EXTRACT(YEAR FROM ${exams.date}::date)` 
+      })
       .from(exams)
       .where(eq(exams.name, name))
-      .orderBy(exams.year); // 년도순 정렬 (선택 사항)
+      .orderBy(sql`EXTRACT(YEAR FROM ${exams.date}::date) DESC`);
 
     // 년도를 문자열로 변환하여 반환 (Combobox에서 문자열 값을 주로 사용)
     const years = yearsResult.map(item => String(item.year)); 

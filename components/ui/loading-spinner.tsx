@@ -3,11 +3,13 @@ import React from "react";
 interface LoadingSpinnerProps {
   size?: "sm" | "md" | "lg";
   color?: "primary" | "secondary" | "white";
+  className?: string;
 }
 
 const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   size = "md",
-  color = "primary"
+  color = "primary",
+  className = ""
 }) => {
   const sizeClass = {
     sm: "w-5 h-5",
@@ -22,10 +24,11 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   }[color];
   
   return (
-    <div className="flex justify-center">
+    <div className={`flex justify-center ${className}`}>
       <div className={`animate-spin rounded-full border-4 border-t-transparent ${sizeClass} ${colorClass}`}></div>
     </div>
   );
 };
 
-export default LoadingSpinner; 
+export default LoadingSpinner;
+export { LoadingSpinner }; 

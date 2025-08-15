@@ -52,16 +52,18 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const performanceStats: SubjectPerformanceStatWithExam[] = Array.from(performanceMap.entries()).map(
-      ([key, data]) => ({
-        subject: key.split('-')[1], // 과목명 추출
-        solvedCount: data.solvedCount,
-        correctCount: data.correctCount,
-        correctRate: data.solvedCount > 0 ? data.correctCount / data.solvedCount : 0,
-        examName: data.examName,
-        examSubject: data.examSubject,
-      })
-    );
+    const performanceStats: SubjectPerformanceStatWithExam[] = Array.from(performanceMap.entries())
+      .map(([key, data]) => {
+        const subject = key.split('-')[1] || '미분류'; // 안전하게 기본값 제공
+        return {
+          subject,
+          solvedCount: data.solvedCount,
+          correctCount: data.correctCount,
+          correctRate: data.solvedCount > 0 ? data.correctCount / data.solvedCount : 0,
+          examName: data.examName,
+          examSubject: data.examSubject,
+        };
+      });
 
     return NextResponse.json(performanceStats, { status: 200 });
   } catch (error) {

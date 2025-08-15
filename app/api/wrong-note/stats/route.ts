@@ -41,7 +41,9 @@ export async function GET(req: NextRequest) {
   // 각 시험 결과에서 오답 데이터 추출
   allResults.forEach(result => {
     const resultDate = new Date(result.createdAt);
-    const dateStr = resultDate.toISOString().split('T')[0];
+    const dateStr = resultDate.toISOString().split('T')[0] || '';
+    
+    if (!dateStr) return; // 날짜 처리 실패시 건너뛰기
     
     // 시험 종류별 집계 초기화
     const examName = result.examName || '기타';
@@ -52,7 +54,9 @@ export async function GET(req: NextRequest) {
     // 전체 문제 수 증가
     const questions = (result.answers || []).length;
     totalQuestions += questions;
-    examTypeStats[examName].total += questions;
+    if (examTypeStats[examName]) {
+      examTypeStats[examName].total += questions;
+    }
     
     // 일별 오답 카운트 초기화
     if (!dailyWrongStats[dateStr]) {
@@ -64,8 +68,12 @@ export async function GET(req: NextRequest) {
       // 오답인 경우
       if (!answer.isCorrect) {
         totalWrongAnswers++;
-        examTypeStats[examName].wrong++;
-        dailyWrongStats[dateStr]++;
+        if (examTypeStats[examName]) {
+          examTypeStats[examName].wrong++;
+        }
+        if (dateStr) {
+          dailyWrongStats[dateStr] = (dailyWrongStats[dateStr] || 0) + 1;
+        }
         
         // 문제별 오답 횟수 증가
         wrongCountMap[answer.questionId] = (wrongCountMap[answer.questionId] || 0) + 1;
@@ -158,7 +166,7 @@ export async function GET(req: NextRequest) {
   for (let i = 0; i < 30; i++) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = date.toISOString().split('T')[0] || '';
     
     dailyStats.unshift({
       date: dateStr,

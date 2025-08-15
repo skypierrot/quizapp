@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
-import { Spinner } from '@/components/ui/spinner';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useToast } from '@/components/ui/use-toast';
 
 export default function SubjectManager() {
@@ -58,7 +58,7 @@ export default function SubjectManager() {
       toast({
         title: '마이그레이션 완료',
         description: `${result.totalUpdated}개 문항의 과목 정보를 업데이트했습니다.`,
-        variant: 'default'
+        variant: 'success'
       });
       
       // 통계 다시 로드
@@ -105,7 +105,7 @@ export default function SubjectManager() {
 
         {loading ? (
           <div className="flex justify-center py-6">
-            <Spinner size="lg" />
+            <LoadingSpinner size="lg" />
           </div>
         ) : stats ? (
           <div className="space-y-6">
@@ -174,7 +174,7 @@ export default function SubjectManager() {
               >
                 {migrating ? (
                   <>
-                    <Spinner className="mr-2" size="sm" />
+                    <LoadingSpinner className="mr-2" size="sm" />
                     과목 정보 업데이트 중...
                   </>
                 ) : (

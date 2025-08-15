@@ -1,3 +1,7 @@
+// 비활성화된 파일 - 스키마에 없는 컬럼(examSubject) 참조로 인해 주석 처리
+// 추후 스키마 업데이트 후 활성화 예정
+
+/*
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -172,4 +176,8 @@ export async function GET(req: NextRequest) {
     console.error('과목 통계 조회 오류:', error);
     return NextResponse.json({ error: '과목 통계 조회 중 오류가 발생했습니다.' }, { status: 500 });
   }
-} 
+}
+*/
+
+// 현재는 빈 내용으로 TypeScript 에러 방지
+export {}; 

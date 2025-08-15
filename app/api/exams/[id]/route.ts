@@ -61,8 +61,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Exam not found' }, { status: 404 });
     }
 
-    console.log(`Successfully deleted exam with ID: ${deleteResult[0].deletedId}`);
-    return NextResponse.json({ message: 'Exam deleted successfully', deletedId: deleteResult[0].deletedId });
+    console.log(`Successfully deleted exam with ID: ${deleteResult[0]?.deletedId}`);
+    return NextResponse.json({ message: 'Exam deleted successfully', deletedId: deleteResult[0]?.deletedId });
 
   } catch (error: any) {
     console.error('Error deleting exam:', error);

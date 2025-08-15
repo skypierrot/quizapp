@@ -98,9 +98,9 @@ export default function LearnExamDateListPage() {
                   subjects: [],
                 };
               }
-              groupedByDate[instance.date].totalQuestionCount += instance.questionCount;
-              if (!groupedByDate[instance.date].subjects.includes(instance.subject)) {
-                groupedByDate[instance.date].subjects.push(instance.subject);
+              groupedByDate[instance.date]!.totalQuestionCount += instance.questionCount;
+              if (!groupedByDate[instance.date]!.subjects.includes(instance.subject)) {
+                groupedByDate[instance.date]!.subjects.push(instance.subject);
               }
               subjectsSet.add(instance.subject);
             }
@@ -168,7 +168,7 @@ export default function LearnExamDateListPage() {
     const queryParams = new URLSearchParams({
       name: decodedExamName,
       year: selectedDateInstanceData.year,
-      subject: subjectToUse,
+      subject: subjectToUse || '',
       date: selectedDateInstanceData.date,
       ...(randomStart && { randomStart: 'true' }),
     }).toString();
@@ -183,7 +183,7 @@ export default function LearnExamDateListPage() {
     const queryParams = new URLSearchParams({
       name: decodedExamName,
       year: selectedDateInstanceData.year,
-      subject: subjectToUse,
+      subject: subjectToUse || '',
       date: selectedDateInstanceData.date,
       ...(randomStart && { randomStart: 'true' }),
     }).toString();

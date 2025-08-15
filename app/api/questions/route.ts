@@ -30,7 +30,7 @@ async function findOrCreateExamId(examName: string, examDate: string, examSubjec
     )
     .limit(1);
 
-  if (existingExam && existingExam.length > 0 && existingExam[0].id) {
+  if (existingExam && existingExam.length > 0 && existingExam[0]?.id) {
     return existingExam[0].id;
   } else {
     const newExam = await db
@@ -41,7 +41,7 @@ async function findOrCreateExamId(examName: string, examDate: string, examSubjec
         subject: examSubject,
       })
       .returning({ id: exams.id });
-    if (!newExam || newExam.length === 0 || !newExam[0].id) {
+    if (!newExam || newExam.length === 0 || !newExam[0]?.id) {
       // console.error("Failed to create or retrieve exam ID. New exam result:", newExam); // 디버깅용 로그
       throw new Error("Failed to create or retrieve exam ID");
     }
@@ -390,7 +390,12 @@ export async function GET(req: NextRequest) {
           // 2. ID 목록 셔플 (Fisher-Yates shuffle)
           for (let i = allMatchingQuestionIds.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [allMatchingQuestionIds[i], allMatchingQuestionIds[j]] = [allMatchingQuestionIds[j], allMatchingQuestionIds[i]];
+            const temp = allMatchingQuestionIds[i];
+            const jValue = allMatchingQuestionIds[j];
+            if (temp !== undefined && jValue !== undefined) {
+              allMatchingQuestionIds[i] = jValue;
+              allMatchingQuestionIds[j] = temp;
+            }
           }
 
           // 3. 첫 페이지 분량의 ID 추출

@@ -30,17 +30,19 @@ export async function GET(request: NextRequest) {
 
       if (cachedGlobalStats.length > 0) {
         const stats = cachedGlobalStats[0];
-        const globalSummaryData: SummaryStat = {
-          totalStudyTime: stats.avgStudyTime,
-          totalSolved: stats.avgSolvedCount,
-          correctRate: stats.avgCorrectRate,
-          streak: stats.avgStreak,
-          isGlobal: true,
-          totalUsers: stats.totalUsers,
-        };
+        if (stats) {
+          const globalSummaryData: SummaryStat = {
+            totalStudyTime: stats.avgStudyTime,
+            totalSolved: stats.avgSolvedCount,
+            correctRate: stats.avgCorrectRate,
+            streak: stats.avgStreak,
+            isGlobal: true,
+            totalUsers: stats.totalUsers,
+          };
         
-        console.log(`[API] Using cached global stats: avgStreak=${stats.avgStreak}, totalUsers=${stats.totalUsers}`);
-        return NextResponse.json(globalSummaryData, { status: 200 });
+          console.log(`[API] Using cached global stats: avgStreak=${stats.avgStreak}, totalUsers=${stats.totalUsers}`);
+          return NextResponse.json(globalSummaryData, { status: 200 });
+        }
       }
 
       // 캐시된 전역 통계가 없으면 기본값 반환
@@ -71,7 +73,7 @@ export async function GET(request: NextRequest) {
     let totalCorrect = 0;
     let correctRate = 0;
 
-    if (stats.length > 0 && (stats[0].totalQuestions > 0)) {
+    if (stats.length > 0 && stats[0]?.totalQuestions && (stats[0].totalQuestions > 0)) {
       totalSolved = stats[0].totalQuestions || 0;
       totalCorrect = stats[0].totalCorrect || 0;
       correctRate = totalSolved > 0 ? totalCorrect / totalSolved : 0;
@@ -119,16 +121,22 @@ export async function GET(request: NextRequest) {
     // streak 계산
     let streak = 0;
     if (streakStats.length > 0) {
-      let prevDate = new Date(streakStats[0].date);
-      streak = streakStats[0].solvedCount > 0 ? 1 : 0;
-      for (let i = 1; i < streakStats.length; i++) {
-        const currDate = new Date(streakStats[i].date);
-        const diffDays = Math.round((prevDate.getTime() - currDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays === 1 && streakStats[i].solvedCount > 0) {
-          streak++;
-          prevDate = currDate;
-        } else {
-          break;
+      const firstStat = streakStats[0];
+      if (firstStat) {
+        let prevDate = new Date(firstStat.date);
+        streak = firstStat.solvedCount > 0 ? 1 : 0;
+        for (let i = 1; i < streakStats.length; i++) {
+          const currentStat = streakStats[i];
+          if (currentStat) {
+            const currDate = new Date(currentStat.date);
+            const diffDays = Math.round((prevDate.getTime() - currDate.getTime()) / (1000 * 60 * 60 * 24));
+            if (diffDays === 1 && currentStat.solvedCount > 0) {
+              streak++;
+              prevDate = currDate;
+            } else {
+              break;
+            }
+          }
         }
       }
     }

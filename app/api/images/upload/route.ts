@@ -22,12 +22,17 @@ export async function POST(request: NextRequest) {
 
     const existingImages = await db.select().from(images).where(eq(images.hash, hash)).limit(1);
 
-    let fileUrl: string;
+    let fileUrl: string = '';
 
     if (existingImages.length > 0) {
-      fileUrl = existingImages[0].path;
-      console.log(`[Image Upload] Hash found, using existing path: ${fileUrl}`);
-    } else {
+      const existingImage = existingImages[0];
+      if (existingImage) {
+        fileUrl = existingImage.path;
+        console.log(`[Image Upload] Hash found, using existing path: ${fileUrl}`);
+      }
+    } 
+    
+    if (!fileUrl) {
   const ext = path.extname(file.name) || `.${file.type.split('/')[1]}`;
   const uniqueFilename = `${randomUUID()}${ext}`;
       const filePath = path.join(UPLOAD_DIR, uniqueFilename);

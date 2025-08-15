@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ questionId: string }> }
 ) {
   try {
-    const { questionId } = params;
+    const { questionId } = await params;
     const { explanation } = await request.json();
 
     // 유효성 검사

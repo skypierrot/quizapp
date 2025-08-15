@@ -10,7 +10,7 @@ import { IQuestion } from "@/types";
 
 export default function EditQuestionPage() {
   const params = useParams<{ questionId: string }>();
-  const questionId = params.questionId;
+  const questionId = params?.questionId;
 
   const { toast } = useToast();
   const router = useRouter();

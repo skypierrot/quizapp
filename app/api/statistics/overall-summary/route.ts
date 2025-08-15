@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
       .from(userStats)
       .where(eq(userStats.userId, userId)); // 이제 userId 타입 일치
 
-    const totalSolvedProblems = stats.length > 0 ? stats[0].totalQuestions || 0 : 0;
-    const totalCorrectProblems = stats.length > 0 ? stats[0].totalCorrect || 0 : 0;
+    const totalSolvedProblems = stats.length > 0 ? stats[0]?.totalQuestions || 0 : 0;
+    const totalCorrectProblems = stats.length > 0 ? stats[0]?.totalCorrect || 0 : 0;
     const averageCorrectRate = totalSolvedProblems > 0 ? (totalCorrectProblems / totalSolvedProblems) * 100 : 0;
 
     // 2. userDailyStats에서 정보 가져오기 (totalStudyTime, consecutiveStudyDays, dailyStudyTrend)
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       totalStudyTime += d.totalStudyTime || 0;
     });
 
-    const consecutiveStudyDays = dailyStatsData.length > 0 ? dailyStatsData[0].streak || 0 : 0;
+    const consecutiveStudyDays = dailyStatsData.length > 0 ? dailyStatsData[0]?.streak || 0 : 0;
 
     const dailyStudyTrend = dailyStatsData
       .slice(0, 30) // 최근 30일 데이터

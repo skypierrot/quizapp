@@ -40,13 +40,16 @@ export async function GET(req: NextRequest) {
         if (!wrongCountMap[a.questionId]) {
           wrongCountMap[a.questionId] = { count: 0, lastAnswer: a, lastDate: createdAtStr, examName: r.examName, lastExamDate: createdAtStr };
         }
-        wrongCountMap[a.questionId].count += 1;
-        // 최근 오답 정보 및 일시, 시험명 갱신
-        if (!wrongCountMap[a.questionId].lastDate || new Date(createdAtStr) > new Date(wrongCountMap[a.questionId].lastDate)) {
-          wrongCountMap[a.questionId].lastAnswer = a;
-          wrongCountMap[a.questionId].lastDate = createdAtStr;
-          wrongCountMap[a.questionId].examName = r.examName;
-          wrongCountMap[a.questionId].lastExamDate = createdAtStr;
+        const wrongCount = wrongCountMap[a.questionId];
+        if (wrongCount) {
+          wrongCount.count += 1;
+          // 최근 오답 정보 및 일시, 시험명 갱신
+          if (!wrongCount.lastDate || new Date(createdAtStr) > new Date(wrongCount.lastDate)) {
+            wrongCount.lastAnswer = a;
+            wrongCount.lastDate = createdAtStr;
+            wrongCount.examName = r.examName;
+            wrongCount.lastExamDate = createdAtStr;
+          }
         }
       }
     });

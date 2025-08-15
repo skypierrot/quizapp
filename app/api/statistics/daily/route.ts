@@ -38,7 +38,11 @@ export async function GET(request: NextRequest) {
     const today = new Date();
     const startDate = new Date();
     startDate.setDate(today.getDate() - days);
-    const startDateStr = startDate.toISOString().split('T')[0];
+    const startDateStr = startDate.toISOString().split('T')[0] || '';
+    
+    if (!startDateStr) {
+      return NextResponse.json({ error: '날짜 처리 오류' }, { status: 500 });
+    }
     
     if (!userId) {
       // 비로그인 상태의 전체 사용자 통계 조회

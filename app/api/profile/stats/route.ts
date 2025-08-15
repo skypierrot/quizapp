@@ -96,9 +96,11 @@ export async function GET() {
     // 과목별 평균 점수 계산
     for (const subject in subjectStatsMap) {
       const subjectStats = subjectStatsMap[subject];
-      subjectStats.averageScore = subjectStats.total > 0 
-        ? Math.round((subjectStats.correct / subjectStats.total) * 100) 
-        : 0;
+      if (subjectStats) {
+        subjectStats.averageScore = subjectStats.total > 0 
+          ? Math.round((subjectStats.correct / subjectStats.total) * 100) 
+          : 0;
+      }
     }
 
     return NextResponse.json({

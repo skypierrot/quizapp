@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "type-check:docker": "./scripts/type-check.sh",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate:pg",
     "db:migrate": "drizzle-kit migrate",

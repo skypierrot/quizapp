@@ -12,7 +12,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ message: '로그인 필요' }, { status: 401 });
   }
 
-  const threadId = await params.id;
+  const { id: threadId } = await params;
   const userId = session.user.id;
 
   try {
@@ -27,9 +27,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (existing.length > 0) {
       // 북마크 제거
-      await db
-        .delete(threadBookmarks)
-        .where(eq(threadBookmarks.id, existing[0].id));
+      const bookmark = existing[0];
+      if (bookmark) {
+        await db
+          .delete(threadBookmarks)
+          .where(eq(threadBookmarks.id, bookmark.id));
+      }
       
       return NextResponse.json({ bookmarked: false, message: '북마크가 제거되었습니다.' });
     } else {
@@ -53,7 +56,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ bookmarked: false });
   }
 
-  const threadId = await params.id;
+  const { id: threadId } = await params;
   const userId = session.user.id;
 
   try {
