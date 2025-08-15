@@ -11,11 +11,27 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
 
 export function UserNav() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const [mounted, setMounted] = useState(false);
   const user = session?.user;
+
+  // Hydration 안전성을 위한 클라이언트 상태 확인
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // 서버와 클라이언트 일관성을 위한 조건부 렌더링
+  if (!mounted || status === 'loading') {
+    return (
+      <Button variant="ghost" className="relative h-8 rounded-full flex items-center space-x-2 px-2" disabled>
+        <div className="h-8 w-8 bg-gray-300 rounded-full animate-pulse" />
+        <div className="h-4 w-20 bg-gray-300 rounded animate-pulse" />
+      </Button>
+    );
+  }
 
   if (!user) return null;
 
@@ -52,10 +68,10 @@ export function UserNav() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/profile">프로필</Link>
+          <a href="/profile">프로필</a>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/results">시험 결과</Link>
+          <a href="/results">시험 결과</a>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem

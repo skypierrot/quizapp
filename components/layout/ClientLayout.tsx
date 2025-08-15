@@ -5,10 +5,11 @@ import NicknameGuard from "./NicknameGuard";
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider
-      // 프로덕션 환경 최적화
-      refetchInterval={5 * 60} // 5분마다 세션 갱신
-      refetchOnWindowFocus={false} // 윈도우 포커스 시 자동 갱신 비활성화
-      refetchWhenOffline={false} // 오프라인 시 갱신 비활성화
+      // React 19 최적화된 설정
+      refetchInterval={0}
+      refetchOnWindowFocus={false}
+      refetchWhenOffline={false}
+      session={null}
     >
       <NicknameGuard>
         {children}

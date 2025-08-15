@@ -1,16 +1,14 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Separator } from "@/components/ui/separator";
 import { Toaster } from "@/components/ui/toaster";
 import ClientLayout from "@/components/layout/ClientLayout";
+import { Suspense } from "react";
 import ErrorBoundary from "@/components/layout/ErrorBoundary";
 
 // 개발 모드 스크립트 임시 비활성화 (디버깅을 위해)
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "기술자격시험 학습 플랫폼",
@@ -31,20 +29,22 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
-      <body className={inter.className}>
+      <body className="font-sans antialiased">
         <ErrorBoundary>
           <ClientLayout>
-            <div className="flex flex-col min-h-screen">
-              <Navbar />
-              <main className="flex-grow">
-                {children}
-              </main>
-              <Separator className="my-6" />
-              <Footer />
-            </div>
+            <Suspense fallback={<div>Loading...</div>}>
+              <div className="flex flex-col min-h-screen">
+                <Navbar />
+                <main className="flex-grow">
+                  {children}
+                </main>
+                <Separator className="my-6" />
+                <Footer />
+              </div>
+            </Suspense>
           </ClientLayout>
+          <Toaster />
         </ErrorBoundary>
-        <Toaster />
       </body>
     </html>
   );

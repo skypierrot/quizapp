@@ -30,6 +30,14 @@ services:
       - FAST_REFRESH=true
       - REACT_REFRESH_OVERLAY=false
       - NEXT_TELEMETRY_DISABLED=1
+      # Webpack HMR 안정성을 위한 추가 설정
+      - NEXT_WEBPACK_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - WATCHPACK_AGGREGATE_TIMEOUT=500
+      - NEXT_WEBPACK_IGNORED_WATCH_PATTERNS=node_modules,.git,.next,.env*
+      # 모듈 로딩 안정성을 위한 설정
+      - NODE_OPTIONS=--max-old-space-size=4096
+      - NEXT_WEBPACK_OPTIMIZATION=true
     command: sh -c "npm run dev"
     networks:
       - ngnet
