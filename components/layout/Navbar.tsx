@@ -16,12 +16,27 @@ const Navbar = () => {
 
   // Hydration 안전성을 위한 클라이언트 상태 확인
   useEffect(() => {
-    setMounted(true);
+    // 서버와 클라이언트 간의 일관성을 위해 약간의 지연 추가
+    const timer = setTimeout(() => {
+      setMounted(true);
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   // 기본 네비게이션 메뉴 구조 - 올바른 메뉴로 복원
   const renderNavigationMenu = () => {
-    if (!mounted) return null; // Hydration 안전성 강화
+    if (!mounted) {
+      // 로딩 중일 때는 스켈레톤 UI 제공
+      return (
+        <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
+          <div className="h-8 w-20 bg-gray-200 rounded animate-pulse" />
+          <div className="h-8 w-20 bg-gray-200 rounded animate-pulse" />
+          <div className="h-8 w-20 bg-gray-200 rounded animate-pulse" />
+          <div className="h-8 w-16 bg-gray-200 rounded animate-pulse" />
+        </nav>
+      );
+    }
 
     return (
       <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
@@ -149,10 +164,10 @@ const Navbar = () => {
       return (
         <div className="flex items-center space-x-2">
           <Button disabled className="h-9 w-16 bg-gray-200 text-gray-500 border border-gray-300">
-            <div className="h-4 w-12 bg-gray-400 rounded animate-pulse" />
+            <div className="h-4 w-12 bg-gray-300 rounded animate-pulse" />
           </Button>
           <Button disabled className="h-9 w-20 bg-gray-200 text-gray-500 border border-gray-300">
-            <div className="h-4 w-16 bg-gray-400 rounded animate-pulse" />
+            <div className="h-4 w-16 bg-gray-300 rounded animate-pulse" />
           </Button>
         </div>
       );
