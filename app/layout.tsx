@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Footer from "@/components/layout/Footer";
 import { Separator } from "@/components/ui/separator";
-import { Toaster } from "@/components/ui/toaster";
-import ClientWrapper from "@/components/layout/ClientWrapper";
 import { Suspense } from "react";
 
 // 개발 모드 스크립트 임시 비활성화 (디버깅을 위해)
@@ -28,16 +26,13 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="font-sans antialiased">
-        <ClientWrapper>
-          <Suspense fallback={<div>Loading...</div>}>
-            <main className="flex-grow">
-              {children}
-            </main>
-            <Separator className="my-6" />
-            <Footer />
-          </Suspense>
-        </ClientWrapper>
-        <Toaster />
+        <Suspense fallback={<div>Loading...</div>}>
+          <main className="flex-grow">
+            {children}
+          </main>
+          <Separator className="my-6" />
+          <Footer />
+        </Suspense>
       </body>
     </html>
   );
