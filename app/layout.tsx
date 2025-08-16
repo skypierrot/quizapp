@@ -3,6 +3,7 @@ import "./globals.css";
 import Footer from "@/components/layout/Footer";
 import { Separator } from "@/components/ui/separator";
 import SessionWrapper from "@/components/layout/SessionWrapper";
+import Navbar from "@/components/layout/Navbar";
 import { Suspense } from "react";
 
 // 개발 모드 스크립트 임시 비활성화 (디버깅을 위해)
@@ -29,11 +30,14 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <SessionWrapper>
           <Suspense fallback={<div>Loading...</div>}>
-            <main className="flex-grow">
-              {children}
-            </main>
-            <Separator className="my-6" />
-            <Footer />
+            <div className="flex flex-col min-h-screen">
+              <Navbar />
+              <main className="flex-grow">
+                {children}
+              </main>
+              <Separator className="my-6" />
+              <Footer />
+            </div>
           </Suspense>
         </SessionWrapper>
       </body>
