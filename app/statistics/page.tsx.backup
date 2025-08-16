@@ -1,0 +1,101 @@
+'use client';
+
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { BarChart3, TrendingUp, Target, Calendar } from 'lucide-react';
+
+export default function StatisticsPage() {
+  const statisticsFeatures = [
+    {
+      title: '학습 진도',
+      description: '전체 학습 진도와 과목별 진행 상황을 확인하세요',
+      icon: BarChart3,
+      href: '/profile',
+      color: 'bg-blue-500',
+    },
+    {
+      title: '성과 분석',
+      description: '정답률 변화와 학습 성과를 분석하세요',
+      icon: TrendingUp,
+      href: '/profile',
+      color: 'bg-green-500',
+    },
+    {
+      title: '목표 달성',
+      description: '설정한 학습 목표의 달성률을 확인하세요',
+      icon: Target,
+      href: '/profile',
+      color: 'bg-purple-500',
+    },
+    {
+      title: '학습 기록',
+      description: '일별, 주별 학습 기록을 통해 패턴을 파악하세요',
+      icon: Calendar,
+      href: '/results',
+      color: 'bg-orange-500',
+    },
+  ];
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="text-center mb-12">
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          통계
+        </h1>
+        <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          체계적인 학습 진도 관리와 성과 분석을 통해 
+          효율적인 학습 계획을 수립하고 목표를 달성하세요.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+        {statisticsFeatures.map((feature, index) => {
+          const IconComponent = feature.icon;
+          return (
+            <Card key={index} className="hover:shadow-lg transition-shadow duration-300">
+              <CardHeader className="text-center">
+                <div className={`${feature.color} w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4`}>
+                  <IconComponent className="w-8 h-8 text-white" />
+                </div>
+                <CardTitle className="text-xl">{feature.title}</CardTitle>
+                <CardDescription className="text-gray-600">
+                  {feature.description}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-center">
+                <Button asChild className="w-full">
+                  <Link href={feature.href}>
+                    확인하기
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      <div className="bg-gray-50 rounded-lg p-8 text-center">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          통계 활용 가이드
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+          <div className="bg-white p-4 rounded-lg">
+            <h3 className="font-semibold text-gray-900 mb-2">📊 데이터 분석</h3>
+            <p className="text-gray-600 text-sm">
+              정답률, 학습 시간, 과목별 성과 등 다양한 데이터를 분석하여 
+              취약한 부분을 파악하고 학습 계획을 조정하세요.
+            </p>
+          </div>
+          <div className="bg-white p-4 rounded-lg">
+            <h3 className="font-semibold text-gray-900 mb-2">🎯 목표 설정</h3>
+            <p className="text-gray-600 text-sm">
+              현재 성과를 바탕으로 현실적이고 도전적인 
+              학습 목표를 설정하고 단계별로 달성해보세요.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+} 
