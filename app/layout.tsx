@@ -3,7 +3,7 @@ import "./globals.css";
 import Footer from "@/components/layout/Footer";
 import { Separator } from "@/components/ui/separator";
 import { Toaster } from "@/components/ui/toaster";
-import ClientLayout from "@/components/layout/ClientLayout";
+import ClientWrapper from "@/components/layout/ClientWrapper";
 import { Suspense } from "react";
 import SimpleErrorBoundary from "@/components/layout/SimpleErrorBoundary";
 
@@ -30,7 +30,7 @@ export default function RootLayout({
     <html lang="ko">
       <body className="font-sans antialiased">
         <SimpleErrorBoundary>
-          <ClientLayout>
+          <ClientWrapper>
             <Suspense fallback={<div>Loading...</div>}>
               <main className="flex-grow">
                 {children}
@@ -38,7 +38,7 @@ export default function RootLayout({
               <Separator className="my-6" />
               <Footer />
             </Suspense>
-          </ClientLayout>
+          </ClientWrapper>
           <Toaster />
         </SimpleErrorBoundary>
       </body>
