@@ -23,7 +23,7 @@ export function UserNav() {
     setMounted(true);
   }, []);
 
-  // 서버와 클라이언트 일관성을 위한 조건부 렌더링
+  // 서버와 클라이언트 일관성을 위한 조건부 렌더링 - 강화된 버전
   if (!mounted || status === 'loading') {
     return (
       <Button variant="ghost" className="relative h-8 rounded-full flex items-center space-x-2 px-2" disabled>
@@ -33,7 +33,15 @@ export function UserNav() {
     );
   }
 
-  if (!user) return null;
+  // 세션이 없거나 사용자 정보가 없는 경우 안전하게 처리
+  if (!user) {
+    return (
+      <Button variant="ghost" className="relative h-8 rounded-full flex items-center space-x-2 px-2" disabled>
+        <div className="h-8 w-8 bg-gray-300 rounded-full animate-pulse" />
+        <div className="h-4 w-20 bg-gray-300 rounded animate-pulse" />
+      </Button>
+    );
+  }
 
   return (
     <DropdownMenu>

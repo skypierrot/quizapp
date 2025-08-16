@@ -4,40 +4,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 const FeaturesSection = () => {
   const features = [
     {
-      title: "문제은행",
+      title: "시험준비",
       description: "다양한 기술자격시험 문제를 체계적으로 학습할 수 있습니다.",
       icon: "📚",
       href: "/learn/exams"
     },
     {
-      title: "모의고사",
-      description: "실제 시험과 동일한 환경에서 실전 연습을 할 수 있습니다.",
+      title: "문제관리",
+      description: "문제 등록 및 관리 시스템을 통해 체계적으로 학습 자료를 관리하세요.",
       icon: "✍️",
-      href: "/practice"
-    },
-    {
-      title: "오답노트",
-      description: "틀린 문제를 체계적으로 정리하고 복습할 수 있습니다.",
-      icon: "📝",
-      href: "/wrong-answers"
-    },
-    {
-      title: "학습통계",
-      description: "학습 진행 상황과 성취도를 한눈에 확인할 수 있습니다.",
-      icon: "📊",
-      href: "/statistics"
+      href: "/manage/questions/list"
     },
     {
       title: "커뮤니티",
       description: "다른 학습자들과 정보를 공유하고 소통할 수 있습니다.",
       icon: "💬",
       href: "/community/forum"
-    },
-    {
-      title: "맞춤학습",
-      description: "개인별 학습 패턴에 맞춘 맞춤형 학습을 제공합니다.",
-      icon: "🎯",
-      href: "/personalized"
     }
   ];
 
@@ -53,7 +35,7 @@ const FeaturesSection = () => {
           </p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {features.map((feature) => (
             <a key={feature.title} href={feature.href} className="block">
               <div className="bg-gray-50 rounded-lg p-6 hover:bg-gray-100 transition-colors duration-200 h-full">

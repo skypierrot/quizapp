@@ -16,16 +16,10 @@ const Footer = () => {
             <h3 className="text-sm font-semibold">서비스</h3>
             <ul className="space-y-2">
               <li>
-                <a href="/exams" className="text-sm text-gray-500 hover:text-gray-900">문제 은행</a>
+                <a href="/learn/exams" className="text-sm text-gray-500 hover:text-gray-900">시험준비</a>
               </li>
               <li>
-                <a href="/practice" className="text-sm text-gray-500 hover:text-gray-900">모의고사</a>
-              </li>
-              <li>
-                <a href="/wrong-answers" className="text-sm text-gray-500 hover:text-gray-900">오답 노트</a>
-              </li>
-              <li>
-                <a href="/statistics" className="text-sm text-gray-500 hover:text-gray-900">학습 통계</a>
+                <a href="/manage/questions/list" className="text-sm text-gray-500 hover:text-gray-900">문제관리</a>
               </li>
             </ul>
           </div>

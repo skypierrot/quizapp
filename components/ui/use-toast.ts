@@ -1,3 +1,5 @@
+"use client";
+
 // 간단한 토스트 기능 구현
 import { useState, useCallback } from "react";
 

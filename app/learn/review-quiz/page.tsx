@@ -1,3 +1,5 @@
+"use client";
+
 // 전역 타입 선언 추가
 declare global {
   interface Window {
@@ -5,7 +7,6 @@ declare global {
   }
 }
 
-"use client";
 import useSWR from "swr";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Image from "next/image";

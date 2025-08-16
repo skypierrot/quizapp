@@ -34,7 +34,7 @@ const StatsSection = () => {
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold mb-4">전체사용자 종합학습통계</h2>
+            <h2 className="text-3xl font-bold mb-4">전체사용자 종합통계</h2>
             <p className="text-sm text-gray-500 mb-4">현재 기본 통계를 표시합니다</p>
           </div>
           <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8">

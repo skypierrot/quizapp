@@ -3,54 +3,47 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, TrendingUp, Target, Calendar } from 'lucide-react';
+import { BookOpen, Target, Clock, Award } from 'lucide-react';
 
-export default function StatisticsPage() {
-  const statisticsFeatures = [
+export default function ExamsPage() {
+  const examFeatures = [
     {
-      title: '학습 진도',
-      description: '전체 학습 진도와 과목별 진행 상황을 확인하세요',
-      icon: BarChart3,
-      href: '/profile',
+      title: '과목별 문제',
+      description: '전기, 전자, 정보통신 등 과목별로 문제를 풀어보세요',
+      icon: BookOpen,
+      href: '/learn/exams',
       color: 'bg-blue-500',
     },
     {
-      title: '성과 분석',
-      description: '정답률 변화와 학습 성과를 분석하세요',
-      icon: TrendingUp,
-      href: '/profile',
+      title: '난이도별 연습',
+      description: '초급, 중급, 고급 난이도로 단계별 학습하세요',
+      icon: Target,
+      href: '/learn/exams',
       color: 'bg-green-500',
     },
     {
-      title: '목표 달성',
-      description: '설정한 학습 목표의 달성률을 확인하세요',
-      icon: Target,
-      href: '/profile',
+      title: '실전 모의고사',
+      description: '실제 시험과 동일한 환경에서 모의고사를 풀어보세요',
+      icon: Clock,
+      href: '/learn/exams',
       color: 'bg-purple-500',
-    },
-    {
-      title: '학습 기록',
-      description: '일별, 주별 학습 기록을 통해 패턴을 파악하세요',
-      icon: Calendar,
-      href: '/results',
-      color: 'bg-orange-500',
-    },
+    }
   ];
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          통계
+          문제 은행
         </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-          체계적인 학습 진도 관리와 성과 분석을 통해 
-          효율적인 학습 계획을 수립하고 목표를 달성하세요.
+          다양한 과목과 난이도의 문제를 풀어보며 
+          체계적으로 실력을 향상시키세요.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-        {statisticsFeatures.map((feature, index) => {
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        {examFeatures.map((feature, index) => {
           const IconComponent = feature.icon;
           return (
             <Card key={index} className="hover:shadow-lg transition-shadow duration-300">
@@ -66,7 +59,7 @@ export default function StatisticsPage() {
               <CardContent className="text-center">
                 <Button asChild className="w-full">
                   <Link href={feature.href}>
-                    확인하기
+                    시작하기
                   </Link>
                 </Button>
               </CardContent>
@@ -77,25 +70,26 @@ export default function StatisticsPage() {
 
       <div className="bg-gray-50 rounded-lg p-8 text-center">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">
-          통계 활용 가이드
+          학습 가이드
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
           <div className="bg-white p-4 rounded-lg">
-            <h3 className="font-semibold text-gray-900 mb-2">📊 데이터 분석</h3>
+            <h3 className="font-semibold text-gray-900 mb-2">📚 체계적 학습</h3>
             <p className="text-gray-600 text-sm">
-              정답률, 학습 시간, 과목별 성과 등 다양한 데이터를 분석하여 
-              취약한 부분을 파악하고 학습 계획을 조정하세요.
+              과목별로 체계적으로 학습하고, 난이도를 점진적으로 높여가며 
+              실력을 향상시키세요.
             </p>
           </div>
           <div className="bg-white p-4 rounded-lg">
-            <h3 className="font-semibold text-gray-900 mb-2">🎯 목표 설정</h3>
+            <h3 className="font-semibold text-gray-900 mb-2">⏰ 시간 관리</h3>
             <p className="text-gray-600 text-sm">
-              현재 성과를 바탕으로 현실적이고 도전적인 
-              학습 목표를 설정하고 단계별로 달성해보세요.
+              실제 시험과 동일한 시간 제한을 두고 연습하여 
+              시험 환경에 익숙해지세요.
             </p>
           </div>
         </div>
       </div>
     </div>
   );
-} 
+}
+

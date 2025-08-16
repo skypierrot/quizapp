@@ -10,35 +10,10 @@ const nextConfig = {
     ];
   },
   
-  // HMR 관련 설정 비활성화
-  webpack: (config, { dev, isServer }) => {
-    if (dev && !isServer) {
-      // 개발 환경에서 HMR 관련 설정 비활성화
-      config.watchOptions = {
-        poll: false,
-        ignored: ['**/node_modules/**', '**/.git/**', '**/.next/**', '**/.env*']
-      };
-      
-      // 모듈 해결 안정성 개선
-      config.resolve = {
-        ...config.resolve,
-        fallback: {
-          ...config.resolve.fallback,
-          fs: false,
-          net: false,
-          tls: false,
-        },
-      };
-    }
-    return config;
-  },
-  
-  // Turbopack 설정 최적화 (HMR 문제 방지)
-  experimental: {
-    turbo: {
-      // 문제가 되는 SVG 규칙 제거
-      rules: {},
-    },
+  // Turbopack 설정 최적화 (webpack 경고 해결)
+  turbopack: {
+    // hydration 안정성을 위한 설정
+    rules: {},
   },
   
   // 이미지 최적화 설정
