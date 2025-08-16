@@ -101,7 +101,7 @@ const Navbar = () => {
     return (
       <Sheet>
         <SheetTrigger asChild>
-          <Button className="md:hidden bg-transparent hover:bg-gray-100 h-9 w-9 p-0">
+          <Button className="md:hidden bg-gray-100 hover:bg-gray-200 text-gray-700 h-9 w-9 p-0 border border-gray-300">
             <Menu className="h-5 w-5" />
             <span className="sr-only">Toggle menu</span>
           </Button>
@@ -148,11 +148,11 @@ const Navbar = () => {
     if (!mounted || status === "loading") {
       return (
         <div className="flex items-center space-x-2">
-          <Button disabled className="h-9 w-16 bg-gray-100 text-gray-400">
-            <div className="h-4 w-12 bg-gray-300 rounded animate-pulse" />
+          <Button disabled className="h-9 w-16 bg-gray-200 text-gray-500 border border-gray-300">
+            <div className="h-4 w-12 bg-gray-400 rounded animate-pulse" />
           </Button>
-          <Button disabled className="h-9 w-20 bg-gray-100 text-gray-400">
-            <div className="h-4 w-16 bg-gray-300 rounded animate-pulse" />
+          <Button disabled className="h-9 w-20 bg-gray-200 text-gray-500 border border-gray-300">
+            <div className="h-4 w-16 bg-gray-400 rounded animate-pulse" />
           </Button>
         </div>
       );
@@ -164,10 +164,10 @@ const Navbar = () => {
 
     return (
       <div className="flex items-center space-x-2">
-        <Button asChild className="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50">
+        <Button asChild className="border border-gray-300 bg-gray-100 text-gray-800 hover:bg-gray-200 font-medium">
           <Link href="/auth/sign-in">로그인</Link>
         </Button>
-        <Button asChild className="bg-blue-600 text-white hover:bg-blue-700">
+        <Button asChild className="bg-blue-600 text-white hover:bg-blue-700 font-medium shadow-sm">
           <Link href="/auth/sign-up">가입하기</Link>
         </Button>
       </div>

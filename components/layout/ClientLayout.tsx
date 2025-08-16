@@ -1,6 +1,7 @@
 'use client'
 import { SessionProvider } from "next-auth/react";
 import NicknameGuard from "./NicknameGuard";
+import Navbar from "./Navbar";
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -10,10 +11,12 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       refetchOnWindowFocus={false} // 윈도우 포커스 시 세션 갱신 비활성화 (hydration 안정성 향상)
       refetchWhenOffline={false}
       // hydration 안전성을 위한 추가 설정
-      refetchOnMount={false} // 마운트 시 자동 갱신 비활성화
     >
       <NicknameGuard>
-        {children}
+        <div className="flex flex-col min-h-screen">
+          <Navbar />
+          {children}
+        </div>
       </NicknameGuard>
     </SessionProvider>
   );

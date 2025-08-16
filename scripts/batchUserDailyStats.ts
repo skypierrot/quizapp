@@ -37,6 +37,7 @@ async function batchUserDailyStats() {
         totalStudyTime: Number(row.totalStudyTime),
         solvedCount: Number(row.solvedCount),
         correctCount: Number(row.correctCount),
+        streak: 0,
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({

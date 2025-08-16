@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Separator } from "@/components/ui/separator";
 import { Toaster } from "@/components/ui/toaster";
@@ -33,14 +32,11 @@ export default function RootLayout({
         <SimpleErrorBoundary>
           <ClientLayout>
             <Suspense fallback={<div>Loading...</div>}>
-              <div className="flex flex-col min-h-screen">
-                <Navbar />
-                <main className="flex-grow">
-                  {children}
-                </main>
-                <Separator className="my-6" />
-                <Footer />
-              </div>
+              <main className="flex-grow">
+                {children}
+              </main>
+              <Separator className="my-6" />
+              <Footer />
             </Suspense>
           </ClientLayout>
           <Toaster />

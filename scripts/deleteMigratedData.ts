@@ -107,7 +107,7 @@ async function main() {
   //   process.exit(0);
   // }
 
-  await deleteExamData(examName, examDate || '');
+  await deleteExamData(examName, examDate ?? '');
   
   process.exit(0);
 }
