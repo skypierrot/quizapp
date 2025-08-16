@@ -3,6 +3,7 @@
 import { SessionProvider } from "next-auth/react";
 import Navbar from "./Navbar";
 import NicknameGuard from "./NicknameGuard";
+import SimpleErrorBoundary from "./SimpleErrorBoundary";
 
 export default function ClientWrapper({ children }: { children: React.ReactNode }) {
   return (
@@ -13,12 +14,14 @@ export default function ClientWrapper({ children }: { children: React.ReactNode 
       refetchWhenOffline={false}
       // hydration 안전성을 위한 추가 설정
     >
-      <NicknameGuard>
-        <div className="flex flex-col min-h-screen">
-          <Navbar />
-          {children}
-        </div>
-      </NicknameGuard>
+      <SimpleErrorBoundary>
+        <NicknameGuard>
+          <div className="flex flex-col min-h-screen">
+            <Navbar />
+            {children}
+          </div>
+        </NicknameGuard>
+      </SimpleErrorBoundary>
     </SessionProvider>
   );
 }

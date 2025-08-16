@@ -5,7 +5,6 @@ import { Separator } from "@/components/ui/separator";
 import { Toaster } from "@/components/ui/toaster";
 import ClientWrapper from "@/components/layout/ClientWrapper";
 import { Suspense } from "react";
-import SimpleErrorBoundary from "@/components/layout/SimpleErrorBoundary";
 
 // 개발 모드 스크립트 임시 비활성화 (디버깅을 위해)
 
@@ -29,18 +28,16 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="font-sans antialiased">
-        <SimpleErrorBoundary>
-          <ClientWrapper>
-            <Suspense fallback={<div>Loading...</div>}>
-              <main className="flex-grow">
-                {children}
-              </main>
-              <Separator className="my-6" />
-              <Footer />
-            </Suspense>
-          </ClientWrapper>
-          <Toaster />
-        </SimpleErrorBoundary>
+        <ClientWrapper>
+          <Suspense fallback={<div>Loading...</div>}>
+            <main className="flex-grow">
+              {children}
+            </main>
+            <Separator className="my-6" />
+            <Footer />
+          </Suspense>
+        </ClientWrapper>
+        <Toaster />
       </body>
     </html>
   );
