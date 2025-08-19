@@ -10,6 +10,16 @@ import { useSession } from 'next-auth/react';
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
+// 타입 정의 추가
+interface SummaryCardProps {
+  title: string;
+  value: string | number;
+  subText?: string;
+  icon?: React.ReactNode;
+  bgClass?: string;
+  iconClass?: string;
+}
+
 function formatStudyTime(seconds: number): string {
   if (seconds < 0 || isNaN(seconds)) return '0초';
   if (seconds < 60) {
@@ -23,7 +33,7 @@ function formatStudyTime(seconds: number): string {
 
 export default function StatisticsPage() {
   const { data: session } = useSession();
-  const userId = session?.user?.id;
+  const userId = session?.user?.id as string | undefined;
 
   const { data: summary, isLoading: summaryLoading, error: summaryError } = useSummaryStats(userId);
   const { data: daily, isLoading: dailyLoading, error: dailyError } = useDailyStats(userId);
@@ -744,14 +754,7 @@ const SummaryCard = ({
   icon, 
   bgClass = "bg-blue-50", 
   iconClass = "text-blue-500" 
-}: { 
-  title: string; 
-  value: string | number; 
-  subText?: string; 
-  icon?: React.ReactNode;
-  bgClass?: string;
-  iconClass?: string;
-}) => (
+}: SummaryCardProps) => (
   <div className="bg-white border border-gray-100 p-6 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg">
     <div className="flex items-start justify-between">
       <div>
