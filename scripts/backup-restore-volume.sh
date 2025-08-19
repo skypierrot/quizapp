@@ -80,33 +80,45 @@ EOF
         echo "📦 볼륨: $VOLUME_NAME"
         echo "📁 백업 파일: $BACKUP_FILE"
         
-        # 확인 메시지
-        read -p "⚠️  기존 볼륨 데이터가 덮어써집니다. 계속하시겠습니까? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo "❌ 복원이 취소되었습니다."
-            exit 1
-        fi
+        # 확인 메시지 (자동 진행)
+        echo "⚠️  기존 볼륨 데이터가 덮어써집니다. 자동으로 진행합니다."
         
         # 컨테이너 중지
         echo "🛑 컨테이너 중지 중..."
         docker-compose -f docker-compose.dev.yml down
         
-        # 기존 볼륨 제거 (선택사항)
-        read -p "기존 볼륨을 제거하고 새로 생성하시겠습니까? (y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "🗑️  기존 볼륨 제거 중..."
-            sudo docker volume rm "$VOLUME_NAME" 2>/dev/null || true
-        fi
+        # 기존 볼륨 제거 (자동 진행)
+        echo "🗑️  기존 볼륨 제거 중..."
+        sudo docker volume rm "$VOLUME_NAME" 2>/dev/null || true
         
         # 새 컨테이너 시작 (빈 볼륨 생성)
         echo "🚀 새 컨테이너 시작 중..."
-        docker-compose -f docker-compose.dev.yml up -d quizapp-db
+        if ! docker-compose -f docker-compose.dev.yml up -d quizapp-db; then
+            echo "❌ 데이터베이스 컨테이너 시작 실패"
+            exit 1
+        fi
         
-        # 잠시 대기 (PostgreSQL 초기화 완료 대기)
-        echo "⏳ PostgreSQL 초기화 대기 중..."
-        sleep 10
+        # 컨테이너 상태 확인
+        if ! docker ps | grep -q quizapp-db-dev; then
+            echo "❌ 데이터베이스 컨테이너가 실행되지 않음"
+            exit 1
+        fi
+        
+        # PostgreSQL 초기화 완료 대기 (안정적인 복원을 위해)
+        echo "⏳ PostgreSQL 초기화 완료 대기 중..."
+        echo "   - PostgreSQL 서비스 시작 대기..."
+        sleep 5
+        
+        # PostgreSQL이 실제로 준비될 때까지 대기
+        echo "   - PostgreSQL 연결 준비 상태 확인 중..."
+        while ! docker exec quizapp-db-dev pg_isready -U postgres -d quizapp >/dev/null 2>&1; do
+            echo "   ⏳ PostgreSQL 초기화 진행 중... (잠시 후 재시도)"
+            sleep 3
+        done
+        
+        echo "   ✅ PostgreSQL 초기화 완료!"
+        echo "   - 추가 안정화 대기 중..."
+        sleep 5
         
         # 볼륨 복원
         echo "📊 볼륨 데이터 복원 중..."
@@ -121,10 +133,20 @@ EOF
         echo "🔄 컨테이너 재시작 중..."
         docker-compose -f docker-compose.dev.yml restart
         
-        # 복원 확인
-        echo "📊 복원 확인 중..."
+        # 복원 후 데이터베이스 상태 검증
+        echo "📊 복원 결과 검증 중..."
         sleep 5
-        sudo docker exec quizapp-db-dev psql -U postgres -d quizapp -c "
+        
+        # 테이블 존재 여부 먼저 확인
+        echo "   - 테이블 구조 확인 중..."
+        TABLE_CHECK=$(docker exec quizapp-db-dev psql -U postgres -d quizapp -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ')
+        
+        if [ "$TABLE_CHECK" -gt 0 ]; then
+            echo "   ✅ 테이블 구조 복원 완료 (총 $TABLE_CHECK개 테이블)"
+            
+            # 주요 테이블 데이터 수 확인
+            echo "   - 주요 테이블 데이터 수 확인 중..."
+            docker exec quizapp-db-dev psql -U postgres -d quizapp -c "
 SELECT 
     'questions' as table_name, COUNT(*) as count FROM questions
 UNION ALL
@@ -133,7 +155,18 @@ SELECT
 UNION ALL
 SELECT 
     'images' as table_name, COUNT(*) as count FROM images
-"
+UNION ALL
+SELECT 
+    'user' as table_name, COUNT(*) as count FROM \"user\"
+UNION ALL
+SELECT 
+    'threads' as table_name, COUNT(*) as count FROM threads
+ORDER BY table_name;
+" 2>/dev/null || echo "   ⚠️  일부 테이블 데이터 확인 실패 (정상적인 상황일 수 있음)"
+        else
+            echo "   ❌ 테이블 구조 복원 실패"
+            echo "   - 로그 확인이 필요합니다"
+        fi
         
         echo "🎉 볼륨 복원 완료!"
         echo "📝 다음 단계:"
